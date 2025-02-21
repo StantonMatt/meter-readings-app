@@ -1,25 +1,39 @@
 // HomeScreen.jsx
 import React from "react";
-import { Container, Typography, Box, Card, CardContent } from "@mui/material";
+import {
+  Container,
+  Typography,
+  Box,
+  Card,
+  CardContent,
+  Button,
+} from "@mui/material";
 
-function HomeScreen({ hasReadings, onStart, onContinue, onRestart }) {
+function HomeScreen({
+  hasReadings,
+  onStart,
+  onContinue,
+  onRestart,
+  routes,
+  onRouteSelect,
+}) {
   return (
     <Container maxWidth="lg">
       <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
         <Card sx={{ flex: "1 1 200px" }}>
           <CardContent>
             <Typography variant="overline" color="textSecondary">
-              Current Month
+              Mes Actual
             </Typography>
-            <Typography variant="h5">February</Typography>
+            <Typography variant="h5">Febrero</Typography>
           </CardContent>
         </Card>
         <Card sx={{ flex: "1 1 200px" }}>
           <CardContent>
             <Typography variant="overline" color="textSecondary">
-              Route
+              Ruta
             </Typography>
-            <Typography variant="h5">route1</Typography>
+            <Typography variant="h5">ruta1</Typography>
           </CardContent>
         </Card>
       </Box>
@@ -27,19 +41,43 @@ function HomeScreen({ hasReadings, onStart, onContinue, onRestart }) {
       <Card>
         <CardContent>
           <Typography variant="h4" gutterBottom>
-            COAB Water Meter App
+            Seleccionar Ruta
+          </Typography>
+          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+            {routes.map((route) => (
+              <Button
+                key={route.name}
+                variant="outlined"
+                onClick={() => onRouteSelect(route)}
+              >
+                {route.name} ({route.lastUpdated})
+              </Button>
+            ))}
+          </Box>
+          <Typography variant="h4" gutterBottom>
+            COAB Lectura de Medidores
           </Typography>
           <Typography variant="body1" sx={{ mb: 2 }}>
-            This is your home screen.
+            Bienvenido al sistema de lectura de medidores.
           </Typography>
-          <Box>
+          <Box sx={{ display: "flex", gap: 2, justifyContent: "center" }}>
             {hasReadings ? (
               <>
-                <button onClick={onContinue}>CONTINUE</button>
-                <button onClick={onRestart}>RESTART</button>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={onContinue}
+                >
+                  CONTINUAR
+                </Button>
+                <Button variant="outlined" color="error" onClick={onRestart}>
+                  REINICIAR
+                </Button>
               </>
             ) : (
-              <button onClick={onStart}>START</button>
+              <Button variant="contained" color="primary" onClick={onStart}>
+                COMENZAR
+              </Button>
             )}
           </Box>
         </CardContent>

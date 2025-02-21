@@ -1,15 +1,15 @@
 // src/TopBar.jsx
-import React from 'react';
+import React from "react";
 import {
   AppBar,
   Toolbar,
   Typography,
   IconButton,
   Avatar,
-  Box
-} from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu'; 
-import SearchIcon from '@mui/icons-material/Search';
+  Box,
+} from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+import SearchIcon from "@mui/icons-material/Search";
 
 function TopBar({ onMenuClick }) {
   return (
@@ -17,7 +17,7 @@ function TopBar({ onMenuClick }) {
       elevation={0}
       color="inherit" // use backgroundColor: white from theme
       sx={{
-        borderBottom: '1px solid #E6E8F0',
+        borderBottom: "1px solid #E6E8F0",
       }}
     >
       <Toolbar>
@@ -25,7 +25,7 @@ function TopBar({ onMenuClick }) {
         <IconButton
           edge="start"
           onClick={onMenuClick}
-          sx={{ mr: 2, display: { xs: 'block', md: 'none' } }}
+          sx={{ mr: 2, display: { xs: "block", md: "none" } }}
         >
           <MenuIcon />
         </IconButton>

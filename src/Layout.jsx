@@ -12,10 +12,12 @@ import {
   TextField,
   InputAdornment,
   useMediaQuery,
+  IconButton,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import MenuIcon from "@mui/icons-material/Menu";
 
-const drawerWidth = 240;
+const drawerWidth = 300;
 
 function Layout({
   meters,
@@ -24,7 +26,8 @@ function Layout({
   onHomeClick,
   onFinishClick,
   children,
-  showSidebar, // <-- new prop
+  showSidebar,
+  readingsState,
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -46,7 +49,7 @@ function Layout({
   const drawerContent = (
     <Box sx={{ p: 2 }}>
       <TextField
-        label="Search by ID or Address"
+        placeholder="Buscar por CLIENTE o Dirección"
         variant="outlined"
         size="small"
         fullWidth
@@ -63,11 +66,15 @@ function Layout({
           mb: 2,
           "& .MuiOutlinedInput-root": {
             backgroundColor: "#FFFFFF",
+            "& .MuiInputAdornment-root": {
+              position: "absolute",
+              left: "8px",
+            },
+            "& input": {
+              paddingLeft: "20px",
+            },
           },
           input: {
-            color: "#000000",
-          },
-          "& .MuiInputLabel-root": {
             color: "#000000",
           },
         }}
@@ -77,11 +84,18 @@ function Layout({
         variant="h6"
         sx={{ mb: 2, fontWeight: "bold", color: "#FFFFFF" }}
       >
-        Route
+        Ruta
       </Typography>
 
       {filteredMeters.map((m, i) => {
         const isSelected = i === currentIndex;
+        const meterState = readingsState[m.ID] || {};
+        const currentReading =
+          meterState.reading || localStorage.getItem(`meter_${m.ID}_reading`);
+        const isConfirmed =
+          meterState.isConfirmed ||
+          localStorage.getItem(`meter_${m.ID}_confirmed`) === "true";
+
         return (
           <Card
             key={m.ID}
@@ -93,6 +107,8 @@ function Layout({
               color: "#FFFFFF",
               border: isSelected ? "1px solid #FFFFFF" : "1px solid #1F2533",
               transition: "box-shadow 0.2s ease",
+              maxWidth: "260px", // Increased to fit in wider drawer
+              mx: "auto",
               "&:hover": {
                 boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
               },
@@ -100,11 +116,24 @@ function Layout({
           >
             <CardContent>
               <Typography variant="body1" fontWeight="bold" color="inherit">
-                ID: {m.ID}
+                CLIENTE: {m.ID}
               </Typography>
-              <Typography variant="body2" color="inherit">
+              <Typography variant="body2" color="inherit" sx={{ mb: 1 }}>
                 {m.ADDRESS}
               </Typography>
+              {currentReading && (
+                <Typography
+                  variant="body2"
+                  color="inherit"
+                  sx={{
+                    color: isConfirmed ? "#10B981" : "#FCD34D",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Lectura: {currentReading}
+                  {isConfirmed ? " ✓" : " (pendiente)"}
+                </Typography>
+              )}
             </CardContent>
           </Card>
         );
@@ -119,21 +148,35 @@ function Layout({
         position="fixed"
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
+          backgroundColor: "#121621", // Match sidebar color
         }}
       >
         <Toolbar>
+          {/* Add Menu button that only shows on mobile when sidebar is enabled */}
+          {showSidebar && (
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2, display: { md: "none" } }} // Only show below md breakpoint
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            COAB Water Meter App
+            COAB Lectura de Medidores
           </Typography>
 
           {/* "Home" button => onHomeClick */}
           <Button color="inherit" onClick={onHomeClick} sx={{ mr: 2 }}>
-            Home
+            Inicio
           </Button>
 
           {/* "Finish" button => onFinishClick */}
           <Button color="inherit" onClick={onFinishClick}>
-            Finish
+            Finalizar
           </Button>
         </Toolbar>
       </AppBar>
