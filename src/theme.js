@@ -1,42 +1,61 @@
 // src/theme.js
-import { createTheme } from '@mui/material/styles';
+import { createTheme } from "@mui/material/styles";
 
 const theme = createTheme({
   palette: {
-    mode: 'light', // overall app uses a light palette
+    mode: "light",
     primary: {
-      main: '#1976d2', // or any accent color you like
+      // A rich purple/blue from the screenshot
+      main: "#5048E5",
+    },
+    secondary: {
+      main: "#10B981",
     },
     background: {
-      default: '#F2F2F2', // main page background
-      paper: '#FFFFFF',   // normal Paper surfaces
+      // Light gray background
+      default: "#F9FAFB",
+      // White cards, sidebars, etc.
+      paper: "#FFFFFF",
     },
     text: {
-      primary: '#333333',
-      secondary: '#666666',
+      primary: "#121828", // darker text
+      secondary: "#65748B", // subdued text
     },
   },
   typography: {
-    fontFamily: 'Inter, sans-serif', // or 'Poppins, sans-serif'
+    fontFamily: "Inter, sans-serif",
     button: {
-      textTransform: 'none',
+      textTransform: "none",
     },
+    h4: {
+      fontWeight: 700,
+    },
+    h5: {
+      fontWeight: 600,
+    },
+    // etc. if you want custom headings
   },
   components: {
+    // Example: style the Drawer to be white with subtle shadow
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          // Force a dark background for the sidebar
-          backgroundColor: '#1E1E1E',
-          color: '#FFFFFF', // ensures default text is bright
+          backgroundColor: "#FFFFFF",
+          color: "#121828",
+          borderRight: "1px solid #E6E8F0",
         },
       },
     },
+    // Softer card shadows and rounded corners
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 12,
-          boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+          borderRadius: 8,
+          boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+          transition: "box-shadow 0.2s ease",
+          "&:hover": {
+            boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+          },
         },
       },
     },

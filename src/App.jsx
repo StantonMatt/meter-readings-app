@@ -1,90 +1,139 @@
-// src/App.jsx
-import React, { useState } from 'react';
-import Layout from './Layout';
-import HomeScreen from './HomeScreen';
-import MeterScreen from './MeterScreen';
-import FinalCheckScreen from './FinalCheckScreen';
-import SummaryScreen from './SummaryScreen';
-import routeData from './data/route.json';
-import readingsData from './data/readings.json';
+// App.jsx
+import React, { useState } from "react";
+import Layout from "./Layout";
+import HomeScreen from "./HomeScreen";
+import MeterScreen from "./MeterScreen";
+import FinalCheckScreen from "./FinalCheckScreen";
+import SummaryScreen from "./SummaryScreen";
+import routeData from "./data/route.json";
+import readingsData from "./data/readings.json";
 
-// Merge route and reading data
+// Merge route + reading data
 const combinedMeters = routeData.map((meter) => {
   const matchingReading = readingsData.find((r) => r.ID === meter.ID);
   return { ...meter, readings: matchingReading || {} };
 });
 
 function App() {
-  // For example, null => Home, 0..n-1 => meter screens, n => final check, n+1 => summary
   const [currentIndex, setCurrentIndex] = useState(null);
-  const [pendingReadings, setPendingReadings] = useState({});
   const [submittedReadings, setSubmittedReadings] = useState([]);
 
-  // Handler for user clicking a meter in the sidebar
-  const handleSelectMeter = (index) => {
-    setCurrentIndex(index);
+  const handleHomeClick = () => {
+    setCurrentIndex(null);
   };
 
-  // Decide what to render based on currentIndex
+  const handleFinishClick = () => {
+    // Go directly to summary
+    setCurrentIndex(combinedMeters.length + 1);
+  };
+
+  // Only one home screen branch (when currentIndex is null)
   if (currentIndex === null) {
-    // If you do NOT want the sidebar on the home screen, just return <HomeScreen> here
+    // Determine if any meter has a non-empty reading from localStorage
+    const hasReadings = combinedMeters.some((meter) => {
+      const r = localStorage.getItem(`meter_${meter.ID}_reading`);
+      return r && r.trim() !== "";
+    });
+
+    // Find the index of the first meter missing a reading
+    const nextIncompleteIndex = combinedMeters.findIndex((meter) => {
+      const r = localStorage.getItem(`meter_${meter.ID}_reading`);
+      return !r || r.trim() === "";
+    });
+
+    const onContinue = () => {
+      if (nextIncompleteIndex !== -1) {
+        setCurrentIndex(nextIncompleteIndex);
+      } else {
+        // All meters have readings, go to final check
+        setCurrentIndex(combinedMeters.length);
+      }
+    };
+
+    const handleRestart = () => {
+      combinedMeters.forEach((meter) => {
+        localStorage.removeItem(`meter_${meter.ID}_reading`);
+        localStorage.removeItem(`meter_${meter.ID}_confirmed`);
+      });
+      setCurrentIndex(0);
+    };
+
     return (
-      <HomeScreen onStart={() => setCurrentIndex(0)} />
+      <Layout
+        showSidebar={false}
+        meters={combinedMeters}
+        currentIndex={-1}
+        onSelectMeter={() => {}}
+        onHomeClick={handleHomeClick}
+        onFinishClick={handleFinishClick}
+      >
+        <HomeScreen
+          hasReadings={hasReadings}
+          onStart={() => setCurrentIndex(0)}
+          onContinue={onContinue}
+          onRestart={handleRestart}
+        />
+      </Layout>
     );
-  }
-
-  // If you DO want the sidebar visible on the home screen as well, you can do:
-  // return (
-  //   <Layout
-  //     meters={combinedMeters}
-  //     currentIndex={currentIndex}
-  //     onSelectMeter={handleSelectMeter}
-  //   >
-  //     <HomeScreen onStart={() => setCurrentIndex(0)} />
-  //   </Layout>
-  // );
-
-  // Otherwise, for meter screens and beyond, wrap with Layout
-  return (
-    <Layout
-      meters={combinedMeters}
-      currentIndex={currentIndex}
-      onSelectMeter={handleSelectMeter}
-    >
-      {currentIndex >= 0 && currentIndex < combinedMeters.length ? (
+  } else if (currentIndex >= 0 && currentIndex < combinedMeters.length) {
+    // Meter screens
+    return (
+      <Layout
+        showSidebar={true}
+        meters={combinedMeters}
+        currentIndex={currentIndex}
+        onSelectMeter={(i) => setCurrentIndex(i)}
+        onHomeClick={handleHomeClick}
+        onFinishClick={handleFinishClick}
+      >
         <MeterScreen
           meter={combinedMeters[currentIndex]}
           currentIndex={currentIndex}
           totalMeters={combinedMeters.length}
-          pendingReading={pendingReadings[combinedMeters[currentIndex].ID] || ''}
-          onReadingChange={(e) => {
-            setPendingReadings((prev) => ({
-              ...prev,
-              [combinedMeters[currentIndex].ID]: e.target.value,
-            }));
-          }}
-          onSubmit={() => {
-            // handle submission logic...
-          }}
-          onPrev={() => {
-            if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
-          }}
+          onHome={handleHomeClick}
+          onPrev={() => setCurrentIndex((prev) => prev - 1)}
+          onNext={() => setCurrentIndex((prev) => prev + 1)}
+          onFinish={handleFinishClick}
         />
-      ) : currentIndex === combinedMeters.length ? (
+      </Layout>
+    );
+  } else if (currentIndex === combinedMeters.length) {
+    // Final check screen
+    return (
+      <Layout
+        showSidebar={false}
+        meters={combinedMeters}
+        currentIndex={currentIndex}
+        onSelectMeter={() => {}}
+        onHomeClick={handleHomeClick}
+        onFinishClick={handleFinishClick}
+      >
         <FinalCheckScreen
-          // your props here...
           onGoBack={() => setCurrentIndex(combinedMeters.length - 1)}
           onFinish={() => setCurrentIndex(combinedMeters.length + 1)}
         />
-      ) : currentIndex === combinedMeters.length + 1 ? (
+      </Layout>
+    );
+  } else if (currentIndex === combinedMeters.length + 1) {
+    // Summary screen
+    return (
+      <Layout
+        showSidebar={false}
+        meters={combinedMeters}
+        currentIndex={currentIndex}
+        onSelectMeter={() => {}}
+        onHomeClick={handleHomeClick}
+        onFinishClick={handleFinishClick}
+      >
         <SummaryScreen
-          // your props here...
+          combinedMeters={combinedMeters}
+          submittedReadings={submittedReadings}
         />
-      ) : (
-        <div>Invalid State</div>
-      )}
-    </Layout>
-  );
+      </Layout>
+    );
+  } else {
+    return <div>Invalid State</div>;
+  }
 }
 
 export default App;

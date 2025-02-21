@@ -1,24 +1,49 @@
-import React from 'react';
-import { Container, Typography, Button, Box } from '@mui/material';
+// HomeScreen.jsx
+import React from "react";
+import { Container, Typography, Box, Card, CardContent } from "@mui/material";
 
-function HomeScreen({ onStart, onRestart }) {
+function HomeScreen({ hasReadings, onStart, onContinue, onRestart }) {
   return (
-    <Container maxWidth="sm">
-      <Box textAlign="center" sx={{ mt: 4 }}>
-        <Typography variant="h3" component="h1" gutterBottom>
-          COAB Water Meter App
-        </Typography>
-        <Typography variant="body1">Current Month: February</Typography>
-        <Typography variant="body1">Route: route1</Typography>
-        <Box sx={{ mt: 2 }}>
-          <Button variant="contained" color="primary" onClick={onStart} sx={{ mr: 2 }}>
-            START
-          </Button>
-          <Button variant="outlined" color="secondary" onClick={onRestart}>
-            RESTART
-          </Button>
-        </Box>
+    <Container maxWidth="lg">
+      <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
+        <Card sx={{ flex: "1 1 200px" }}>
+          <CardContent>
+            <Typography variant="overline" color="textSecondary">
+              Current Month
+            </Typography>
+            <Typography variant="h5">February</Typography>
+          </CardContent>
+        </Card>
+        <Card sx={{ flex: "1 1 200px" }}>
+          <CardContent>
+            <Typography variant="overline" color="textSecondary">
+              Route
+            </Typography>
+            <Typography variant="h5">route1</Typography>
+          </CardContent>
+        </Card>
       </Box>
+
+      <Card>
+        <CardContent>
+          <Typography variant="h4" gutterBottom>
+            COAB Water Meter App
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            This is your home screen.
+          </Typography>
+          <Box>
+            {hasReadings ? (
+              <>
+                <button onClick={onContinue}>CONTINUE</button>
+                <button onClick={onRestart}>RESTART</button>
+              </>
+            ) : (
+              <button onClick={onStart}>START</button>
+            )}
+          </Box>
+        </CardContent>
+      </Card>
     </Container>
   );
 }
