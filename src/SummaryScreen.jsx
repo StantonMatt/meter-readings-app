@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Container,
   Typography,
@@ -32,13 +32,33 @@ function SummaryScreen({
 }) {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
+  // Calculate reading statistics
+  const stats = useMemo(() => {
+    const confirmed = meters.filter(
+      (meter) => readingsState[meter.ID]?.isConfirmed
+    ).length;
+
+    const pending = meters.filter(
+      (meter) =>
+        readingsState[meter.ID]?.reading &&
+        !readingsState[meter.ID]?.isConfirmed
+    ).length;
+
+    const omitted = meters.filter(
+      (meter) => !readingsState[meter.ID]?.reading
+    ).length;
+
+    return { confirmed, pending, omitted };
+  }, [meters, readingsState]);
+
   const completedReadings = meters.filter(
     (meter) => readingsState[meter.ID]?.isConfirmed
   );
 
-  const missingOrPendingReadings = meters.filter(
-    (meter) => !readingsState[meter.ID]?.isConfirmed
-  );
+  const missingOrPendingReadings = meters.filter((meter) => {
+    const reading = readingsState[meter.ID];
+    return reading?.reading && !reading.isConfirmed;
+  });
 
   // Handler for row clicks
   const handleRowClick = (meterIndex) => {
@@ -56,7 +76,7 @@ function SummaryScreen({
 
   return (
     <Container maxWidth="lg">
-      {completedReadings.length < meters.length && (
+      {stats.pending + stats.omitted > 0 && (
         <Alert
           severity="warning"
           sx={{
@@ -159,9 +179,74 @@ function SummaryScreen({
         Resumen de Todos los Medidores
       </Typography>
 
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Lecturas Confirmadas: {completedReadings.length} de {meters.length}
-      </Typography>
+      {/* New Stats Table */}
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          mb: 4,
+          justifyContent: "center",
+        }}
+      >
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2,
+            display: "flex",
+            gap: 3,
+            backgroundColor: "rgba(0, 0, 0, 0.02)",
+            borderRadius: 2,
+          }}
+        >
+          <Box
+            sx={{
+              textAlign: "center",
+              px: 3,
+              borderRight: "1px solid rgba(0, 0, 0, 0.12)",
+            }}
+          >
+            <Typography
+              variant="h5"
+              sx={{ color: "success.main", fontWeight: "bold" }}
+            >
+              {stats.confirmed}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Confirmadas
+            </Typography>
+          </Box>
+
+          <Box
+            sx={{
+              textAlign: "center",
+              px: 3,
+              borderRight: "1px solid rgba(0, 0, 0, 0.12)",
+            }}
+          >
+            <Typography
+              variant="h5"
+              sx={{ color: "warning.main", fontWeight: "bold" }}
+            >
+              {stats.pending}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Pendientes
+            </Typography>
+          </Box>
+
+          <Box sx={{ textAlign: "center", px: 3 }}>
+            <Typography
+              variant="h5"
+              sx={{ color: "error.main", fontWeight: "bold" }}
+            >
+              {stats.omitted}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Omitidas
+            </Typography>
+          </Box>
+        </Paper>
+      </Box>
 
       <TableContainer component={Paper}>
         <Table>
@@ -178,6 +263,7 @@ function SummaryScreen({
             {meters.map((meter, index) => {
               const reading = readingsState[meter.ID];
               const isConfirmed = reading?.isConfirmed;
+              const hasReading = reading?.reading;
 
               // Get last month's reading
               const previousReadings = Object.entries(meter.readings)
@@ -186,7 +272,7 @@ function SummaryScreen({
               const lastMonthReading = previousReadings[0]?.[1] || "---";
 
               let status;
-              if (!reading) {
+              if (!hasReading) {
                 status = <Chip label="Omitido" color="error" size="small" />;
               } else if (!isConfirmed) {
                 status = (
@@ -217,14 +303,14 @@ function SummaryScreen({
                     sx={{
                       fontWeight: "medium",
                       color:
-                        reading &&
+                        hasReading &&
                         lastMonthReading !== "---" &&
                         Number(reading.reading) < Number(lastMonthReading)
                           ? "error.main"
                           : "inherit",
                     }}
                   >
-                    {reading?.reading || "---"}
+                    {hasReading ? reading.reading : "---"}
                   </TableCell>
                   <TableCell>{status}</TableCell>
                 </TableRow>

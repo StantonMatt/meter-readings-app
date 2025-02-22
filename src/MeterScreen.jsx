@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Paper,
   Typography,
@@ -6,6 +6,10 @@ import {
   Button,
   TextField,
   Container,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 
 function MeterScreen({
@@ -18,10 +22,14 @@ function MeterScreen({
   onFinish, // function to finish / go to summary
   onReadingChange, // New prop
   onConfirmationChange, // New prop
+  showConfirmDialog,
+  setShowConfirmDialog,
+  pendingNavigation,
+  setPendingNavigation,
 }) {
-  // Create unique keys for this meter's reading and confirmation state.
-  const readingKey = `meter_${meter.ID}_reading`;
-  const confirmedKey = `meter_${meter.ID}_confirmed`;
+  // Create unique keys for this meter's reading and confirmation state
+  const readingKey = useMemo(() => `meter_${meter.ID}_reading`, [meter.ID]);
+  const confirmedKey = useMemo(() => `meter_${meter.ID}_confirmed`, [meter.ID]);
 
   // Initialize state from localStorage
   const [reading, setReading] = useState(
@@ -39,11 +47,15 @@ function MeterScreen({
     );
   }, [meter]);
 
-  // Persist reading and confirmation state to localStorage whenever they change.
+  // Debounce the localStorage updates
   useEffect(() => {
-    localStorage.setItem(readingKey, reading);
-    localStorage.setItem(confirmedKey, isConfirmed);
-  }, [reading, isConfirmed, readingKey, confirmedKey]);
+    const timeoutId = setTimeout(() => {
+      localStorage.setItem(readingKey, reading);
+      onReadingChange(meter.ID, reading);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [reading, readingKey, meter.ID, onReadingChange]);
 
   // Update the sorting logic in MeterScreen.jsx
   const previousEntries = Object.entries(meter.readings)
@@ -104,85 +116,87 @@ function MeterScreen({
     ? previousValues.reduce((sum, val) => sum + val, 0) / previousValues.length
     : 0;
 
-  // Update the validation function
-  const validateReading = (val) => {
-    if (!val.trim()) {
-      alert("La lectura no puede estar vacía");
-      return false;
-    }
-
-    const numVal = Number(val);
-    if (isNaN(numVal) || numVal < 0) {
-      alert("La lectura debe ser un número no negativo");
-      return false;
-    }
-
-    // Get the last reading
-    const lastReading = previousValues[previousValues.length - 1];
-
-    // Check if reading is lower than last month
-    if (lastReading && numVal < lastReading) {
-      const msg = `¡Advertencia! La lectura ingresada (${numVal}) es menor que la lectura del mes anterior (${lastReading}). ¿Está seguro que la lectura es correcta?`;
-      if (!window.confirm(msg)) {
+  // Memoize the validation function
+  const validateReading = useCallback(
+    (val) => {
+      if (!val.trim()) {
+        alert("La lectura no puede estar vacía");
         return false;
       }
-    }
 
-    // Check consumption
-    if (lastReading) {
-      const currentConsumption = numVal - lastReading;
+      const numVal = Number(val);
+      if (isNaN(numVal) || numVal < 0) {
+        alert("La lectura debe ser un número no negativo");
+        return false;
+      }
 
-      // For cases where there has been no consumption (same reading) in previous months
-      if (meter.averageConsumption === 0) {
-        // Allow small increases (up to 5 units) without warning
-        if (currentConsumption > 5) {
-          const msg = `El consumo de este mes (${currentConsumption} m³) es significativamente mayor que los meses anteriores donde no hubo consumo. ¿Está seguro?`;
-          if (!window.confirm(msg)) {
-            return false;
-          }
+      // Get the last reading
+      const lastReading = previousValues[previousValues.length - 1];
+
+      // Check if reading is lower than last month
+      if (lastReading && numVal < lastReading) {
+        const msg = `¡Advertencia! La lectura ingresada (${numVal}) es menor que la lectura del mes anterior (${lastReading}). ¿Está seguro que la lectura es correcta?`;
+        if (!window.confirm(msg)) {
+          return false;
         }
-      } else {
-        // Skip consumption check only if consumption is very low (≤ 5)
-        if (currentConsumption > 5) {
-          const isVeryHigh = currentConsumption > meter.averageConsumption * 2;
-          const isVeryLow = currentConsumption < meter.averageConsumption * 0.5;
+      }
 
-          if (isVeryHigh || isVeryLow) {
-            const msg = `El consumo de este mes (${currentConsumption} m³) es muy diferente del promedio mensual (${meter.averageConsumption} m³). ¿Está seguro?`;
+      // Check consumption
+      if (lastReading) {
+        const currentConsumption = numVal - lastReading;
+
+        // For cases where there has been no consumption (same reading) in previous months
+        if (meter.averageConsumption === 0) {
+          // Allow small increases (up to 5 units) without warning
+          if (currentConsumption > 5) {
+            const msg = `El consumo de este mes (${currentConsumption} m³) es significativamente mayor que los meses anteriores donde no hubo consumo. ¿Está seguro?`;
             if (!window.confirm(msg)) {
               return false;
             }
           }
+        } else {
+          // Skip consumption check only if consumption is very low (≤ 5)
+          if (currentConsumption > 5) {
+            const isVeryHigh =
+              currentConsumption > meter.averageConsumption * 2;
+            const isVeryLow =
+              currentConsumption < meter.averageConsumption * 0.5;
+
+            if (isVeryHigh || isVeryLow) {
+              const msg = `El consumo de este mes (${currentConsumption} m³) es muy diferente del promedio mensual (${meter.averageConsumption} m³). ¿Está seguro?`;
+              if (!window.confirm(msg)) {
+                return false;
+              }
+            }
+          }
         }
       }
-    }
 
-    return true;
-  };
+      return true;
+    },
+    [meter.averageConsumption, meter.ID]
+  );
 
-  // Update the reading change handler
-  const handleReadingChange = (e) => {
-    const newReading = e.target.value;
-    setReading(newReading);
-    localStorage.setItem(readingKey, newReading);
-    onReadingChange(meter.ID, newReading); // Notify parent
-  };
+  // Memoize handlers
+  const handleReadingChange = useCallback((e) => {
+    setReading(e.target.value);
+  }, []);
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     if (validateReading(reading)) {
       setIsConfirmed(true);
       localStorage.setItem(confirmedKey, "true");
-      onConfirmationChange(meter.ID, true); // Notify parent
+      onConfirmationChange(meter.ID, true);
     }
-  };
+  }, [reading, confirmedKey, meter.ID, validateReading, onConfirmationChange]);
 
-  const handleEdit = () => {
+  const handleEdit = useCallback(() => {
     if (window.confirm("¿Está seguro que desea editar esta lectura?")) {
       setIsConfirmed(false);
       localStorage.setItem(confirmedKey, "false");
       onConfirmationChange(meter.ID, false);
     }
-  };
+  }, [confirmedKey, meter.ID, onConfirmationChange]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !isConfirmed) {
@@ -197,198 +211,273 @@ function MeterScreen({
     currentIndex < totalMeters - 1 ? "Siguiente" : "Finalizar";
   const rightButtonAction = currentIndex < totalMeters - 1 ? onNext : onFinish;
 
+  // Update handleNavigationAttempt to use the parent's state
+  const handleNavigationAttempt = useCallback(
+    (navigationFunction) => {
+      if (reading && !isConfirmed) {
+        setShowConfirmDialog(true);
+        setPendingNavigation(() => navigationFunction);
+      } else {
+        navigationFunction();
+      }
+    },
+    [reading, isConfirmed, setShowConfirmDialog, setPendingNavigation]
+  );
+
+  // Update the handleNavigationConfirm function
+  const handleNavigationConfirm = useCallback(
+    (shouldConfirmReading) => {
+      if (shouldConfirmReading) {
+        if (validateReading(reading)) {
+          // Update local state and storage
+          setIsConfirmed(true);
+          localStorage.setItem(confirmedKey, "true");
+          onConfirmationChange(meter.ID, true);
+
+          // Navigate immediately
+          pendingNavigation();
+        }
+      } else {
+        // Navigate immediately without confirming
+        pendingNavigation();
+      }
+
+      // Clear dialog state
+      setShowConfirmDialog(false);
+      setPendingNavigation(null);
+    },
+    [
+      reading,
+      validateReading,
+      confirmedKey,
+      meter.ID,
+      onConfirmationChange,
+      pendingNavigation,
+    ]
+  );
+
   return (
-    <Paper sx={{ p: 3 }}>
-      {/* Client Info */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" gutterBottom>
-          CLIENTE: {meter.ID}
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary">
-          {meter.ADDRESS}
-        </Typography>
-      </Box>
+    <>
+      <Paper sx={{ p: 3 }}>
+        {/* Client Info */}
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h5" gutterBottom>
+            CLIENTE: {meter.ID}
+          </Typography>
+          <Typography variant="subtitle1" color="text.secondary">
+            {meter.ADDRESS}
+          </Typography>
+        </Box>
 
-      {/* Previous Readings Grid */}
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
-          gap: 2,
-          mb: 4,
-        }}
-      >
-        {recentEntries.map(([dateKey, val]) => {
-          const [year, month] = dateKey.split("-");
-          return (
-            <Box
-              key={dateKey}
-              sx={{
-                textAlign: "center",
-                p: 1.5,
-                borderRadius: 2,
-                background: "linear-gradient(145deg, #f5f5f5, #ffffff)",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-              }}
-            >
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  color: "text.secondary",
-                  mb: 0.5,
-                  fontWeight: 500,
-                }}
-              >
-                {month.substring(0, 3)} {year}
-              </Typography>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontWeight: 600,
-                  color: "#1a237e",
-                }}
-              >
-                {val}
-              </Typography>
-            </Box>
-          );
-        })}
-      </Box>
-
-      {/* Average Consumption Card */}
-      <Box
-        sx={{
-          mb: 3,
-          p: 2,
-          borderRadius: 2,
-          background: "linear-gradient(145deg, #f8f9fa, #e9ecef)",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-        }}
-      >
-        <Typography
-          variant="subtitle2"
+        {/* Previous Readings Grid */}
+        <Box
           sx={{
-            color: "text.secondary",
-            mb: 0.5,
-            fontWeight: 500,
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
+            gap: 2,
+            mb: 4,
           }}
         >
-          Promedio de Consumo Mensual
-        </Typography>
-        <Typography
-          variant="h5"
+          {recentEntries.map(([dateKey, val]) => {
+            const [year, month] = dateKey.split("-");
+            return (
+              <Box
+                key={dateKey}
+                sx={{
+                  textAlign: "center",
+                  p: 1.5,
+                  borderRadius: 2,
+                  background: "linear-gradient(145deg, #f5f5f5, #ffffff)",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                }}
+              >
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    color: "text.secondary",
+                    mb: 0.5,
+                    fontWeight: 500,
+                  }}
+                >
+                  {month.substring(0, 3)} {year}
+                </Typography>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 600,
+                    color: "#1a237e",
+                  }}
+                >
+                  {val}
+                </Typography>
+              </Box>
+            );
+          })}
+        </Box>
+
+        {/* Average Consumption Card */}
+        <Box
           sx={{
-            fontWeight: 600,
-            color: "#1a237e",
+            mb: 3,
+            p: 2,
+            borderRadius: 2,
+            background: "linear-gradient(145deg, #f8f9fa, #e9ecef)",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
           }}
         >
-          {meter.averageConsumption} m³
-        </Typography>
-      </Box>
+          <Typography
+            variant="subtitle2"
+            sx={{
+              color: "text.secondary",
+              mb: 0.5,
+              fontWeight: 500,
+            }}
+          >
+            Promedio de Consumo Mensual
+          </Typography>
+          <Typography
+            variant="h5"
+            sx={{
+              fontWeight: 600,
+              color: "#1a237e",
+            }}
+          >
+            {meter.averageConsumption} m³
+          </Typography>
+        </Box>
 
-      {/* Input Section */}
-      <Box sx={{ mb: 4 }}>
-        <TextField
-          label="Ingrese Lectura Actual"
-          type="number"
-          value={reading}
-          onChange={handleReadingChange}
-          onKeyDown={handleKeyDown}
-          fullWidth
+        {/* Input Section */}
+        <Box sx={{ mb: 4 }}>
+          <TextField
+            label="Ingrese Lectura Actual"
+            type="number"
+            value={reading}
+            onChange={handleReadingChange}
+            onKeyDown={handleKeyDown}
+            fullWidth
+            sx={{
+              mb: 2,
+              "& .MuiOutlinedInput-root": {
+                fontSize: "1.2rem",
+              },
+            }}
+            disabled={isConfirmed}
+          />
+
+          <Box sx={{ display: "flex", justifyContent: "center" }}>
+            {!isConfirmed ? (
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleConfirm}
+                size="large"
+                sx={{ minWidth: 200 }}
+              >
+                Confirmar
+              </Button>
+            ) : (
+              <Button
+                variant="outlined"
+                color="warning"
+                onClick={handleEdit}
+                size="large"
+                sx={{ minWidth: 200 }}
+              >
+                Editar
+              </Button>
+            )}
+          </Box>
+        </Box>
+
+        {/* Navigation Buttons */}
+        <Box
           sx={{
-            mb: 2,
-            "& .MuiOutlinedInput-root": {
-              fontSize: "1.2rem",
-            },
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mt: 2,
           }}
-          disabled={isConfirmed}
-        />
+        >
+          <Button
+            variant="outlined"
+            onClick={leftButtonAction}
+            sx={{
+              minWidth: 100,
+              borderColor: "#0A0E17",
+              color: "#0A0E17",
+              "&:hover": {
+                borderColor: "#1B2230",
+                backgroundColor: "rgba(10, 14, 23, 0.04)",
+              },
+            }}
+          >
+            {leftButtonLabel}
+          </Button>
 
-        <Box sx={{ display: "flex", justifyContent: "center" }}>
-          {!isConfirmed ? (
+          <Typography variant="body2" color="text.secondary">
+            Medidor {currentIndex + 1} de {totalMeters}
+          </Typography>
+
+          {currentIndex === totalMeters - 1 ? (
             <Button
               variant="contained"
-              color="success"
-              onClick={handleConfirm}
-              size="large"
-              sx={{ minWidth: 200 }}
+              onClick={onFinish}
+              sx={{
+                minWidth: 100,
+                backgroundColor: "#0A0E17",
+                "&:hover": {
+                  backgroundColor: "#1B2230",
+                },
+              }}
             >
-              Confirmar
+              Revisar
             </Button>
           ) : (
             <Button
-              variant="outlined"
-              color="warning"
-              onClick={handleEdit}
-              size="large"
-              sx={{ minWidth: 200 }}
+              variant="contained"
+              onClick={onNext}
+              sx={{
+                minWidth: 100,
+                backgroundColor: "#0A0E17",
+                "&:hover": {
+                  backgroundColor: "#1B2230",
+                },
+              }}
             >
-              Editar
+              Siguiente
             </Button>
           )}
         </Box>
-      </Box>
+      </Paper>
 
-      {/* Navigation Buttons */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mt: 2,
-        }}
+      {/* Navigation Confirmation Dialog */}
+      <Dialog
+        open={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
       >
-        <Button
-          variant="outlined"
-          onClick={leftButtonAction}
-          sx={{
-            minWidth: 100,
-            borderColor: "#0A0E17",
-            color: "#0A0E17",
-            "&:hover": {
-              borderColor: "#1B2230",
-              backgroundColor: "rgba(10, 14, 23, 0.04)",
-            },
-          }}
-        >
-          {leftButtonLabel}
-        </Button>
-
-        <Typography variant="body2" color="text.secondary">
-          Medidor {currentIndex + 1} de {totalMeters}
-        </Typography>
-
-        {currentIndex === totalMeters - 1 ? (
+        <DialogTitle>Lectura Sin Confirmar</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Ha ingresado una lectura pero no la ha confirmado. ¿Qué desea hacer?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
           <Button
-            variant="contained"
-            onClick={onFinish}
-            sx={{
-              minWidth: 100,
-              backgroundColor: "#0A0E17",
-              "&:hover": {
-                backgroundColor: "#1B2230",
-              },
-            }}
+            onClick={() => handleNavigationConfirm(false)}
+            color="warning"
           >
-            Revisar
+            Dejar Sin Confirmar
           </Button>
-        ) : (
           <Button
+            onClick={() => handleNavigationConfirm(true)}
             variant="contained"
-            onClick={onNext}
-            sx={{
-              minWidth: 100,
-              backgroundColor: "#0A0E17",
-              "&:hover": {
-                backgroundColor: "#1B2230",
-              },
-            }}
+            color="success"
           >
-            Siguiente
+            Confirmar Lectura
           </Button>
-        )}
-      </Box>
-    </Paper>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 

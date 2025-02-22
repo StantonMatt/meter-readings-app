@@ -20,7 +20,7 @@ import TopBar from "./TopBar";
 
 const drawerWidth = 300;
 
-// Pre-process meter data for faster searching
+// Move outside component to avoid recreation
 const prepareMeterForSearch = (meter) => ({
   ...meter,
   searchString: `${meter.ID} ${meter.ADDRESS.toLowerCase()}`,
@@ -35,6 +35,7 @@ function MeterList({
   searchTerm,
   onSearchChange,
   isMobile,
+  onNavigationAttempt,
 }) {
   // Memoize the list items to prevent unnecessary re-renders
   const listItems = useMemo(
@@ -51,7 +52,7 @@ function MeterList({
         return (
           <Card
             key={m.ID}
-            onClick={() => onSelectMeter(i)}
+            onClick={() => onNavigationAttempt(() => onSelectMeter(i))}
             sx={{
               mb: 2,
               cursor: "pointer",
@@ -90,7 +91,13 @@ function MeterList({
           </Card>
         );
       }),
-    [filteredMeters, currentIndex, readingsState, onSelectMeter]
+    [
+      filteredMeters,
+      currentIndex,
+      readingsState,
+      onSelectMeter,
+      onNavigationAttempt,
+    ]
   );
 
   return (
@@ -185,11 +192,34 @@ function Layout({
     setSearchTerm(value);
   }, []);
 
+  // Update navigation attempt handler
+  const handleNavigationAttempt = useCallback((navigationFunction) => {
+    // Execute the navigation function directly
+    // MeterScreen will handle the confirmation dialog if needed
+    navigationFunction();
+  }, []);
+
+  // Wrap navigation handlers
+  const handleHomeClick = useCallback(() => {
+    handleNavigationAttempt(onHomeClick);
+  }, [onHomeClick, handleNavigationAttempt]);
+
+  const handleFinishClick = useCallback(() => {
+    handleNavigationAttempt(onFinishClick);
+  }, [onFinishClick, handleNavigationAttempt]);
+
+  const handleSelectMeter = useCallback(
+    (index) => {
+      handleNavigationAttempt(() => onSelectMeter(index));
+    },
+    [onSelectMeter, handleNavigationAttempt]
+  );
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <TopBar
-        onHomeClick={onHomeClick}
-        onSummaryClick={onFinishClick}
+        onHomeClick={handleHomeClick}
+        onSummaryClick={handleFinishClick}
         showButtons={currentIndex !== null}
         currentScreen={
           currentIndex >= 0 && currentIndex < meters.length
@@ -229,11 +259,12 @@ function Layout({
               <MeterList
                 filteredMeters={filteredMeters}
                 currentIndex={currentIndex}
-                onSelectMeter={onSelectMeter}
+                onSelectMeter={handleSelectMeter}
                 readingsState={readingsState}
                 searchTerm={searchTerm}
                 onSearchChange={handleSearchChange}
                 isMobile={false}
+                onNavigationAttempt={handleNavigationAttempt}
               />
             </Box>
 
@@ -263,14 +294,12 @@ function Layout({
               <MeterList
                 filteredMeters={filteredMeters}
                 currentIndex={currentIndex}
-                onSelectMeter={(i) => {
-                  onSelectMeter(i);
-                  handleDrawerToggle();
-                }}
+                onSelectMeter={handleSelectMeter}
                 readingsState={readingsState}
                 searchTerm={searchTerm}
                 onSearchChange={handleSearchChange}
                 isMobile={true}
+                onNavigationAttempt={handleNavigationAttempt}
               />
             </Drawer>
           </>

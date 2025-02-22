@@ -122,6 +122,8 @@ function App() {
   const [previousReadings, setPreviousReadings] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
 
   // Move combinedMeters initialization here
   const combinedMeters = useMemo(() => {
@@ -330,9 +332,41 @@ function App() {
     }
   };
 
-  const handleHomeClick = () => {
-    setCurrentIndex(null);
-  };
+  // Add this navigation handler
+  const handleNavigationAttempt = useCallback(
+    (navigationFunction) => {
+      // Check if there's an unconfirmed reading
+      if (currentIndex >= 0 && currentIndex < combinedMeters.length) {
+        const currentMeter = combinedMeters[currentIndex];
+        const reading = readingsState[currentMeter.ID];
+
+        if (reading?.reading && !reading.isConfirmed) {
+          setShowConfirmDialog(true);
+          setPendingNavigation(() => navigationFunction);
+          return;
+        }
+      }
+      // If no unconfirmed reading, navigate directly
+      navigationFunction();
+    },
+    [currentIndex, combinedMeters, readingsState]
+  );
+
+  // Wrap all navigation functions
+  const handleSelectMeter = useCallback(
+    (index) => {
+      handleNavigationAttempt(() => setCurrentIndex(index));
+    },
+    [handleNavigationAttempt]
+  );
+
+  const handleHomeClick = useCallback(() => {
+    handleNavigationAttempt(() => setCurrentIndex(null));
+  }, [handleNavigationAttempt]);
+
+  const handleGoToSummary = useCallback(() => {
+    handleNavigationAttempt(() => setCurrentIndex(combinedMeters.length + 1));
+  }, [handleNavigationAttempt, combinedMeters.length]);
 
   // Update handleFinishClick to properly format and save the data
   const handleUploadReadings = async () => {
@@ -427,11 +461,6 @@ function App() {
         "Hubo un error al guardar las lecturas. Por favor intente nuevamente."
       );
     }
-  };
-
-  // Add a new function for navigating to summary
-  const handleGoToSummary = () => {
-    setCurrentIndex(combinedMeters.length + 1);
   };
 
   // Handler for reading changes
@@ -690,7 +719,7 @@ function App() {
         showSidebar={true}
         meters={combinedMeters}
         currentIndex={currentIndex}
-        onSelectMeter={(i) => setCurrentIndex(i)}
+        onSelectMeter={handleSelectMeter}
         onHomeClick={handleHomeClick}
         onFinishClick={handleGoToSummary}
         readingsState={readingsState}
@@ -700,11 +729,19 @@ function App() {
           currentIndex={currentIndex}
           totalMeters={combinedMeters.length}
           onHome={handleHomeClick}
-          onPrev={() => setCurrentIndex((prev) => prev - 1)}
-          onNext={() => setCurrentIndex((prev) => prev + 1)}
+          onPrev={() =>
+            handleNavigationAttempt(() => setCurrentIndex(currentIndex - 1))
+          }
+          onNext={() =>
+            handleNavigationAttempt(() => setCurrentIndex(currentIndex + 1))
+          }
           onFinish={handleGoToSummary}
           onReadingChange={handleReadingChange}
           onConfirmationChange={handleConfirmationChange}
+          showConfirmDialog={showConfirmDialog}
+          setShowConfirmDialog={setShowConfirmDialog}
+          pendingNavigation={pendingNavigation}
+          setPendingNavigation={setPendingNavigation}
         />
       </Layout>
     );

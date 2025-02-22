@@ -1,5 +1,5 @@
 // src/TopBar.jsx
-import React from "react";
+import React, { useCallback } from "react";
 import {
   AppBar,
   Toolbar,
@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import SearchIcon from "@mui/icons-material/Search";
+import { debounce } from "lodash";
 
 // Define the drawer width to match Layout.jsx
 const drawerWidth = 300;
@@ -26,6 +27,20 @@ function TopBar({
   onSearchChange,
   isMobile,
 }) {
+  // Debounce search input
+  const debouncedSearchChange = useCallback(
+    debounce((value) => onSearchChange(value), 300),
+    [onSearchChange]
+  );
+
+  const handleSearchChange = useCallback(
+    (e) => {
+      const value = e.target.value;
+      debouncedSearchChange(value);
+    },
+    [debouncedSearchChange]
+  );
+
   return (
     <AppBar
       position="sticky"
@@ -57,8 +72,8 @@ function TopBar({
             placeholder="Buscar Cliente"
             variant="outlined"
             size="small"
-            value={searchTerm}
-            onChange={(e) => onSearchChange(e.target.value)}
+            defaultValue={searchTerm}
+            onChange={handleSearchChange}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
