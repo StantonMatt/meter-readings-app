@@ -253,8 +253,8 @@ function SummaryScreen({
           <TableHead>
             <TableRow>
               <TableCell>CLIENTE</TableCell>
-              <TableCell>Dirección</TableCell>
-              <TableCell>Mes Anterior</TableCell>
+              <TableCell>Direccion</TableCell>
+              <TableCell>Lectura Anterior</TableCell>
               <TableCell align="right">Lectura Actual</TableCell>
               <TableCell>Estado</TableCell>
             </TableRow>

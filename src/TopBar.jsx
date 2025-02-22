@@ -1,5 +1,5 @@
 // src/TopBar.jsx
-import React, { useCallback } from "react";
+import React, { useCallback, useRef } from "react";
 import {
   AppBar,
   Toolbar,
@@ -11,10 +11,27 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import SearchIcon from "@mui/icons-material/Search";
-import { debounce } from "lodash";
 
 // Define the drawer width to match Layout.jsx
 const drawerWidth = 300;
+
+// Simple debounce implementation
+function useDebounce(callback, delay) {
+  const timeoutRef = useRef(null);
+
+  return useCallback(
+    (...args) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+      }, delay);
+    },
+    [callback, delay]
+  );
+}
 
 function TopBar({
   onHomeClick,
@@ -28,9 +45,9 @@ function TopBar({
   isMobile,
 }) {
   // Debounce search input
-  const debouncedSearchChange = useCallback(
-    debounce((value) => onSearchChange(value), 300),
-    [onSearchChange]
+  const debouncedSearchChange = useDebounce(
+    (value) => onSearchChange(value),
+    300
   );
 
   const handleSearchChange = useCallback(

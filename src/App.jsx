@@ -34,6 +34,22 @@ const months = [
   "Diciembre",
 ];
 
+// Add this month mapping near the top of App.jsx
+const monthAbbreviations = {
+  Enero: "Ene",
+  Febrero: "Feb",
+  Marzo: "Mar",
+  Abril: "Abr",
+  Mayo: "May",
+  Junio: "Jun",
+  Julio: "Jul",
+  Agosto: "Ago",
+  Septiembre: "Sep",
+  Octubre: "Oct",
+  Noviembre: "Nov",
+  Diciembre: "Dic",
+};
+
 // Update the calculateMonthlyConsumption function
 const calculateMonthlyConsumption = (readings) => {
   const months = Object.keys(readings)
@@ -368,93 +384,87 @@ function App() {
     handleNavigationAttempt(() => setCurrentIndex(combinedMeters.length + 1));
   }, [handleNavigationAttempt, combinedMeters.length]);
 
-  // Update handleFinishClick to properly format and save the data
+  // Add this function near the top of App.jsx
+  const generateCSV = (readings, month, year) => {
+    // Create CSV header
+    const csvRows = ["ID,Direccion,Lectura Anterior,Lectura Actual,Estado\n"];
+
+    readings.forEach((meter) => {
+      const reading = readingsState[meter.ID];
+      const previousReadings = Object.entries(meter.readings)
+        .filter(([k]) => k !== "ID")
+        .sort((a, b) => b[0].localeCompare(a[0]));
+      const lastMonthReading = previousReadings[0]?.[1] || "---";
+
+      const status = reading?.isConfirmed
+        ? "Confirmado"
+        : reading?.reading
+        ? "Sin Confirmar"
+        : "Omitido";
+
+      const currentReading = reading?.reading || "---";
+
+      // Escape commas in address
+      const escapedAddress = meter.ADDRESS.replace(/,/g, ";");
+
+      csvRows.push(
+        `${meter.ID},${escapedAddress},${lastMonthReading},${currentReading},${status}\n`
+      );
+    });
+
+    return csvRows.join("");
+  };
+
+  // Update handleUploadReadings function
   const handleUploadReadings = async () => {
     try {
-      if (selectedRoute) {
-        // Format current month's filename
-        const currentFileName = `${selectedYear}-${months[selectedMonth]
-          .substring(0, 3)
-          .toLowerCase()}-readings`;
+      // Format the readings data for Firestore
+      const formattedReadings = combinedMeters.map((meter) => ({
+        ID: meter.ID,
+        ADDRESS: meter.ADDRESS || "",
+        ...meter.readings, // Include previous readings
+        // Add the new reading if it exists
+        [`${selectedYear}-${monthAbbreviations[months[selectedMonth]]}`]:
+          readingsState[meter.ID]?.reading || "---",
+      }));
 
-        console.log("Starting save process...");
+      // Create the Firestore document
+      const currentFileName = `${selectedYear}-${months[
+        selectedMonth
+      ].toLowerCase()}`;
+      const readingsRef = doc(db, "readings", currentFileName);
 
-        // Get the previous readings to include the past 4 months
-        const previousReadings = await loadPreviousReadings(selectedRoute.name);
+      await setDoc(readingsRef, {
+        readings: formattedReadings,
+        month: months[selectedMonth],
+        year: selectedYear,
+        lastUpdated: new Date(),
+        routeId: selectedRoute.id,
+        routeName: selectedRoute.name,
+      });
 
-        // Create new readings array with sliding 5-month window
-        const updatedReadings = combinedMeters.map((meter) => {
-          const { ID } = meter;
-          let newReading = { ID };
-
-          // Get previous readings for this meter
-          const prevReading = previousReadings.find((r) => r.ID === ID);
-          if (prevReading) {
-            // Get all readings except ID and sort them chronologically
-            const sortedReadings = Object.entries(prevReading)
-              .filter(([key]) => key !== "ID")
-              .sort((a, b) => {
-                const [yearA, monthA] = a[0].split("-");
-                const [yearB, monthB] = b[0].split("-");
-                return (
-                  new Date(`${yearA}-${monthA}-01`).getTime() -
-                  new Date(`${yearB}-${monthB}-01`).getTime()
-                );
-              });
-
-            // Take only the most recent 4 readings
-            const recentReadings = sortedReadings.slice(-4);
-
-            // Add those 4 months in chronological order
-            recentReadings.forEach(([month, value]) => {
-              newReading[month] = value;
-            });
-          }
-
-          // Add current month's reading (use 0 if not confirmed)
-          const currentReading = readingsState[ID]?.reading;
-          const isConfirmed = readingsState[ID]?.isConfirmed;
-          newReading[`${selectedYear}-${months[selectedMonth]}`] = isConfirmed
-            ? Number(currentReading)
-            : 0;
-
-          return newReading;
-        });
-
-        console.log("Saving to Firestore...");
-
-        // Save to Firestore
-        const readingsRef = doc(db, "readings", currentFileName);
-        await setDoc(readingsRef, {
-          readings: updatedReadings,
+      // Update route document
+      const routeRef = doc(db, "routes", selectedRoute.id);
+      await setDoc(
+        routeRef,
+        {
           lastUpdated: new Date(),
-          routeId: selectedRoute.id,
-          fileName: `${currentFileName}.json`,
-        });
+          latestReadings: `${currentFileName}.json`,
+        },
+        { merge: true }
+      );
 
-        console.log(`Readings saved as ${currentFileName}`);
+      // Clear local storage
+      combinedMeters.forEach((meter) => {
+        localStorage.removeItem(`meter_${meter.ID}_reading`);
+        localStorage.removeItem(`meter_${meter.ID}_confirmed`);
+      });
 
-        // Update route document
-        const routeRef = doc(db, "routes", selectedRoute.id);
-        await setDoc(
-          routeRef,
-          {
-            lastUpdated: new Date(),
-            latestReadings: `${currentFileName}.json`,
-          },
-          { merge: true }
-        );
-
-        // Clear local storage
-        combinedMeters.forEach((meter) => {
-          localStorage.removeItem(`meter_${meter.ID}_reading`);
-          localStorage.removeItem(`meter_${meter.ID}_confirmed`);
-        });
-
-        alert("Lecturas guardadas exitosamente");
-        setCurrentIndex(null); // Return to home screen
-        setReadingsState({}); // Clear readings state
-      }
+      alert(
+        "Lecturas guardadas exitosamente. Se enviará un correo con el resumen."
+      );
+      setCurrentIndex(null);
+      setReadingsState({});
     } catch (error) {
       console.error("Error saving readings:", error);
       alert(
