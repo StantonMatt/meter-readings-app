@@ -4,9 +4,9 @@ import { Container, Box, Typography, Button } from "@mui/material";
 function FinalCheckScreen({ allComplete, onGoBack, onFinish }) {
   return (
     <Container maxWidth="sm">
-      <Box textAlign="center" sx={{ mt: 4 }}>
-        <Typography variant="h4" gutterBottom>
-          Verificación Final
+      <Box textAlign="center" sx={{ py: 4 }}>
+        <Typography variant="h5" gutterBottom>
+          ¿Ha terminado de ingresar todas las lecturas?
         </Typography>
         {allComplete ? (
           <Typography variant="body1" gutterBottom>
@@ -18,12 +18,12 @@ function FinalCheckScreen({ allComplete, onGoBack, onFinish }) {
             pero algunos pueden faltar.
           </Typography>
         )}
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: 4 }}>
           <Button variant="outlined" onClick={onGoBack} sx={{ mr: 2 }}>
-            Regresar
+            Volver
           </Button>
           <Button variant="contained" color="primary" onClick={onFinish}>
-            Finalizar
+            Revisar Lecturas
           </Button>
         </Box>
       </Box>

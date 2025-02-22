@@ -3,45 +3,115 @@ import React from "react";
 import {
   AppBar,
   Toolbar,
-  Typography,
-  IconButton,
-  Avatar,
   Box,
+  Button,
+  TextField,
+  InputAdornment,
+  IconButton,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import SearchIcon from "@mui/icons-material/Search";
 
-function TopBar({ onMenuClick }) {
+// Define the drawer width to match Layout.jsx
+const drawerWidth = 300;
+
+function TopBar({
+  onHomeClick,
+  onSummaryClick,
+  showButtons,
+  currentScreen,
+  onMenuClick,
+  showMenuButton,
+  searchTerm,
+  onSearchChange,
+  isMobile,
+}) {
   return (
     <AppBar
-      elevation={0}
-      color="inherit" // use backgroundColor: white from theme
+      position="sticky"
       sx={{
-        borderBottom: "1px solid #E6E8F0",
+        backgroundColor: "#0A0E17", // Match sidebar color
       }}
     >
-      <Toolbar>
-        {/* Menu button for mobile (if needed) */}
-        <IconButton
-          edge="start"
-          onClick={onMenuClick}
-          sx={{ mr: 2, display: { xs: "block", md: "none" } }}
-        >
-          <MenuIcon />
-        </IconButton>
+      <Toolbar
+        sx={{
+          display: "flex",
+          gap: 2,
+          pl: { sm: "12px" }, // Reduce left padding on desktop
+        }}
+      >
+        {showMenuButton && (
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="start"
+            onClick={onMenuClick}
+            sx={{ mr: 2, display: { sm: "none" } }}
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
 
-        {/* Title or “Workspace” name */}
-        <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>
-          Devias
-        </Typography>
+        {currentScreen === "meter" && !isMobile && (
+          <TextField
+            placeholder="Buscar Cliente"
+            variant="outlined"
+            size="small"
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+              sx: {
+                backgroundColor: "white",
+                borderRadius: 1,
+                "&:hover": {
+                  backgroundColor: "white",
+                },
+              },
+            }}
+            sx={{
+              width: "260px",
+              display: { xs: "none", sm: "block" },
+              ml: 0,
+            }}
+          />
+        )}
 
-        {/* Search icon */}
-        <IconButton sx={{ mr: 1 }}>
-          <SearchIcon />
-        </IconButton>
+        <Box sx={{ flexGrow: 1 }} />
 
-        {/* Avatar */}
-        <Avatar alt="User Avatar" src="/static/images/avatar.png" />
+        {/* Only show buttons when not on home screen */}
+        {showButtons && (
+          <Box sx={{ display: "flex", gap: 2 }}>
+            <Button
+              color="inherit"
+              onClick={onHomeClick}
+              sx={{
+                "&:hover": {
+                  backgroundColor: "rgba(255, 255, 255, 0.08)",
+                },
+              }}
+            >
+              Inicio
+            </Button>
+            {currentScreen === "meter" && (
+              <Button
+                color="inherit"
+                onClick={onSummaryClick}
+                sx={{
+                  "&:hover": {
+                    backgroundColor: "rgba(255, 255, 255, 0.08)",
+                  },
+                }}
+              >
+                Resumen
+              </Button>
+            )}
+          </Box>
+        )}
       </Toolbar>
     </AppBar>
   );

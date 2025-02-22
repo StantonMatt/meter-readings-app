@@ -1,5 +1,5 @@
 // Layout.jsx
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   AppBar,
   Toolbar,
@@ -16,78 +16,30 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import MenuIcon from "@mui/icons-material/Menu";
+import TopBar from "./TopBar";
 
 const drawerWidth = 300;
 
-function Layout({
-  meters,
+// Pre-process meter data for faster searching
+const prepareMeterForSearch = (meter) => ({
+  ...meter,
+  searchString: `${meter.ID} ${meter.ADDRESS.toLowerCase()}`,
+  idString: meter.ID.toString(),
+});
+
+function MeterList({
+  filteredMeters,
   currentIndex,
   onSelectMeter,
-  onHomeClick,
-  onFinishClick,
-  children,
-  showSidebar,
   readingsState,
+  searchTerm,
+  onSearchChange,
+  isMobile,
 }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const isMobile = useMediaQuery((theme) => theme.breakpoints.down("md"));
-
-  const handleDrawerToggle = () => {
-    setMobileOpen((prev) => !prev);
-  };
-
-  // Filter meters if needed
-  const filteredMeters = meters.filter((m) => {
-    const idMatch = m.ID.toString().includes(searchTerm);
-    const addressMatch = m.ADDRESS.toLowerCase().includes(
-      searchTerm.toLowerCase()
-    );
-    return idMatch || addressMatch;
-  });
-
-  const drawerContent = (
-    <Box sx={{ p: 2 }}>
-      <TextField
-        placeholder="Buscar por CLIENTE o Dirección"
-        variant="outlined"
-        size="small"
-        fullWidth
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon sx={{ color: "#000" }} />
-            </InputAdornment>
-          ),
-        }}
-        sx={{
-          mb: 2,
-          "& .MuiOutlinedInput-root": {
-            backgroundColor: "#FFFFFF",
-            "& .MuiInputAdornment-root": {
-              position: "absolute",
-              left: "8px",
-            },
-            "& input": {
-              paddingLeft: "20px",
-            },
-          },
-          input: {
-            color: "#000000",
-          },
-        }}
-      />
-
-      <Typography
-        variant="h6"
-        sx={{ mb: 2, fontWeight: "bold", color: "#FFFFFF" }}
-      >
-        Ruta
-      </Typography>
-
-      {filteredMeters.map((m, i) => {
+  // Memoize the list items to prevent unnecessary re-renders
+  const listItems = useMemo(
+    () =>
+      filteredMeters.map((m, i) => {
         const isSelected = i === currentIndex;
         const meterState = readingsState[m.ID] || {};
         const currentReading =
@@ -107,8 +59,8 @@ function Layout({
               color: "#FFFFFF",
               border: isSelected ? "1px solid #FFFFFF" : "1px solid #1F2533",
               transition: "box-shadow 0.2s ease",
-              maxWidth: "260px", // Increased to fit in wider drawer
-              mx: "auto",
+              width: "260px",
+              mx: "4px",
               "&:hover": {
                 boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
               },
@@ -137,86 +89,203 @@ function Layout({
             </CardContent>
           </Card>
         );
-      })}
-    </Box>
+      }),
+    [filteredMeters, currentIndex, readingsState, onSelectMeter]
   );
 
   return (
-    <Box sx={{ display: "flex" }}>
-      {/* Full-width top bar, visible on all pages */}
-      <AppBar
-        position="fixed"
+    <Box
+      sx={{
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor: "#0A0E17",
+      }}
+    >
+      {isMobile && (
+        <Box sx={{ p: 2, pt: 3 }}>
+          <TextField
+            placeholder="Buscar Cliente"
+            variant="outlined"
+            size="small"
+            fullWidth
+            value={searchTerm}
+            onChange={(e) => onSearchChange(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon />
+                </InputAdornment>
+              ),
+              sx: {
+                backgroundColor: "white",
+                borderRadius: 1,
+                "&:hover": {
+                  backgroundColor: "white",
+                },
+              },
+            }}
+          />
+        </Box>
+      )}
+      <Box
         sx={{
-          zIndex: (theme) => theme.zIndex.drawer + 1,
-          backgroundColor: "#121621", // Match sidebar color
+          flexGrow: 1,
+          overflowY: "auto",
+          px: 1,
+          pt: 2,
+          pb: 2,
         }}
       >
-        <Toolbar>
-          {/* Add Menu button that only shows on mobile when sidebar is enabled */}
-          {showSidebar && (
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { md: "none" } }} // Only show below md breakpoint
-            >
-              <MenuIcon />
-            </IconButton>
-          )}
+        {listItems}
+      </Box>
+    </Box>
+  );
+}
 
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            COAB Lectura de Medidores
-          </Typography>
+function Layout({
+  meters,
+  currentIndex,
+  onSelectMeter,
+  onHomeClick,
+  onFinishClick,
+  children,
+  showSidebar,
+  readingsState,
+}) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const isMobile = useMediaQuery((theme) => theme.breakpoints.down("sm"));
 
-          {/* "Home" button => onHomeClick */}
-          <Button color="inherit" onClick={onHomeClick} sx={{ mr: 2 }}>
-            Inicio
-          </Button>
+  // Pre-process meters data once
+  const processedMeters = useMemo(
+    () => meters.map(prepareMeterForSearch),
+    [meters]
+  );
 
-          {/* "Finish" button => onFinishClick */}
-          <Button color="inherit" onClick={onFinishClick}>
-            Finalizar
-          </Button>
-        </Toolbar>
-      </AppBar>
+  // Optimize search with memoization and pre-processed data
+  const filteredMeters = useMemo(() => {
+    if (!searchTerm) return processedMeters;
+    const searchLower = searchTerm.toLowerCase();
 
-      {/* Conditionally render the Drawer (sidebar) only if showSidebar === true */}
-      {showSidebar && (
-        <Drawer
-          variant={isMobile ? "temporary" : "permanent"}
-          open={isMobile ? mobileOpen : true}
-          onClose={handleDrawerToggle}
-          sx={{
-            width: drawerWidth,
-            flexShrink: 0,
-            "& .MuiDrawer-paper": {
-              width: drawerWidth,
-              boxSizing: "border-box",
-              backgroundColor: "#121621",
-            },
-          }}
-        >
-          {/* Spacer to push sidebar content below the top bar */}
-          <Toolbar />
-          {drawerContent}
-        </Drawer>
-      )}
+    // Fast path for ID-only search
+    if (/^\d+$/.test(searchTerm)) {
+      return processedMeters.filter((m) => m.idString.includes(searchTerm));
+    }
 
-      {/* Main content area */}
+    // Full search
+    return processedMeters.filter((m) => m.searchString.includes(searchLower));
+  }, [processedMeters, searchTerm]);
+
+  const handleDrawerToggle = useCallback(() => {
+    setMobileOpen((prev) => !prev);
+  }, []);
+
+  const handleSearchChange = useCallback((value) => {
+    setSearchTerm(value);
+  }, []);
+
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <TopBar
+        onHomeClick={onHomeClick}
+        onSummaryClick={onFinishClick}
+        showButtons={currentIndex !== null}
+        currentScreen={
+          currentIndex >= 0 && currentIndex < meters.length
+            ? "meter"
+            : currentIndex >= meters.length
+            ? "summary"
+            : "home"
+        }
+        onMenuClick={handleDrawerToggle}
+        showMenuButton={showSidebar && isMobile}
+        searchTerm={searchTerm}
+        onSearchChange={handleSearchChange}
+        isMobile={isMobile}
+      />
       <Box
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
-          width: showSidebar
-            ? { xs: "100%", md: `calc(100% - ${drawerWidth}px)` }
-            : "100%",
+          display: "flex",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
-        {/* Extra toolbar to offset content under top bar */}
-        <Toolbar />
-        {children}
+        {showSidebar && currentIndex >= 0 && currentIndex < meters.length && (
+          <>
+            {/* Desktop sidebar */}
+            <Box
+              component="nav"
+              sx={{
+                width: drawerWidth,
+                flexShrink: 0,
+                display: { xs: "none", sm: "block" },
+                borderRight: "1px solid rgba(0, 0, 0, 0.12)",
+                height: "100%",
+              }}
+            >
+              <MeterList
+                filteredMeters={filteredMeters}
+                currentIndex={currentIndex}
+                onSelectMeter={onSelectMeter}
+                readingsState={readingsState}
+                searchTerm={searchTerm}
+                onSearchChange={handleSearchChange}
+                isMobile={false}
+              />
+            </Box>
+
+            {/* Mobile drawer */}
+            <Drawer
+              variant="temporary"
+              open={mobileOpen}
+              onClose={handleDrawerToggle}
+              ModalProps={{
+                keepMounted: true,
+              }}
+              sx={{
+                display: { xs: "block", sm: "none" },
+                "& .MuiDrawer-paper": {
+                  boxSizing: "border-box",
+                  width: drawerWidth,
+                  backgroundColor: "#0A0E17",
+                },
+              }}
+              SlideProps={{
+                tabIndex: -1,
+              }}
+              keepMounted={false}
+              disableEnforceFocus
+              disableRestoreFocus
+            >
+              <MeterList
+                filteredMeters={filteredMeters}
+                currentIndex={currentIndex}
+                onSelectMeter={(i) => {
+                  onSelectMeter(i);
+                  handleDrawerToggle();
+                }}
+                readingsState={readingsState}
+                searchTerm={searchTerm}
+                onSearchChange={handleSearchChange}
+                isMobile={true}
+              />
+            </Drawer>
+          </>
+        )}
+        <Box
+          sx={{
+            flexGrow: 1,
+            p: 3,
+            pl: { sm: showSidebar && currentIndex < meters.length ? 3 : 3 },
+            overflow: "auto",
+            height: "100%",
+          }}
+        >
+          {children}
+        </Box>
       </Box>
     </Box>
   );
