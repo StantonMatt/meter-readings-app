@@ -16,7 +16,17 @@ import {
   Typography,
 } from "@mui/material";
 import { db, storage, auth, functions } from "./firebase-config";
-import { collection, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  getDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+} from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { httpsCallable } from "firebase/functions";
 
@@ -304,10 +314,9 @@ function App() {
     setSelectedYear(year);
   };
 
-  // Update loadPreviousReadings to start from previous month
+  // Update loadPreviousReadings to get the latest version of each month
   const loadPreviousReadings = async () => {
     try {
-      // Start with the month BEFORE the selected month
       const startDate = getPreviousMonthYear(selectedYear, selectedMonth);
       let currentYear = startDate.year;
       let currentMonth = startDate.month;
@@ -320,16 +329,32 @@ function App() {
 
       // Try to load last 5 months of readings
       for (let i = 0; i < 5; i++) {
-        const fileName = getMonthFileName(currentYear, currentMonth);
-        const monthKey = `${currentYear}-${months[currentMonth]}`;
-        console.log(`Looking for readings file: ${fileName}`);
+        const monthPrefix = `${currentYear}-${months[currentMonth]}`;
+        const monthKey = monthPrefix;
 
         try {
-          const readingsRef = doc(db, "readings", fileName);
-          const readingsDoc = await getDoc(readingsRef);
+          // Get all documents for this month
+          const readingsRef = collection(db, "readings");
+          const q = query(
+            readingsRef,
+            where("year", "==", currentYear),
+            where("month", "==", months[currentMonth])
+          );
 
-          if (readingsDoc.exists()) {
-            const monthData = readingsDoc.data().readings;
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            // Sort the documents in memory instead
+            const docs = querySnapshot.docs;
+            docs.sort(
+              (a, b) =>
+                b.data().timestamp.toMillis() - a.data().timestamp.toMillis()
+            );
+
+            // Use the most recent document
+            const latestDoc = docs[0];
+            const monthData = latestDoc.data().readings;
+
             // Transform the data to include the month
             monthData.forEach((reading) => {
               const existingReading = readings.find((r) => r.ID === reading.ID);
@@ -338,14 +363,13 @@ function App() {
               }
             });
           } else {
-            // If file doesn't exist, add "NO DATA" for this month to all meters
+            // If no readings found for this month
             readings.forEach((reading) => {
               reading[monthKey] = "NO DATA";
             });
           }
         } catch (error) {
-          console.log(`Failed to load readings for ${fileName}:`, error);
-          // On error, still add the month with "NO DATA"
+          console.log(`Failed to load readings for ${monthPrefix}:`, error);
           readings.forEach((reading) => {
             reading[monthKey] = "NO DATA";
           });
@@ -456,6 +480,10 @@ function App() {
     try {
       setIsLoading(true);
 
+      // Generate timestamp for the filename
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const fileName = `${selectedYear}-${months[selectedMonth]}_${timestamp}`;
+
       // Generate the readings data
       const readingsToUpload = combinedMeters.map((meter) => {
         const reading = readingsState[meter.ID];
@@ -465,10 +493,10 @@ function App() {
         };
       });
 
-      // Create the readings document
+      // Create the readings document with metadata
       const readingsInfo = {
         readings: readingsToUpload,
-        lastUpdated: new Date(),
+        timestamp: new Date(),
         routeId: selectedRoute?.id || "route1",
         month: months[selectedMonth],
         year: selectedYear,
@@ -476,7 +504,6 @@ function App() {
       };
 
       // Upload to Firestore
-      const fileName = `${selectedYear}-${months[selectedMonth]}`;
       const readingsRef = doc(db, "readings", fileName);
       await setDoc(readingsRef, readingsInfo);
 
@@ -584,18 +611,28 @@ function App() {
 
       // Initialize all readings files
       const allReadings = await getAllMonthlyReadings();
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
 
       for (const [fileName, monthlyReadings] of Object.entries(allReadings)) {
-        const readingsRef = doc(db, "readings", fileName);
+        // Create a unique filename with timestamp
+        const uniqueFileName = `${fileName}_${timestamp}`;
+        const readingsRef = doc(db, "readings", uniqueFileName);
+
+        // Parse the year and month from fileName (e.g., "2025-Enero")
+        const [year, month] = fileName.split("-");
+
         const readingsInfo = {
           readings: monthlyReadings,
+          timestamp: new Date(),
           lastUpdated: new Date(),
           routeId: routeId,
+          month: month,
+          year: parseInt(year),
           fileName: `${fileName}.json`,
         };
 
         await setDoc(readingsRef, readingsInfo);
-        console.log(`Initialized readings for ${fileName}`);
+        console.log(`Initialized readings for ${uniqueFileName}`);
       }
 
       // Load the readings into state
