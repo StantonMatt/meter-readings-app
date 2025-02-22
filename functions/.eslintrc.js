@@ -5,9 +5,15 @@ module.exports = {
     es6: true,
     node: true,
   },
-  extends: ["eslint:recommended"],
+  extends: ["eslint:recommended", "google"],
   rules: {
-    quotes: ["error", "single"],
-    "no-unused-vars": "warn",
+    quotes: ["error", "double"],
+    "object-curly-spacing": ["error", "always"],
+    indent: ["error", 2],
+    "max-len": ["error", { code: 120 }],
+    "require-jsdoc": 0,
+  },
+  parserOptions: {
+    ecmaVersion: 2020,
   },
 };

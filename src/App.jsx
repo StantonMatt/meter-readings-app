@@ -5,7 +5,7 @@ import HomeScreen from "./HomeScreen";
 import MeterScreen from "./MeterScreen";
 import FinalCheckScreen from "./FinalCheckScreen";
 import SummaryScreen from "./SummaryScreen";
-import routeData from "./data/route.json";
+import routeData from "./data/routes/San_Lorenzo-Portal_Primavera.json";
 import {
   Dialog,
   DialogTitle,
@@ -15,9 +15,10 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { db, storage, auth } from "./firebase-config";
+import { db, storage, auth, functions } from "./firebase-config";
 import { collection, getDocs, doc, setDoc, getDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { httpsCallable } from "firebase/functions";
 
 const months = [
   "Enero",
@@ -61,15 +62,33 @@ const calculateMonthlyConsumption = (readings) => {
   for (let i = 1; i < months.length; i++) {
     const currentReading = readings[months[i]];
     const previousReading = readings[months[i - 1]];
-    const monthlyUsage = currentReading - previousReading;
-    consumption.push(monthlyUsage);
+
+    // Only calculate consumption if both readings are valid numbers
+    if (
+      currentReading !== "---" &&
+      previousReading !== "---" &&
+      currentReading !== "NO DATA" &&
+      previousReading !== "NO DATA" &&
+      !isNaN(currentReading) &&
+      !isNaN(previousReading)
+    ) {
+      const monthlyUsage = currentReading - previousReading;
+      consumption.push(monthlyUsage);
+    } else {
+      // Push null or some indicator for missing data
+      consumption.push(null);
+    }
   }
 
-  // Only use the last 5 months of consumption (or less if not available)
+  // Only use the last 5 months of valid consumption (or less if not available)
   const recentConsumption = consumption.slice(-5);
+  const validReadings = recentConsumption.filter(
+    (reading) => reading !== null && !isNaN(reading)
+  );
+
   const average =
-    recentConsumption.length > 0
-      ? recentConsumption.reduce((a, b) => a + b, 0) / recentConsumption.length
+    validReadings.length > 0
+      ? validReadings.reduce((a, b) => a + b, 0) / validReadings.length
       : 0;
 
   return {
@@ -126,7 +145,45 @@ const orderReadingsByDate = (readings) => {
     );
 };
 
-let readingsData = [];
+// Add this utility function to get the previous month and year
+const getPreviousMonthYear = (year, month) => {
+  if (month === 0) {
+    // If January
+    return { year: year - 1, month: 11 }; // Go to December of previous year
+  }
+  return { year, month: month - 1 };
+};
+
+// Add this function to get the file name for a given month and year
+const getMonthFileName = (year, month) => {
+  const monthName = months[month];
+  return `${year}-${monthName}`;
+};
+
+// Add this utility function to get all monthly readings
+const getAllMonthlyReadings = async () => {
+  const files = [
+    "2024-Septiembre",
+    "2024-Octubre",
+    "2024-Noviembre",
+    "2024-Diciembre",
+    "2025-Enero",
+  ];
+
+  const readings = {};
+
+  for (const fileName of files) {
+    try {
+      const monthlyData = (await import(`./data/readings/${fileName}.json`))
+        .default;
+      readings[fileName] = monthlyData;
+    } catch (error) {
+      console.error(`Failed to load ${fileName}.json:`, error);
+    }
+  }
+
+  return readings;
+};
 
 function App() {
   const [currentIndex, setCurrentIndex] = useState(null);
@@ -140,6 +197,7 @@ function App() {
   const [error, setError] = useState(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState(null);
+  const [readingsData, setReadingsData] = useState([]);
 
   // Move combinedMeters initialization here
   const combinedMeters = useMemo(() => {
@@ -204,7 +262,9 @@ function App() {
         const routesRef = collection(db, "routes");
         console.log("Fetching routes...");
 
-        const routesSnapshot = await getDoc(doc(routesRef, "route1"));
+        const routesSnapshot = await getDoc(
+          doc(routesRef, "San_Lorenzo-Portal_Primavera")
+        );
 
         if (!isMounted) return;
 
@@ -214,7 +274,7 @@ function App() {
             ...routesSnapshot.data(),
           };
           setAvailableRoutes([routeData]);
-          console.log("Route loaded successfully");
+          console.log("Route loaded successfully:", routeData);
         } else {
           console.log("No routes found");
           setAvailableRoutes([]);
@@ -233,7 +293,6 @@ function App() {
 
     loadRoutes();
 
-    // Cleanup function
     return () => {
       isMounted = false;
     };
@@ -245,106 +304,63 @@ function App() {
     setSelectedYear(year);
   };
 
-  // Update loadPreviousReadings function
-  const loadPreviousReadings = async (routeName) => {
+  // Update loadPreviousReadings to start from previous month
+  const loadPreviousReadings = async () => {
     try {
-      // Calculate the previous month's file name
-      const prevDate = new Date(selectedYear, selectedMonth - 1);
-      const prevMonthFileName = `${getFormattedMonthYear(prevDate)}-readings`;
+      // Start with the month BEFORE the selected month
+      const startDate = getPreviousMonthYear(selectedYear, selectedMonth);
+      let currentYear = startDate.year;
+      let currentMonth = startDate.month;
+      const readings = [];
 
-      console.log(`Looking for previous readings file: ${prevMonthFileName}`);
-
-      // Try to get readings from Firestore
-      const readingsRef = doc(db, "readings", prevMonthFileName);
-      const readingsDoc = await getDoc(readingsRef);
-
-      let loadedReadings;
-
-      if (readingsDoc.exists()) {
-        console.log(
-          `Found readings for ${
-            months[prevDate.getMonth()]
-          } ${prevDate.getFullYear()}`
-        );
-        loadedReadings = readingsDoc.data().readings;
-      } else {
-        // If not found, try loading the file from one month before
-        const twoMonthsAgoDate = new Date(selectedYear, selectedMonth - 2);
-        const twoMonthsAgoFileName = `${getFormattedMonthYear(
-          twoMonthsAgoDate
-        )}-readings`;
-
-        console.log(
-          `Trying previous month's readings: ${twoMonthsAgoFileName}`
-        );
-
-        const previousReadingsRef = doc(db, "readings", twoMonthsAgoFileName);
-        const previousReadingsDoc = await getDoc(previousReadingsRef);
-
-        if (previousReadingsDoc.exists()) {
-          console.log(
-            `Found readings for ${
-              months[twoMonthsAgoDate.getMonth()]
-            } ${twoMonthsAgoDate.getFullYear()}`
-          );
-          loadedReadings = previousReadingsDoc.data().readings;
-        } else {
-          console.log("No previous readings found, using local data");
-          loadedReadings = readingsData;
-        }
-      }
-
-      // Ensure consistent date sorting for each meter's readings
-      loadedReadings = loadedReadings.map((meter) => {
-        const sortedReadings = {};
-
-        // Keep the ID
-        sortedReadings.ID = meter.ID;
-
-        // Get all date entries and sort them
-        const dateEntries = Object.entries(meter)
-          .filter(([key]) => key !== "ID")
-          .sort((a, b) => {
-            const [yearA, monthA] = a[0].split("-");
-            const [yearB, monthB] = b[0].split("-");
-
-            const monthToNum = {
-              Ene: 1,
-              Feb: 2,
-              Mar: 3,
-              Abr: 4,
-              May: 5,
-              Jun: 6,
-              Jul: 7,
-              Ago: 8,
-              Sep: 9,
-              Oct: 10,
-              Nov: 11,
-              Dic: 12,
-            };
-
-            // Compare years first
-            if (yearA !== yearB) {
-              return parseInt(yearA) - parseInt(yearB);
-            }
-
-            // If years are equal, compare months
-            return monthToNum[monthA] - monthToNum[monthB];
-          });
-
-        // Add sorted entries back to the object
-        dateEntries.forEach(([key, value]) => {
-          sortedReadings[key] = value;
-        });
-
-        return sortedReadings;
+      // Initialize all meters with ID
+      routeData.forEach((meter) => {
+        readings.push({ ID: meter.ID });
       });
 
-      readingsData = loadedReadings;
-      return loadedReadings;
+      // Try to load last 5 months of readings
+      for (let i = 0; i < 5; i++) {
+        const fileName = getMonthFileName(currentYear, currentMonth);
+        const monthKey = `${currentYear}-${months[currentMonth]}`;
+        console.log(`Looking for readings file: ${fileName}`);
+
+        try {
+          const readingsRef = doc(db, "readings", fileName);
+          const readingsDoc = await getDoc(readingsRef);
+
+          if (readingsDoc.exists()) {
+            const monthData = readingsDoc.data().readings;
+            // Transform the data to include the month
+            monthData.forEach((reading) => {
+              const existingReading = readings.find((r) => r.ID === reading.ID);
+              if (existingReading) {
+                existingReading[monthKey] = reading.Reading;
+              }
+            });
+          } else {
+            // If file doesn't exist, add "NO DATA" for this month to all meters
+            readings.forEach((reading) => {
+              reading[monthKey] = "NO DATA";
+            });
+          }
+        } catch (error) {
+          console.log(`Failed to load readings for ${fileName}:`, error);
+          // On error, still add the month with "NO DATA"
+          readings.forEach((reading) => {
+            reading[monthKey] = "NO DATA";
+          });
+        }
+
+        // Move to previous month
+        const prev = getPreviousMonthYear(currentYear, currentMonth);
+        currentYear = prev.year;
+        currentMonth = prev.month;
+      }
+
+      return readings;
     } catch (error) {
-      console.error("Error loading readings:", error);
-      return readingsData;
+      console.error("Error in loadPreviousReadings:", error);
+      throw error;
     }
   };
 
@@ -415,44 +431,71 @@ function App() {
     return csvRows.join("");
   };
 
-  // Update handleUploadReadings function
+  // Add this before the render logic
+  const handleStartClick = async () => {
+    try {
+      setIsLoading(true);
+
+      // Load all 5 months of readings
+      const readings = await loadPreviousReadings();
+      setReadingsData(readings);
+
+      // Update state
+      setPreviousReadings(readings);
+      setCurrentIndex(0);
+    } catch (error) {
+      console.error("Error in handleStartClick:", error);
+      setError("Failed to load route data. Using local data.");
+      setCurrentIndex(0);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleUploadReadings = async () => {
     try {
-      // Format the readings data for Firestore
-      const formattedReadings = combinedMeters.map((meter) => ({
-        ID: meter.ID,
-        ADDRESS: meter.ADDRESS || "",
-        ...meter.readings, // Include previous readings
-        // Add the new reading if it exists
-        [`${selectedYear}-${monthAbbreviations[months[selectedMonth]]}`]:
-          readingsState[meter.ID]?.reading || "---",
-      }));
+      setIsLoading(true);
 
-      // Create the Firestore document
-      const currentFileName = `${selectedYear}-${months[
-        selectedMonth
-      ].toLowerCase()}`;
-      const readingsRef = doc(db, "readings", currentFileName);
-
-      await setDoc(readingsRef, {
-        readings: formattedReadings,
-        month: months[selectedMonth],
-        year: selectedYear,
-        lastUpdated: new Date(),
-        routeId: selectedRoute.id,
-        routeName: selectedRoute.name,
+      // Generate the readings data
+      const readingsToUpload = combinedMeters.map((meter) => {
+        const reading = readingsState[meter.ID];
+        return {
+          ID: meter.ID,
+          Reading: reading?.reading || "---",
+        };
       });
 
-      // Update route document
-      const routeRef = doc(db, "routes", selectedRoute.id);
-      await setDoc(
-        routeRef,
-        {
-          lastUpdated: new Date(),
-          latestReadings: `${currentFileName}.json`,
-        },
-        { merge: true }
-      );
+      // Create the readings document
+      const readingsInfo = {
+        readings: readingsToUpload,
+        lastUpdated: new Date(),
+        routeId: selectedRoute?.id || "route1",
+        month: months[selectedMonth],
+        year: selectedYear,
+        routeName: selectedRoute?.name || "ruta1",
+      };
+
+      // Upload to Firestore
+      const fileName = `${selectedYear}-${months[selectedMonth]}`;
+      const readingsRef = doc(db, "readings", fileName);
+      await setDoc(readingsRef, readingsInfo);
+
+      // Call the cloud function
+      const sendReadingsMail = httpsCallable(functions, "sendReadingsMail");
+
+      const result = await sendReadingsMail({
+        readings: combinedMeters.map((meter) => ({
+          ID: meter.ID,
+          ADDRESS: meter.ADDRESS,
+          ...meter.readings,
+          currentReading: readingsState[meter.ID]?.reading || "---",
+        })),
+        month: months[selectedMonth],
+        year: selectedYear,
+        routeName: selectedRoute?.name || "San Lorenzo Portal Primavera",
+      });
+
+      console.log("Cloud function result:", result);
 
       // Clear local storage
       combinedMeters.forEach((meter) => {
@@ -460,16 +503,16 @@ function App() {
         localStorage.removeItem(`meter_${meter.ID}_confirmed`);
       });
 
-      alert(
-        "Lecturas guardadas exitosamente. Se enviará un correo con el resumen."
-      );
-      setCurrentIndex(null);
+      // Reset state
       setReadingsState({});
+      setCurrentIndex(null);
+
+      alert("Lecturas enviadas exitosamente");
     } catch (error) {
-      console.error("Error saving readings:", error);
-      alert(
-        "Hubo un error al guardar las lecturas. Por favor intente nuevamente."
-      );
+      console.error("Error uploading readings:", error);
+      alert("Error al enviar lecturas: " + (error.message || "Unknown error"));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -519,109 +562,56 @@ function App() {
     }
   };
 
-  // Add a new function to handle the start button click
-  const handleStartClick = async () => {
-    try {
-      setIsLoading(true);
-
-      // Load previous readings when starting
-      let readings;
-      try {
-        readings = await loadPreviousReadings(selectedRoute.name);
-      } catch (error) {
-        console.log("Failed to load cloud readings, using local data");
-        readings = readingsData;
-      }
-
-      // Merge readings with route data
-      const updatedMeters = routeData.map((meter) => {
-        const matchingReading = readings.find((r) => r.ID === meter.ID);
-        return { ...meter, readings: matchingReading || {} };
-      });
-
-      // Update state
-      setPreviousReadings(readings);
-      setCurrentIndex(0); // Move to meter screen
-    } catch (error) {
-      console.error("Error in handleStartClick:", error);
-      setError("Failed to load route data. Using local data.");
-      // Still allow starting with local data
-      setCurrentIndex(0);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Move these functions inside App component
-  const initializeReadingsData = async () => {
-    try {
-      // Get current date for the filename
-      const today = new Date();
-      const monthStr = months[today.getMonth() - 1]
-        .substring(0, 3)
-        .toLowerCase(); // Get previous month
-      const year = today.getFullYear();
-      const fileName = `${year}-${monthStr}-readings`;
-
-      const readingsRef = doc(db, "readings", fileName);
-
-      const formattedReadings = readingsData.map((reading) => {
-        const newReading = { ID: reading.ID };
-        Object.entries(reading).forEach(([key, value]) => {
-          if (key !== "ID") {
-            // Keep the existing date format from the file
-            newReading[key] = value;
-          }
-        });
-        return newReading;
-      });
-
-      const readingsInfo = {
-        readings: formattedReadings,
-        lastUpdated: new Date(),
-        routeId: "route1",
-        fileName: `${fileName}.json`,
-      };
-
-      await setDoc(readingsRef, readingsInfo);
-      console.log(`Readings data initialized successfully as ${fileName}`);
-    } catch (error) {
-      console.error("Error initializing readings data:", error);
-    }
-  };
-
+  // Update initializeRouteData to use the file name as route name
   const initializeRouteData = async () => {
     try {
-      const routeRef = doc(db, "routes", "route1");
+      // Get route name from the file path, removing .json extension
+      const routeName = "San_Lorenzo-Portal_Primavera".replace(/_/g, " "); // Replace underscores with spaces
+      const routeId = "San_Lorenzo-Portal_Primavera"; // Keep original for ID
 
-      const today = new Date();
-      const monthStr = months[today.getMonth() - 1]
-        .substring(0, 3)
-        .toLowerCase();
-      const year = today.getFullYear();
-      const fileName = `${year}-${monthStr}-readings.json`;
-
+      // Initialize route
+      const routeRef = doc(db, "routes", routeId);
       const routeInfo = {
-        name: "ruta1",
+        name: routeName,
+        id: routeId,
         totalMeters: routeData.length,
         lastUpdated: new Date(),
-        latestReadings: fileName,
         meters: routeData,
       };
 
       await setDoc(routeRef, routeInfo);
       console.log("Route data initialized successfully");
 
-      await initializeReadingsData();
+      // Initialize all readings files
+      const allReadings = await getAllMonthlyReadings();
+
+      for (const [fileName, monthlyReadings] of Object.entries(allReadings)) {
+        const readingsRef = doc(db, "readings", fileName);
+        const readingsInfo = {
+          readings: monthlyReadings,
+          lastUpdated: new Date(),
+          routeId: routeId,
+          fileName: `${fileName}.json`,
+        };
+
+        await setDoc(readingsRef, readingsInfo);
+        console.log(`Initialized readings for ${fileName}`);
+      }
+
+      // Load the readings into state
+      const combinedReadings = await loadPreviousReadings();
+      setReadingsData(combinedReadings);
 
       setAvailableRoutes([
         {
-          id: "route1",
+          id: routeId,
           ...routeInfo,
         },
       ]);
+
+      console.log("All data initialized successfully");
     } catch (error) {
-      console.error("Error initializing route data:", error);
+      console.error("Error initializing data:", error);
     }
   };
 
