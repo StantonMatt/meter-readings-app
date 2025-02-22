@@ -507,6 +507,28 @@ function App() {
       const readingsRef = doc(db, "readings", fileName);
       await setDoc(readingsRef, readingsInfo);
 
+      // Generate CSV content
+      const csvContent = generateCSV(
+        combinedMeters,
+        months[selectedMonth],
+        selectedYear
+      );
+
+      // Create and download CSV file
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `lecturas-${
+          selectedRoute?.name || "San_Lorenzo_Portal_Primavera"
+        }-${selectedYear}-${months[selectedMonth]}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
       // Call the cloud function
       const sendReadingsMail = httpsCallable(functions, "sendReadingsMail");
 
