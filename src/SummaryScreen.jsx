@@ -26,11 +26,15 @@ import {
 function SummaryScreen({
   meters,
   readingsState,
+  setReadingsState,
   onFinalize,
   onBack,
   onSelectMeter,
+  selectedMonth,
+  selectedYear,
 }) {
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showSendDialog, setShowSendDialog] = useState(false);
 
   // Calculate reading statistics
   const stats = useMemo(() => {
@@ -66,32 +70,42 @@ function SummaryScreen({
   };
 
   const handleFinalize = () => {
-    setConfirmDialogOpen(true);
+    setShowSendDialog(true);
   };
 
-  const handleConfirmFinalize = () => {
-    setConfirmDialogOpen(false);
+  const handleConfirmAll = () => {
+    // Confirm all pending readings
+    const newReadingsState = { ...readingsState };
+    meters.forEach((meter) => {
+      const state = readingsState[meter.ID];
+      if (state?.reading && !state?.isConfirmed) {
+        newReadingsState[meter.ID] = {
+          ...state,
+          isConfirmed: true,
+        };
+        // Update localStorage
+        localStorage.setItem(`meter_${meter.ID}_confirmed`, "true");
+      }
+    });
+
+    // Update state and send readings
+    setReadingsState(newReadingsState);
+    setShowConfirmDialog(false);
+    onFinalize();
+  };
+
+  const handleSendWithoutConfirming = () => {
+    setShowConfirmDialog(false);
+    onFinalize();
+  };
+
+  const handleConfirmSend = () => {
+    setShowSendDialog(false);
     onFinalize();
   };
 
   return (
     <Container maxWidth="lg">
-      {stats.pending + stats.omitted > 0 && (
-        <Alert
-          severity="warning"
-          sx={{
-            mt: 2,
-            mb: 2,
-            "& .MuiAlert-message": {
-              color: "#663c00",
-              fontWeight: "medium",
-            },
-          }}
-        >
-          ⚠️ Advertencia: Hay lecturas faltantes o sin confirmar
-        </Alert>
-      )}
-
       <Box
         sx={{
           mt: 2,
@@ -115,69 +129,102 @@ function SummaryScreen({
         </Button>
       </Box>
 
-      {/* Confirmation Dialog */}
+      {/* Update the confirmation dialog */}
       <Dialog
-        open={confirmDialogOpen}
-        onClose={() => setConfirmDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
+        open={showConfirmDialog}
+        onClose={() => setShowConfirmDialog(false)}
+        aria-labelledby="confirm-dialog-title"
+        disablePortal={false}
+        keepMounted={false}
       >
-        <DialogTitle>¿Está seguro que desea enviar las lecturas?</DialogTitle>
+        <DialogTitle id="confirm-dialog-title">Lecturas Pendientes</DialogTitle>
         <DialogContent>
-          {missingOrPendingReadings.length > 0 ? (
-            <>
-              <Typography color="error" gutterBottom>
-                Las siguientes lecturas están pendientes o sin confirmar:
-              </Typography>
-              <List>
-                {missingOrPendingReadings.map((meter) => (
-                  <React.Fragment key={meter.ID}>
-                    <ListItem>
-                      <ListItemText
-                        primary={`Cliente: ${meter.ID}`}
-                        secondary={
-                          <>
-                            {meter.ADDRESS}
-                            <br />
-                            Estado:{" "}
-                            {readingsState[meter.ID]?.reading
-                              ? "Sin Confirmar"
-                              : "Sin Lectura"}
-                          </>
-                        }
-                      />
-                    </ListItem>
-                    <Divider />
-                  </React.Fragment>
-                ))}
-              </List>
-            </>
-          ) : (
-            <Typography>
-              Todas las lecturas están completas y confirmadas.
-            </Typography>
-          )}
-          <Typography sx={{ mt: 2 }}>
-            {missingOrPendingReadings.length > 0
-              ? "¿Desea continuar de todos modos?"
-              : "¿Desea proceder con el envío?"}
+          <Typography>
+            Hay lecturas ingresadas que aún no han sido confirmadas. ¿Qué desea
+            hacer?
           </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmDialogOpen(false)}>Cancelar</Button>
+        <DialogActions sx={{ flexDirection: "column", gap: 1, p: 2 }}>
           <Button
-            onClick={handleConfirmFinalize}
+            fullWidth
             variant="contained"
             color="success"
+            onClick={handleConfirmAll}
           >
-            Confirmar Envío
+            Confirmar Todas y Enviar
+          </Button>
+          <Button
+            fullWidth
+            variant="contained"
+            color="warning"
+            onClick={handleSendWithoutConfirming}
+          >
+            Enviar Sin Confirmar
+          </Button>
+          <Button fullWidth onClick={() => setShowConfirmDialog(false)}>
+            Cancelar
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Typography variant="h4" gutterBottom>
-        Resumen de Todos los Medidores
-      </Typography>
+      {/* Update the send confirmation dialog */}
+      <Dialog
+        open={showSendDialog}
+        onClose={() => setShowSendDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        aria-labelledby="send-dialog-title"
+        disablePortal={false}
+        keepMounted={false}
+      >
+        <DialogTitle id="send-dialog-title">
+          Confirmar Envío de Lecturas
+        </DialogTitle>
+        <DialogContent>
+          <Typography gutterBottom>
+            {missingOrPendingReadings.length === 0
+              ? "¿Está seguro que desea enviar todas las lecturas?"
+              : "Hay lecturas pendientes o faltantes:"}
+          </Typography>
+
+          {missingOrPendingReadings.length > 0 && (
+            <>
+              <Typography
+                variant="subtitle2"
+                color="warning.main"
+                sx={{ mt: 2 }}
+              >
+                Lecturas Sin Confirmar ({missingOrPendingReadings.length}):
+              </Typography>
+              <List dense>
+                {missingOrPendingReadings.map((meter) => (
+                  <ListItem key={meter.ID}>
+                    <ListItemText
+                      primary={`Cliente ${meter.ID}`}
+                      secondary={meter.ADDRESS}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowSendDialog(false)} tabIndex={0}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmSend}
+            color={missingOrPendingReadings.length > 0 ? "warning" : "primary"}
+            tabIndex={0}
+          >
+            {missingOrPendingReadings.length > 0
+              ? "Enviar de Todas Formas"
+              : "Confirmar Envío"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* New Stats Table */}
       <Box
@@ -247,6 +294,22 @@ function SummaryScreen({
           </Box>
         </Paper>
       </Box>
+
+      {stats.pending + stats.omitted > 0 && (
+        <Alert
+          severity="warning"
+          sx={{
+            mt: 2,
+            mb: 2,
+            "& .MuiAlert-message": {
+              color: "#663c00",
+              fontWeight: "medium",
+            },
+          }}
+        >
+          Advertencia: Hay lecturas faltantes o sin confirmar
+        </Alert>
+      )}
 
       <TableContainer component={Paper}>
         <Table>

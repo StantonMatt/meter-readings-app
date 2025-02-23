@@ -11,6 +11,8 @@ import {
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import SearchIcon from "@mui/icons-material/Search";
+import { signOut } from "firebase/auth";
+import { auth } from "./firebase-config";
 
 // Define the drawer width to match Layout.jsx
 const drawerWidth = 300;
@@ -35,7 +37,6 @@ function useDebounce(callback, delay) {
 
 function TopBar({
   onHomeClick,
-  onSummaryClick,
   showButtons,
   currentScreen,
   onMenuClick,
@@ -58,32 +59,42 @@ function TopBar({
     [debouncedSearchChange]
   );
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
   return (
     <AppBar
       position="sticky"
       sx={{
-        backgroundColor: "#0A0E17", // Match sidebar color
+        backgroundColor: "#0A0E17",
       }}
     >
       <Toolbar
         sx={{
           display: "flex",
           gap: 2,
-          pl: { sm: "12px" }, // Reduce left padding on desktop
+          pl: { sm: "12px" },
         }}
       >
+        {/* Mobile menu button */}
         {showMenuButton && (
           <IconButton
             color="inherit"
             aria-label="open drawer"
             edge="start"
             onClick={onMenuClick}
-            sx={{ mr: 2, display: { sm: "none" } }}
+            sx={{ display: { sm: "none" } }}
           >
             <MenuIcon />
           </IconButton>
         )}
 
+        {/* Search field */}
         {currentScreen === "meter" && !isMobile && (
           <TextField
             placeholder="Buscar Cliente"
@@ -108,42 +119,39 @@ function TopBar({
             sx={{
               width: "260px",
               display: { xs: "none", sm: "block" },
-              ml: 0,
             }}
           />
         )}
 
+        {/* Home button - now next to search on meter screen */}
+        {showButtons && (
+          <Button
+            color="inherit"
+            onClick={onHomeClick}
+            sx={{
+              "&:hover": {
+                backgroundColor: "rgba(255, 255, 255, 0.08)",
+              },
+            }}
+          >
+            Inicio
+          </Button>
+        )}
+
+        {/* Right side: Spacer and Logout button */}
         <Box sx={{ flexGrow: 1 }} />
 
-        {/* Only show buttons when not on home screen */}
-        {showButtons && (
-          <Box sx={{ display: "flex", gap: 2 }}>
-            <Button
-              color="inherit"
-              onClick={onHomeClick}
-              sx={{
-                "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.08)",
-                },
-              }}
-            >
-              Inicio
-            </Button>
-            {currentScreen === "meter" && (
-              <Button
-                color="inherit"
-                onClick={onSummaryClick}
-                sx={{
-                  "&:hover": {
-                    backgroundColor: "rgba(255, 255, 255, 0.08)",
-                  },
-                }}
-              >
-                Resumen
-              </Button>
-            )}
-          </Box>
-        )}
+        <Button
+          color="inherit"
+          onClick={handleLogout}
+          sx={{
+            "&:hover": {
+              backgroundColor: "rgba(255, 255, 255, 0.08)",
+            },
+          }}
+        >
+          Cerrar Sesión
+        </Button>
       </Toolbar>
     </AppBar>
   );

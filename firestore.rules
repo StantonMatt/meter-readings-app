@@ -1,10 +1,39 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Helper function
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    
+    // Allow initial admin setup
+    match /admins/{userId} {
+      // Allow users to create their own admin document during setup
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      // No updates or deletes allowed
+      allow update, delete: if false;
+    }
+    
+    // Routes - require auth and admin status
+    match /routes/{routeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+    
+    // Readings - require auth and admin status
+    match /readings/{readingId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Default deny all
     match /{document=**} {
-      // Basic security rules - adjust based on your needs
-      allow read: if true;  // Anyone can read
-      allow write: if request.auth != null;  // Only authenticated users can write
+      allow read, write: if false;
     }
   }
 } 

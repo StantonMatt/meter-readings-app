@@ -15,7 +15,14 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { db, storage, auth, functions } from "./firebase-config";
+import {
+  db,
+  storage,
+  auth,
+  functions,
+  appCheck,
+  appCheckInitialized,
+} from "./firebase-config";
 import {
   collection,
   getDocs,
@@ -28,7 +35,14 @@ import {
   limit,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { httpsCallable } from "firebase/functions";
+import {
+  getFunctions,
+  httpsCallable,
+  connectFunctionsEmulator,
+} from "firebase/functions";
+import { onAuthStateChanged } from "firebase/auth";
+import LoginScreen from "./LoginScreen";
+import { getToken } from "firebase/app-check";
 
 const months = [
   "Enero",
@@ -63,8 +77,6 @@ const monthAbbreviations = {
 
 // Update the calculateMonthlyConsumption function
 const calculateMonthlyConsumption = (readings) => {
-  console.log("Starting calculation for readings:", readings);
-
   // Get all readings except ID and ADDRESS, convert to array of [date, value] pairs
   const readingsArray = Object.entries(readings)
     .filter(([key]) => key !== "ID" && key !== "ADDRESS")
@@ -73,15 +85,10 @@ const calculateMonthlyConsumption = (readings) => {
       value: value === "---" || value === "NO DATA" ? null : parseFloat(value),
     }))
     .sort((a, b) => {
-      // Parse dates like "2025-Enero" into comparable values
       const [yearA, monthA] = a.date.split("-");
       const [yearB, monthB] = b.date.split("-");
-
-      // First compare years
       const yearDiff = parseInt(yearB) - parseInt(yearA);
       if (yearDiff !== 0) return yearDiff;
-
-      // If years are the same, compare months
       const monthOrder = {
         Enero: 1,
         Febrero: 2,
@@ -96,48 +103,28 @@ const calculateMonthlyConsumption = (readings) => {
         Noviembre: 11,
         Diciembre: 12,
       };
-
       return monthOrder[monthB] - monthOrder[monthA];
     });
 
-  console.log("Sorted readings array:", readingsArray);
-
-  // Calculate monthly consumption
   const consumption = [];
   for (let i = 0; i < readingsArray.length - 1; i++) {
     const current = readingsArray[i].value;
     const previous = readingsArray[i + 1].value;
-
     if (current !== null && previous !== null) {
       const monthlyUsage = current - previous;
       if (monthlyUsage >= 0) {
         consumption.push(monthlyUsage);
-        console.log(
-          `Consumption between ${readingsArray[i].date} and ${
-            readingsArray[i + 1].date
-          }: ${monthlyUsage}`
-        );
-      } else {
-        console.log(
-          `Skipping negative consumption: ${monthlyUsage} between ${
-            readingsArray[i].date
-          } and ${readingsArray[i + 1].date}`
-        );
       }
     }
   }
 
-  // Take up to 5 most recent consumption values
   const recentConsumption = consumption.slice(0, 5);
-
-  // Calculate average
   const average =
     recentConsumption.length > 0
       ? recentConsumption.reduce((sum, value) => sum + value, 0) /
         recentConsumption.length
       : 0;
 
-  // Calculate estimated reading
   let estimatedReading = null;
   let monthsToEstimate = 1;
 
@@ -145,19 +132,10 @@ const calculateMonthlyConsumption = (readings) => {
   for (const reading of readingsArray) {
     if (reading.value !== null) {
       estimatedReading = reading.value + average * monthsToEstimate;
-      console.log(
-        `Found last valid reading: ${reading.value} from ${reading.date}`
-      );
-      console.log(
-        `Estimated reading: ${estimatedReading} (${monthsToEstimate} months estimated)`
-      );
       break;
     }
     monthsToEstimate++;
   }
-
-  console.log("Final average:", average);
-  console.log("Estimated reading:", estimatedReading);
 
   return {
     monthlyConsumption: consumption,
@@ -256,6 +234,15 @@ const getAllMonthlyReadings = async () => {
   return readings;
 };
 
+// Add this helper function near the top of App.jsx
+const findFirstPendingMeter = (meters, readingsState) => {
+  const index = meters.findIndex((meter) => {
+    const state = readingsState[meter.ID];
+    return !state || !state.isConfirmed; // Return true for unfilled or unconfirmed readings
+  });
+  return index === -1 ? 0 : index; // Return 0 if no pending meters found
+};
+
 function App() {
   const [currentIndex, setCurrentIndex] = useState(null);
   const [submittedReadings, setSubmittedReadings] = useState([]);
@@ -269,6 +256,8 @@ function App() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState(null);
   const [readingsData, setReadingsData] = useState([]);
+  const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   // Move combinedMeters initialization here
   const combinedMeters = useMemo(() => {
@@ -301,7 +290,7 @@ function App() {
     });
   }, [readingsData]);
 
-  // Initialize readingsState from localStorage
+  // Update the readingsState initialization and setter
   const [readingsState, setReadingsState] = useState(() => {
     const initialState = {};
     combinedMeters.forEach((meter) => {
@@ -329,39 +318,71 @@ function App() {
     return currentDate.getFullYear();
   });
 
+  // Add this useEffect near the top of your App component
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setAuthChecked(true);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // Update the useEffect for loading routes
   useEffect(() => {
     let isMounted = true;
 
     const loadRoutes = async () => {
-      if (!isMounted) return;
+      if (!isMounted || !user) return;
 
       setIsLoading(true);
       try {
+        console.log("Starting route load process...");
+        console.log("Current user:", user.uid);
+
+        // Wait for App Check initialization
+        const isInitialized = await appCheckInitialized;
+        console.log("App Check initialization status:", isInitialized);
+
+        if (!isInitialized) {
+          throw new Error("App Check initialization failed");
+        }
+
+        // First, try to initialize the route
+        try {
+          console.log("Attempting to initialize route data...");
+          await initializeRouteData();
+          console.log("Route initialization completed");
+        } catch (error) {
+          console.error("Route initialization failed:", error);
+        }
+
+        // Now try to fetch all routes
+        console.log("Fetching all routes...");
         const routesRef = collection(db, "routes");
-        console.log("Fetching routes...");
+        const routesSnapshot = await getDocs(routesRef);
 
-        const routesSnapshot = await getDoc(
-          doc(routesRef, "San_Lorenzo-Portal_Primavera")
-        );
+        console.log("Routes query completed, empty?", routesSnapshot.empty);
+        console.log("Number of routes found:", routesSnapshot.size);
 
-        if (!isMounted) return;
-
-        if (routesSnapshot.exists()) {
-          const routeData = {
-            id: routesSnapshot.id,
-            ...routesSnapshot.data(),
-          };
-          setAvailableRoutes([routeData]);
-          console.log("Route loaded successfully:", routeData);
+        if (!routesSnapshot.empty) {
+          const routes = routesSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          console.log("Routes loaded:", routes);
+          setAvailableRoutes(routes);
         } else {
-          console.log("No routes found");
+          console.log("No routes found in Firestore");
           setAvailableRoutes([]);
         }
-        setError(null);
       } catch (error) {
+        console.error("Load routes error details:", {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+        });
         if (!isMounted) return;
-        console.error("Error loading routes:", error);
         setError(error.message);
       } finally {
         if (isMounted) {
@@ -375,7 +396,43 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, []); // Empty dependency array means this runs once on mount
+  }, [user]); // Add user to dependencies
+
+  // Update the setupAdmin useEffect
+  useEffect(() => {
+    const setupAdmin = async () => {
+      if (!user) return;
+
+      try {
+        // Check if admin doc already exists first
+        const adminRef = doc(db, "admins", user.uid);
+        const adminDoc = await getDoc(adminRef);
+
+        // Only try to create if it doesn't exist
+        if (!adminDoc.exists()) {
+          console.log("Creating admin document for user:", user.uid);
+          await setDoc(adminRef, {
+            isAdmin: true,
+            email: user.email,
+            createdAt: new Date(),
+          });
+          console.log("Admin setup complete");
+        } else {
+          console.log("Admin document already exists");
+        }
+      } catch (error) {
+        // Just log the error without showing it to the user
+        console.log("Note: Admin setup skipped -", error.message);
+      }
+    };
+
+    // Only run once when user logs in
+    const adminSetupKey = `admin_setup_${user?.uid}`;
+    if (user && !localStorage.getItem(adminSetupKey)) {
+      setupAdmin();
+      localStorage.setItem(adminSetupKey, "true");
+    }
+  }, [user]);
 
   // Add handler for date changes
   const handleDateChange = (month, year) => {
@@ -546,14 +603,30 @@ function App() {
   };
 
   const handleUploadReadings = async () => {
-    let functionCall = null;
-
     try {
       setIsLoading(true);
+      setError(null);
 
-      // Generate timestamp for the filename
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const fileName = `${selectedYear}-${months[selectedMonth]}_${timestamp}`;
+      // Wait for App Check token
+      const isInitialized = await appCheckInitialized;
+      if (!isInitialized) {
+        throw new Error("App Check initialization failed");
+      }
+
+      // Verify user is authenticated
+      if (!auth.currentUser) {
+        throw new Error("User not authenticated");
+      }
+
+      // Generate standardized timestamp format: YYYY-MM-DDThh-mm-ss-SSS
+      const now = new Date();
+      const timestamp = now
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .replace("Z", "");
+
+      // Create standardized filename format
+      const fileName = timestamp;
 
       // Generate the readings data
       const readingsToUpload = combinedMeters.map((meter) => {
@@ -564,28 +637,25 @@ function App() {
         };
       });
 
-      // Create the readings document with metadata
+      // Create the readings document with metadata - removed routeName
       const readingsInfo = {
         readings: readingsToUpload,
-        timestamp: new Date(),
-        routeId: selectedRoute?.id || "route1",
+        timestamp: now,
+        routeId: selectedRoute?.id || "San_Lorenzo-Portal_Primavera",
         month: months[selectedMonth],
-        year: selectedYear,
-        routeName: selectedRoute?.name || "ruta1",
+        year: parseInt(selectedYear),
       };
 
       // Upload to Firestore
       const readingsRef = doc(db, "readings", fileName);
       await setDoc(readingsRef, readingsInfo);
 
-      // Generate CSV content
+      // Generate and download CSV file
       const csvContent = generateCSV(
         combinedMeters,
         months[selectedMonth],
         selectedYear
       );
-
-      // Create and download CSV file
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
@@ -593,16 +663,22 @@ function App() {
       link.setAttribute(
         "download",
         `lecturas-${
-          selectedRoute?.name || "San_Lorenzo_Portal_Primavera"
+          selectedRoute?.id || "San_Lorenzo-Portal_Primavera"
         }-${selectedYear}-${months[selectedMonth]}.csv`
       );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      // Call the cloud function with proper cleanup
-      const sendReadingsMail = httpsCallable(functions, "sendReadingsMail");
-      functionCall = sendReadingsMail({
+      // Get a fresh App Check token before calling the function
+      await getToken(appCheck, /* forceRefresh */ true);
+
+      // Call the cloud function
+      const sendReadingsMail = httpsCallable(functions, "sendReadingsMail", {
+        limitedUseAppCheckTokens: true,
+      });
+
+      console.log("Calling sendReadingsMail with data:", {
         readings: combinedMeters.map((meter) => ({
           ID: meter.ID,
           ADDRESS: meter.ADDRESS,
@@ -611,46 +687,99 @@ function App() {
         })),
         month: months[selectedMonth],
         year: selectedYear,
-        routeName: selectedRoute?.name || "San Lorenzo Portal Primavera",
+        routeId: selectedRoute?.id || "San_Lorenzo-Portal_Primavera",
       });
 
-      const result = await Promise.race([
-        functionCall,
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Timeout")), 30000)
-        ),
-      ]);
+      const emailContent = combinedMeters
+        .filter((meter) => {
+          const reading = readingsState[meter.ID]?.reading;
+          const isConfirmed = readingsState[meter.ID]?.isConfirmed;
+          const verificationRaw = localStorage.getItem(
+            `meter_${meter.ID}_verification`
+          );
+          let verificationData = null;
+          try {
+            verificationData =
+              verificationRaw &&
+              verificationRaw.trim() !== "" &&
+              verificationRaw.trim().toLowerCase() !== "null"
+                ? JSON.parse(verificationRaw)
+                : null;
+          } catch (error) {
+            verificationData = null;
+          }
+          // Only include if verificationData exists and is explicitly for lowConsumption
+          return (
+            reading &&
+            isConfirmed &&
+            verificationData &&
+            verificationData.type === "lowConsumption"
+          );
+        })
+        .map((meter) => {
+          const reading = readingsState[meter.ID]?.reading;
+          const sortedReadings = Object.entries(meter.readings)
+            .filter(([k]) => k !== "ID")
+            .sort((a, b) => b[0].localeCompare(a[0]));
+          const lastReading = sortedReadings[0]?.[1] || "---";
+          const consumption =
+            reading !== "---" && lastReading !== "---"
+              ? Number(reading) - Number(lastReading)
+              : "---";
+
+          const verificationData = JSON.parse(
+            localStorage.getItem(`meter_${meter.ID}_verification`) || "null"
+          );
+
+          let meterInfo = `
+CLIENTE: ${meter.ID}
+DIRECCIÓN: ${meter.ADDRESS}
+LECTURA ANTERIOR: ${lastReading}
+LECTURA ACTUAL: ${reading}
+CONSUMO: ${consumption} m³`;
+
+          if (verificationData?.type === "lowConsumption") {
+            meterInfo += `\n\nNOTA DE VERIFICACIÓN:`;
+            if (verificationData.details.answeredDoor) {
+              meterInfo += `
+• Atendió el cliente: Sí
+• Reportó problemas con el agua: ${
+                verificationData.details.hadIssues ? "Sí" : "No"
+              }
+• Tiempo viviendo en la casa: ${
+                verificationData.details.residenceMonths
+              } meses`;
+            } else {
+              meterInfo += `
+• Atendió el cliente: No
+• Casa parece habitada: ${verificationData.details.looksLivedIn ? "Sí" : "No"}`;
+            }
+          }
+
+          return meterInfo + "\n----------------------------------------";
+        })
+        .join("\n\n");
+
+      console.log("Final emailContent:", emailContent);
+
+      const result = await sendReadingsMail({
+        readings: readingsToUpload,
+        routeId: selectedRoute?.id || "San_Lorenzo-Portal_Primavera",
+        month: months[selectedMonth],
+        year: selectedYear,
+        csvContent: csvContent,
+        emailContent: emailContent,
+      });
 
       console.log("Cloud function result:", result);
 
-      // Clear local storage
-      combinedMeters.forEach((meter) => {
-        localStorage.removeItem(`meter_${meter.ID}_reading`);
-        localStorage.removeItem(`meter_${meter.ID}_confirmed`);
-      });
-
-      // Reset state
-      setReadingsState({});
-      setCurrentIndex(null);
-
-      alert("Lecturas enviadas exitosamente");
+      setSubmittedReadings(readingsToUpload);
+      setCurrentIndex(combinedMeters.length);
     } catch (error) {
-      console.error("Error uploading readings:", error);
-      if (error.message === "Timeout") {
-        alert(
-          "Las lecturas se enviaron pero el email puede tomar unos minutos."
-        );
-      } else {
-        alert(
-          "Error al enviar lecturas: " + (error.message || "Unknown error")
-        );
-      }
+      console.error("Detailed error:", error);
+      setError(`Error uploading readings: ${error.message}`);
     } finally {
       setIsLoading(false);
-      // Clean up function call if it exists
-      if (functionCall && typeof functionCall.cancel === "function") {
-        functionCall.cancel();
-      }
     }
   };
 
@@ -703,53 +832,82 @@ function App() {
   // Update initializeRouteData to use the file name as route name
   const initializeRouteData = async () => {
     try {
-      // Get route name from the file path, removing .json extension
-      const routeName = "San_Lorenzo-Portal_Primavera".replace(/_/g, " "); // Replace underscores with spaces
-      const routeId = "San_Lorenzo-Portal_Primavera"; // Keep original for ID
+      setIsLoading(true);
+      setError(null);
+
+      // Wait for App Check token and verify auth
+      const isInitialized = await appCheckInitialized;
+      if (!isInitialized) {
+        throw new Error("App Check initialization failed");
+      }
+      if (!auth.currentUser) {
+        throw new Error("User not authenticated");
+      }
 
       // Initialize route
+      const routeId = "San_Lorenzo-Portal_Primavera";
       const routeRef = doc(db, "routes", routeId);
+
       const routeInfo = {
-        name: routeName,
+        name: routeId.replace(/_/g, " "),
         id: routeId,
         totalMeters: routeData.length,
         lastUpdated: new Date(),
         meters: routeData,
       };
 
-      await setDoc(routeRef, routeInfo);
-      console.log("Route data initialized successfully");
+      await setDoc(routeRef, routeInfo, { merge: true });
+      console.log("Route data updated successfully");
 
-      // Initialize all readings files
-      const allReadings = await getAllMonthlyReadings();
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      // Initialize readings
+      const readingsCollectionRef = collection(db, "readings");
+      const readingsContext = import.meta.glob("./data/readings/*.json");
 
-      for (const [fileName, monthlyReadings] of Object.entries(allReadings)) {
-        // Create a unique filename with timestamp
-        const uniqueFileName = `${fileName}_${timestamp}`;
-        const readingsRef = doc(db, "readings", uniqueFileName);
+      console.log("Found files:", Object.keys(readingsContext));
 
-        // Parse the year and month from fileName (e.g., "2025-Enero")
-        const [year, month] = fileName.split("-");
+      for (const path in readingsContext) {
+        try {
+          const module = await readingsContext[path]();
+          const readingsData = module.default;
 
-        const readingsInfo = {
-          readings: monthlyReadings,
-          timestamp: new Date(),
-          lastUpdated: new Date(),
-          routeId: routeId,
-          month: month,
-          year: parseInt(year),
-          fileName: `${fileName}.json`,
-        };
+          // Get exact filename without extension
+          const fileName = path.split("/").pop().replace(".json", "");
 
-        await setDoc(readingsRef, readingsInfo);
-        console.log(`Initialized readings for ${uniqueFileName}`);
+          // Extract year and month from filename (e.g., "2024-09-00T00-00-00-000")
+          const [year, month] = fileName.split("-");
+
+          const readingDocRef = doc(readingsCollectionRef, fileName);
+
+          await setDoc(
+            readingDocRef,
+            {
+              readings: readingsData,
+              routeId: routeId,
+              month: months[parseInt(month) - 1], // Convert month number to name
+              year: parseInt(year),
+              timestamp: new Date(),
+            },
+            { merge: true }
+          );
+
+          console.log(`Successfully initialized readings for ${fileName}`);
+        } catch (error) {
+          console.error(`Failed to process file ${path}:`, error);
+        }
       }
 
-      // Load the readings into state
-      const combinedReadings = await loadPreviousReadings();
-      setReadingsData(combinedReadings);
+      // Initialize email config if needed
+      const emailConfigRef = doc(db, "config", "email");
+      const emailConfigDoc = await getDoc(emailConfigRef);
 
+      if (!emailConfigDoc.exists()) {
+        await setDoc(emailConfigRef, {
+          recipients: ["stantonmatthewj@gmail.com", "matthew@temuco.com"],
+        });
+        console.log("Email config initialized");
+      }
+
+      // Update local state
       setAvailableRoutes([
         {
           id: routeId,
@@ -757,11 +915,108 @@ function App() {
         },
       ]);
 
+      setError(null);
       console.log("All data initialized successfully");
     } catch (error) {
-      console.error("Error initializing data:", error);
+      console.error("Detailed initialization error:", error);
+      setError(`Error initializing data: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  // Update the onViewSummary function
+  const onViewSummary = useCallback(() => {
+    const readingsToUpload = combinedMeters.map((meter) => ({
+      ID: meter.ID,
+      ADDRESS: meter.ADDRESS,
+      ...meter.readings,
+      currentReading: readingsState[meter.ID]?.reading || "---",
+    }));
+
+    const emailContent = combinedMeters
+      .filter((meter) => {
+        const reading = readingsState[meter.ID]?.reading;
+        const isConfirmed = readingsState[meter.ID]?.isConfirmed;
+        const verificationRaw = localStorage.getItem(
+          `meter_${meter.ID}_verification`
+        );
+        let verificationData = null;
+        try {
+          verificationData =
+            verificationRaw &&
+            verificationRaw.trim() !== "" &&
+            verificationRaw.trim().toLowerCase() !== "null"
+              ? JSON.parse(verificationRaw)
+              : null;
+        } catch (error) {
+          verificationData = null;
+        }
+        // Only include if verificationData exists and is explicitly for lowConsumption
+        return (
+          reading &&
+          isConfirmed &&
+          verificationData &&
+          verificationData.type === "lowConsumption"
+        );
+      })
+      .map((meter) => {
+        const reading = readingsState[meter.ID]?.reading;
+        const sortedReadings = Object.entries(meter.readings)
+          .filter(([k]) => k !== "ID")
+          .sort((a, b) => b[0].localeCompare(a[0]));
+        const lastReading = sortedReadings[0]?.[1] || "---";
+        const consumption =
+          reading !== "---" && lastReading !== "---"
+            ? Number(reading) - Number(lastReading)
+            : "---";
+
+        const verificationData = JSON.parse(
+          localStorage.getItem(`meter_${meter.ID}_verification`) || "null"
+        );
+
+        let meterInfo = `
+CLIENTE: ${meter.ID}
+DIRECCIÓN: ${meter.ADDRESS}
+LECTURA ANTERIOR: ${lastReading}
+LECTURA ACTUAL: ${reading}
+CONSUMO: ${consumption} m³`;
+
+        if (verificationData?.type === "lowConsumption") {
+          meterInfo += `\n\nNOTA DE VERIFICACIÓN:`;
+          if (verificationData.details.answeredDoor) {
+            meterInfo += `
+• Atendió el cliente: Sí
+• Reportó problemas con el agua: ${
+              verificationData.details.hadIssues ? "Sí" : "No"
+            }
+• Tiempo viviendo en la casa: ${
+              verificationData.details.residenceMonths
+            } meses`;
+          } else {
+            meterInfo += `
+• Atendió el cliente: No
+• Casa parece habitada: ${verificationData.details.looksLivedIn ? "Sí" : "No"}`;
+          }
+        }
+
+        return meterInfo + "\n----------------------------------------";
+      })
+      .join("\n\n");
+
+    setSubmittedReadings(readingsToUpload);
+    setCurrentIndex(combinedMeters.length);
+  }, [combinedMeters, readingsState]);
+
+  // Add this loading check before your main render
+  if (!authChecked) {
+    return null; // Or a loading spinner
+  }
+
+  // If no user is logged in, show login screen
+  if (!user) {
+    return <LoginScreen />;
+  }
 
   // Only one home screen branch (when currentIndex is null)
   if (currentIndex === null) {
@@ -897,20 +1152,62 @@ function App() {
       </Layout>
     );
   } else if (currentIndex === combinedMeters.length) {
-    // Final check screen
+    // Show FinalCheckScreen after readings are submitted
+    if (submittedReadings.length > 0) {
+      return (
+        <Layout
+          meters={combinedMeters}
+          currentIndex={currentIndex}
+          onSelectMeter={handleSelectMeter}
+          onHomeClick={handleHomeClick}
+          onFinishClick={handleUploadReadings}
+          showSidebar={false}
+          readingsState={readingsState}
+        >
+          <FinalCheckScreen
+            readingsState={readingsState}
+            meters={combinedMeters}
+            onContinue={() => {
+              // Find first pending meter
+              const nextIndex = findFirstPendingMeter(
+                combinedMeters,
+                readingsState
+              );
+              setCurrentIndex(nextIndex);
+            }}
+            onViewSummary={onViewSummary}
+            onFinish={() => {
+              // Clear all state and go home
+              setReadingsState({});
+              setCurrentIndex(null);
+              setSubmittedReadings([]);
+              localStorage.clear(); // Clear all stored readings
+            }}
+          />
+        </Layout>
+      );
+    }
+
+    // Show regular summary screen if readings haven't been submitted
     return (
       <Layout
-        showSidebar={false}
         meters={combinedMeters}
         currentIndex={currentIndex}
-        onSelectMeter={() => {}}
+        onSelectMeter={handleSelectMeter}
         onHomeClick={handleHomeClick}
-        onFinishClick={() => setCurrentIndex(combinedMeters.length + 1)}
+        onFinishClick={handleUploadReadings}
+        showSidebar={false}
         readingsState={readingsState}
       >
-        <FinalCheckScreen
-          onGoBack={() => setCurrentIndex(combinedMeters.length - 1)}
-          onFinish={() => setCurrentIndex(combinedMeters.length + 1)}
+        <SummaryScreen
+          meters={combinedMeters}
+          readingsState={readingsState}
+          setReadingsState={setReadingsState}
+          onBack={() => setCurrentIndex(currentIndex - 1)}
+          onFinalize={handleUploadReadings}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+          onSelectMeter={(index) => setCurrentIndex(index)}
         />
       </Layout>
     );
