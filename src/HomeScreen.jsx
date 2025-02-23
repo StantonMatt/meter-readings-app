@@ -27,6 +27,9 @@ function HomeScreen({
   selectedMonth,
   selectedYear,
   onDateChange,
+  onMeterSelect,
+  combinedMeters,
+  searchResults = [],
 }) {
   // Get current date
   const currentDate = new Date();
@@ -78,6 +81,14 @@ function HomeScreen({
   };
 
   const years = generateYearRange();
+
+  const handleMeterClick = (meter) => {
+    // Find the actual index of the meter in the original combinedMeters array
+    const meterIndex = combinedMeters.findIndex((m) => m.ID === meter.ID);
+    if (meterIndex !== -1) {
+      onMeterSelect(meterIndex);
+    }
+  };
 
   return (
     <Container maxWidth="lg">
@@ -252,6 +263,30 @@ function HomeScreen({
           </Box>
         </CardContent>
       </Card>
+
+      <Box sx={{ mt: 2, mb: 2 }}>
+        <Typography variant="h5" gutterBottom>
+          Resultados de Búsqueda
+        </Typography>
+      </Box>
+
+      {searchResults &&
+        searchResults.map((meter) => (
+          <Card
+            key={meter.ID}
+            sx={{
+              mb: 2,
+              cursor: "pointer",
+              backgroundColor: getCardColor(meter),
+            }}
+            onClick={() => handleMeterClick(meter)}
+          >
+            <CardContent>
+              <Typography variant="h6">ID: {meter.ID}</Typography>
+              <Typography>Dirección: {meter.ADDRESS}</Typography>
+            </CardContent>
+          </Card>
+        ))}
     </Container>
   );
 }

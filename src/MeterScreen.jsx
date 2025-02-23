@@ -258,7 +258,14 @@ function MeterScreen({
 
   return (
     <>
-      <Paper sx={{ p: 3 }}>
+      <Paper
+        sx={{
+          p: 3,
+          maxWidth: "800px", // Add max width constraint
+          mx: "auto", // Center the paper
+          width: "100%", // Take full width up to maxWidth
+        }}
+      >
         {/* Client Info */}
         <Box sx={{ mb: 4 }}>
           <Typography variant="h5" gutterBottom>
@@ -269,7 +276,7 @@ function MeterScreen({
           </Typography>
         </Box>
 
-        {/* Previous Readings Grid */}
+        {/* Previous Readings and Estimates Grid */}
         <Box
           sx={{
             display: "grid",
@@ -315,35 +322,77 @@ function MeterScreen({
           })}
         </Box>
 
-        {/* Average Consumption Card */}
+        {/* Stats Grid */}
         <Box
           sx={{
-            mb: 3,
-            p: 2,
-            borderRadius: 2,
-            background: "linear-gradient(145deg, #f8f9fa, #e9ecef)",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+            gap: 2,
+            mb: 4,
           }}
         >
-          <Typography
-            variant="subtitle2"
+          {/* Average Consumption Card */}
+          <Box
             sx={{
-              color: "text.secondary",
-              mb: 0.5,
-              fontWeight: 500,
+              p: 2,
+              borderRadius: 2,
+              background: "linear-gradient(145deg, #f8f9fa, #e9ecef)",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
             }}
           >
-            Promedio de Consumo Mensual
-          </Typography>
-          <Typography
-            variant="h5"
-            sx={{
-              fontWeight: 600,
-              color: "#1a237e",
-            }}
-          >
-            {meter.averageConsumption} m³
-          </Typography>
+            <Typography
+              variant="subtitle2"
+              sx={{
+                color: "text.secondary",
+                mb: 0.5,
+                fontWeight: 500,
+              }}
+            >
+              Promedio de Consumo
+            </Typography>
+            <Typography
+              variant="h5"
+              sx={{
+                fontWeight: 600,
+                color: "#1a237e",
+              }}
+            >
+              {meter.averageConsumption}
+            </Typography>
+          </Box>
+
+          {/* Estimated Reading Card */}
+          {meter.estimatedReading !== null && (
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                background: "linear-gradient(145deg, #f8f9fa, #e9ecef)",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              }}
+            >
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  color: "text.secondary",
+                  mb: 0.5,
+                  fontWeight: 500,
+                }}
+              >
+                Lectura Estimada
+              </Typography>
+              <Typography
+                variant="h5"
+                sx={{
+                  fontWeight: 600,
+                  color: "#1a237e",
+                  opacity: 0.8,
+                }}
+              >
+                {meter.estimatedReading}
+              </Typography>
+            </Box>
+          )}
         </Box>
 
         {/* Input Section */}

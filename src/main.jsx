@@ -6,6 +6,7 @@ import CssBaseline from "@mui/material/CssBaseline";
 import App from "./App";
 import theme from "./theme";
 import { Box } from "@mui/material";
+import "./index.css";
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

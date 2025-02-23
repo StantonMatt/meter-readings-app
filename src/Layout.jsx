@@ -13,6 +13,10 @@ import {
   InputAdornment,
   useMediaQuery,
   IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -36,12 +40,14 @@ function MeterList({
   onSearchChange,
   isMobile,
   onNavigationAttempt,
+  meters,
 }) {
   // Memoize the list items to prevent unnecessary re-renders
   const listItems = useMemo(
     () =>
-      filteredMeters.map((m, i) => {
-        const isSelected = i === currentIndex;
+      filteredMeters.map((m) => {
+        const originalIndex = meters.findIndex((meter) => meter.ID === m.ID);
+        const isSelected = originalIndex === currentIndex;
         const meterState = readingsState[m.ID] || {};
         const currentReading =
           meterState.reading || localStorage.getItem(`meter_${m.ID}_reading`);
@@ -52,7 +58,9 @@ function MeterList({
         return (
           <Card
             key={m.ID}
-            onClick={() => onNavigationAttempt(() => onSelectMeter(i))}
+            onClick={() =>
+              onNavigationAttempt(() => onSelectMeter(originalIndex))
+            }
             sx={{
               mb: 2,
               cursor: "pointer",
@@ -97,6 +105,7 @@ function MeterList({
       readingsState,
       onSelectMeter,
       onNavigationAttempt,
+      meters,
     ]
   );
 
@@ -265,6 +274,7 @@ function Layout({
                 onSearchChange={handleSearchChange}
                 isMobile={false}
                 onNavigationAttempt={handleNavigationAttempt}
+                meters={meters}
               />
             </Box>
 
@@ -300,6 +310,7 @@ function Layout({
                 onSearchChange={handleSearchChange}
                 isMobile={true}
                 onNavigationAttempt={handleNavigationAttempt}
+                meters={meters}
               />
             </Drawer>
           </>

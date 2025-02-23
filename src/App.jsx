@@ -63,47 +63,108 @@ const monthAbbreviations = {
 
 // Update the calculateMonthlyConsumption function
 const calculateMonthlyConsumption = (readings) => {
-  const months = Object.keys(readings)
-    .filter((key) => key !== "ID")
-    .sort(); // Sort chronologically
+  console.log("Starting calculation for readings:", readings);
 
+  // Get all readings except ID and ADDRESS, convert to array of [date, value] pairs
+  const readingsArray = Object.entries(readings)
+    .filter(([key]) => key !== "ID" && key !== "ADDRESS")
+    .map(([date, value]) => ({
+      date,
+      value: value === "---" || value === "NO DATA" ? null : parseFloat(value),
+    }))
+    .sort((a, b) => {
+      // Parse dates like "2025-Enero" into comparable values
+      const [yearA, monthA] = a.date.split("-");
+      const [yearB, monthB] = b.date.split("-");
+
+      // First compare years
+      const yearDiff = parseInt(yearB) - parseInt(yearA);
+      if (yearDiff !== 0) return yearDiff;
+
+      // If years are the same, compare months
+      const monthOrder = {
+        Enero: 1,
+        Febrero: 2,
+        Marzo: 3,
+        Abril: 4,
+        Mayo: 5,
+        Junio: 6,
+        Julio: 7,
+        Agosto: 8,
+        Septiembre: 9,
+        Octubre: 10,
+        Noviembre: 11,
+        Diciembre: 12,
+      };
+
+      return monthOrder[monthB] - monthOrder[monthA];
+    });
+
+  console.log("Sorted readings array:", readingsArray);
+
+  // Calculate monthly consumption
   const consumption = [];
+  for (let i = 0; i < readingsArray.length - 1; i++) {
+    const current = readingsArray[i].value;
+    const previous = readingsArray[i + 1].value;
 
-  for (let i = 1; i < months.length; i++) {
-    const currentReading = readings[months[i]];
-    const previousReading = readings[months[i - 1]];
-
-    // Only calculate consumption if both readings are valid numbers
-    if (
-      currentReading !== "---" &&
-      previousReading !== "---" &&
-      currentReading !== "NO DATA" &&
-      previousReading !== "NO DATA" &&
-      !isNaN(currentReading) &&
-      !isNaN(previousReading)
-    ) {
-      const monthlyUsage = currentReading - previousReading;
-      consumption.push(monthlyUsage);
-    } else {
-      // Push null or some indicator for missing data
-      consumption.push(null);
+    if (current !== null && previous !== null) {
+      const monthlyUsage = current - previous;
+      if (monthlyUsage >= 0) {
+        consumption.push(monthlyUsage);
+        console.log(
+          `Consumption between ${readingsArray[i].date} and ${
+            readingsArray[i + 1].date
+          }: ${monthlyUsage}`
+        );
+      } else {
+        console.log(
+          `Skipping negative consumption: ${monthlyUsage} between ${
+            readingsArray[i].date
+          } and ${readingsArray[i + 1].date}`
+        );
+      }
     }
   }
 
-  // Only use the last 5 months of valid consumption (or less if not available)
-  const recentConsumption = consumption.slice(-5);
-  const validReadings = recentConsumption.filter(
-    (reading) => reading !== null && !isNaN(reading)
-  );
+  // Take up to 5 most recent consumption values
+  const recentConsumption = consumption.slice(0, 5);
 
+  // Calculate average
   const average =
-    validReadings.length > 0
-      ? validReadings.reduce((a, b) => a + b, 0) / validReadings.length
+    recentConsumption.length > 0
+      ? recentConsumption.reduce((sum, value) => sum + value, 0) /
+        recentConsumption.length
       : 0;
+
+  // Calculate estimated reading
+  let estimatedReading = null;
+  let monthsToEstimate = 1;
+
+  // Find the last valid reading
+  for (const reading of readingsArray) {
+    if (reading.value !== null) {
+      estimatedReading = reading.value + average * monthsToEstimate;
+      console.log(
+        `Found last valid reading: ${reading.value} from ${reading.date}`
+      );
+      console.log(
+        `Estimated reading: ${estimatedReading} (${monthsToEstimate} months estimated)`
+      );
+      break;
+    }
+    monthsToEstimate++;
+  }
+
+  console.log("Final average:", average);
+  console.log("Estimated reading:", estimatedReading);
 
   return {
     monthlyConsumption: consumption,
-    averageConsumption: Math.round(average * 100) / 100, // Round to 2 decimal places
+    averageConsumption: Math.round(average * 100) / 100,
+    estimatedReading:
+      estimatedReading !== null ? Math.round(estimatedReading) : null,
+    monthsEstimated: monthsToEstimate,
   };
 };
 
@@ -214,13 +275,19 @@ function App() {
     return routeData.map((meter) => {
       const matchingReading = readingsData.find((r) => r.ID === meter.ID);
       if (matchingReading) {
-        const { monthlyConsumption, averageConsumption } =
-          calculateMonthlyConsumption(matchingReading);
+        const {
+          monthlyConsumption,
+          averageConsumption,
+          estimatedReading,
+          monthsEstimated,
+        } = calculateMonthlyConsumption(matchingReading);
         return {
           ...meter,
           readings: matchingReading,
           monthlyConsumption,
           averageConsumption,
+          estimatedReading,
+          monthsEstimated,
         };
       }
       return {
@@ -228,6 +295,8 @@ function App() {
         readings: {},
         monthlyConsumption: [],
         averageConsumption: 0,
+        estimatedReading: null,
+        monthsEstimated: 0,
       };
     });
   }, [readingsData]);
@@ -786,6 +855,9 @@ function App() {
             selectedMonth={selectedMonth}
             selectedYear={selectedYear}
             onDateChange={handleDateChange}
+            searchResults={[]}
+            combinedMeters={combinedMeters}
+            onMeterSelect={handleSelectMeter}
           />
         </Layout>
         {restartDialog}

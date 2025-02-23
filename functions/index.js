@@ -1,5 +1,5 @@
 /* eslint-disable no-undef */
-console.log("Using new v2 trigger");
+console.log("Using production v2 trigger");
 const { onCall } = require("firebase-functions/v2/https");
 const nodemailer = require("nodemailer");
 
@@ -11,8 +11,13 @@ const nodemailer = require("nodemailer");
 // Create an HTTPS endpoint with CORS handling
 exports.sendReadingsMail = onCall(
   {
-    maxInstances: 10,
+    maxInstances: 1,
+    minInstances: 0,
+    timeoutSeconds: 540,
+    memory: "128MiB",
+    region: "southamerica-west1",
     secrets: ["EMAIL_SENDER", "EMAIL_AUTH_KEY"],
+    cpu: "gcf_gen1",
   },
   async (request) => {
     const transporter = nodemailer.createTransport({
@@ -103,160 +108,160 @@ exports.sendReadingsMail = onCall(
 
       // Create the logo HTML
       const logoHtml = `
-        <div class="logo">
-          <img src="${logoUrl}" alt="COAB Logo" style="max-width: 200px; height: auto;">
-        </div>
-      `;
+    <div class="logo">
+      <img src="${logoUrl}" alt="COAB Logo" style="max-width: 200px; height: auto;">
+    </div>
+  `;
 
       // Create HTML email content with conditional logo
       const htmlContent = `
-        <html>
-          <head>
-            <style>
-              body { 
-                font-family: Arial, sans-serif; 
-                line-height: 1.6; 
-                color: #333;
-                margin: 0;
-                padding: 0;
-              }
-              .container { 
-                max-width: 800px;
-                margin: 0 auto;
-                padding: 20px;
-              }
-              .logo {
-                text-align: center;
-                margin-bottom: 30px;
-              }
-              .logo img {
-                max-width: 200px;
-                height: auto;
-              }
-              .header { 
-                background-color: #1976d2;
-                color: white;
-                padding: 20px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-                text-align: center;
-              }
-              .header h2 {
-                margin: 0;
-                font-size: 24px;
-              }
-              .stats { 
-                background-color: #f5f5f5;
-                padding: 20px;
-                border-radius: 8px;
-                margin-bottom: 20px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-              }
-              .stats-grid {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 15px;
-              }
-              .stat-item { 
-                background-color: white;
-                padding: 15px;
-                border-radius: 6px;
-                border-left: 4px solid #1976d2;
-              }
-              .stat-label {
-                font-size: 14px;
-                color: #666;
-                margin-bottom: 5px;
-              }
-              .stat-value {
-                font-size: 18px;
-                font-weight: bold;
-                color: #1976d2;
-              }
-              .consumption-stats {
-                margin-top: 20px;
-                padding-top: 20px;
-                border-top: 1px solid #ddd;
-              }
-              .footer { 
-                margin-top: 30px;
-                font-size: 0.9em;
-                color: #666;
-                text-align: center;
-                padding-top: 20px;
-                border-top: 1px solid #ddd;
-              }
-            </style>
-          </head>
-          <body>
-            <div class="container">
-              ${logoHtml}
-              
-              <div class="header">
-                <h2>Lecturas de Medidores - ${readingsData.month} ${
+    <html>
+      <head>
+        <style>
+          body { 
+            font-family: Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #333;
+            margin: 0;
+            padding: 0;
+          }
+          .container { 
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+          .logo {
+            text-align: center;
+            margin-bottom: 30px;
+          }
+          .logo img {
+            max-width: 200px;
+            height: auto;
+          }
+          .header { 
+            background-color: #1976d2;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+          }
+          .header h2 {
+            margin: 0;
+            font-size: 24px;
+          }
+          .stats { 
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+          .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+          }
+          .stat-item { 
+            background-color: white;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #1976d2;
+          }
+          .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+          }
+          .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1976d2;
+          }
+          .consumption-stats {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+          }
+          .footer { 
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #666;
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          ${logoHtml}
+          
+          <div class="header">
+            <h2>Lecturas de Medidores - ${readingsData.month} ${
         readingsData.year
       }</h2>
-                <p>Ruta: ${readingsData.routeName}</p>
+            <p>Ruta: ${readingsData.routeName}</p>
+          </div>
+          
+          <div class="stats">
+            <h3>Resumen de Lecturas</h3>
+            <div class="stats-grid">
+              <div class="stat-item">
+                <div class="stat-label">Total de Medidores</div>
+                <div class="stat-value">${totalMeters}</div>
               </div>
-              
-              <div class="stats">
-                <h3>Resumen de Lecturas</h3>
-                <div class="stats-grid">
-                  <div class="stat-item">
-                    <div class="stat-label">Total de Medidores</div>
-                    <div class="stat-value">${totalMeters}</div>
-                  </div>
-                  <div class="stat-item">
-                    <div class="stat-label">Lecturas Completadas</div>
-                    <div class="stat-value">${completedMeters}</div>
-                  </div>
-                  <div class="stat-item">
-                    <div class="stat-label">Lecturas Omitidas</div>
-                    <div class="stat-value">${skippedMeters}</div>
-                  </div>
-                  <div class="stat-item">
-                    <div class="stat-label">Porcentaje Completado</div>
-                    <div class="stat-value">${Math.round(
-                      (completedMeters / totalMeters) * 100
-                    )}%</div>
-                  </div>
-                </div>
-
-                <div class="consumption-stats">
-                  <h3>Estadísticas de Consumo</h3>
-                  <div class="stats-grid">
-                    <div class="stat-item">
-                      <div class="stat-label">Consumo Total</div>
-                      <div class="stat-value">${totalConsumption} m³</div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-label">Consumo Promedio</div>
-                      <div class="stat-value">${avgConsumption} m³</div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-label">Consumo Máximo</div>
-                      <div class="stat-value">${maxConsumption} m³</div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-label">Consumo Mínimo</div>
-                      <div class="stat-value">${minConsumption} m³</div>
-                    </div>
-                  </div>
-                </div>
+              <div class="stat-item">
+                <div class="stat-label">Lecturas Completadas</div>
+                <div class="stat-value">${completedMeters}</div>
               </div>
-
-              <p>Adjunto encontrará el archivo CSV con el detalle de las lecturas.</p>
-
-              <div class="footer">
-                <p>Este es un correo automático. Por favor no responder.</p>
-                <p>Generado el ${new Date().toLocaleString("es-CL", {
-                  timeZone: "America/Santiago",
-                })}</p>
+              <div class="stat-item">
+                <div class="stat-label">Lecturas Omitidas</div>
+                <div class="stat-value">${skippedMeters}</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-label">Porcentaje Completado</div>
+                <div class="stat-value">${Math.round(
+                  (completedMeters / totalMeters) * 100
+                )}%</div>
               </div>
             </div>
-          </body>
-        </html>
-      `;
+
+            <div class="consumption-stats">
+              <h3>Estadísticas de Consumo</h3>
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <div class="stat-label">Consumo Total</div>
+                  <div class="stat-value">${totalConsumption} m³</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-label">Consumo Promedio</div>
+                  <div class="stat-value">${avgConsumption} m³</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-label">Consumo Máximo</div>
+                  <div class="stat-value">${maxConsumption} m³</div>
+                </div>
+                <div class="stat-item">
+                  <div class="stat-label">Consumo Mínimo</div>
+                  <div class="stat-value">${minConsumption} m³</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p>Adjunto encontrará el archivo CSV con el detalle de las lecturas.</p>
+
+          <div class="footer">
+            <p>Este es un correo automático. Por favor no responder.</p>
+            <p>Generado el ${new Date().toLocaleString("es-CL", {
+              timeZone: "America/Santiago",
+            })}</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
 
       // Create email options
       const mailOptions = {
