@@ -477,6 +477,8 @@ function App() {
   };
 
   const handleUploadReadings = async () => {
+    let functionCall = null;
+
     try {
       setIsLoading(true);
 
@@ -529,10 +531,9 @@ function App() {
       link.click();
       document.body.removeChild(link);
 
-      // Call the cloud function
+      // Call the cloud function with proper cleanup
       const sendReadingsMail = httpsCallable(functions, "sendReadingsMail");
-
-      const result = await sendReadingsMail({
+      functionCall = sendReadingsMail({
         readings: combinedMeters.map((meter) => ({
           ID: meter.ID,
           ADDRESS: meter.ADDRESS,
@@ -543,6 +544,13 @@ function App() {
         year: selectedYear,
         routeName: selectedRoute?.name || "San Lorenzo Portal Primavera",
       });
+
+      const result = await Promise.race([
+        functionCall,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Timeout")), 30000)
+        ),
+      ]);
 
       console.log("Cloud function result:", result);
 
@@ -559,9 +567,21 @@ function App() {
       alert("Lecturas enviadas exitosamente");
     } catch (error) {
       console.error("Error uploading readings:", error);
-      alert("Error al enviar lecturas: " + (error.message || "Unknown error"));
+      if (error.message === "Timeout") {
+        alert(
+          "Las lecturas se enviaron pero el email puede tomar unos minutos."
+        );
+      } else {
+        alert(
+          "Error al enviar lecturas: " + (error.message || "Unknown error")
+        );
+      }
     } finally {
       setIsLoading(false);
+      // Clean up function call if it exists
+      if (functionCall && typeof functionCall.cancel === "function") {
+        functionCall.cancel();
+      }
     }
   };
 

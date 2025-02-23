@@ -5,12 +5,12 @@ import { getAuth } from "firebase/auth";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDDXonp9zwGl28AgUZ2-FFq1et6nJoI2xg",
-  authDomain: "meter-readings-app.firebaseapp.com",
-  projectId: "meter-readings-app",
-  storageBucket: "meter-readings-app.appspot.com",
-  messagingSenderId: "84436825138",
-  appId: "1:84436825138:web:c9fe9d32ec91a04ffbf82b",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 // Initialize Firebase
