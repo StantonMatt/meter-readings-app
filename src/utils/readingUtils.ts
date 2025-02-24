@@ -1,20 +1,67 @@
 /**
  * Utilities for processing meter readings
  */
-import { monthOrder } from './dateUtils';
+import { monthOrder } from "./dateUtils";
+
+export interface Reading {
+  ID: string | number;
+  ADDRESS?: string;
+  [key: string]: any;
+}
+
+export interface MeterData {
+  ID: string | number;
+  ADDRESS: string;
+  readings: Record<string, any>;
+  monthlyConsumption: number[];
+  averageConsumption: number;
+  estimatedReading: number | null;
+  monthsEstimated: number;
+}
+
+export interface ReadingState {
+  reading: string;
+  isConfirmed: boolean;
+}
+
+export interface ReadingsState {
+  [meterId: string]: {
+    reading?: string;
+    isConfirmed?: boolean;
+    photoURL?: string;
+    notes?: string;
+  };
+}
+
+export interface ConsumptionStats {
+  monthlyConsumption: number[];
+  averageConsumption: number;
+  estimatedReading: number | null;
+  monthsEstimated: number;
+}
+
+interface ReadingEntry {
+  date: string;
+  value: number | null;
+}
 
 /**
  * Calculate monthly consumption from historical readings
  * @param {Object} readings - Object containing reading history
  * @returns {Object} Object containing consumption statistics
  */
-export const calculateMonthlyConsumption = (readings) => {
+export const calculateMonthlyConsumption = (
+  readings: Reading
+): ConsumptionStats => {
   // Get all readings except ID and ADDRESS, convert to array of [date, value] pairs
-  const readingsArray = Object.entries(readings)
+  const readingsArray: ReadingEntry[] = Object.entries(readings)
     .filter(([key]) => key !== "ID" && key !== "ADDRESS")
     .map(([date, value]) => ({
       date,
-      value: value === "---" || value === "NO DATA" ? null : parseFloat(value),
+      value:
+        value === "---" || value === "NO DATA"
+          ? null
+          : parseFloat(value as string),
     }))
     .sort((a, b) => {
       const [yearA, monthA] = a.date.split("-");
@@ -24,7 +71,7 @@ export const calculateMonthlyConsumption = (readings) => {
       return monthOrder[monthB] - monthOrder[monthA];
     });
 
-  const consumption = [];
+  const consumption: number[] = [];
   for (let i = 0; i < readingsArray.length - 1; i++) {
     const current = readingsArray[i].value;
     const previous = readingsArray[i + 1].value;
@@ -43,7 +90,7 @@ export const calculateMonthlyConsumption = (readings) => {
         recentConsumption.length
       : 0;
 
-  let estimatedReading = null;
+  let estimatedReading: number | null = null;
   let monthsToEstimate = 1;
 
   // Find the last valid reading
@@ -69,7 +116,7 @@ export const calculateMonthlyConsumption = (readings) => {
  * @param {Object} readings - Object with readings by date
  * @returns {Object} Ordered readings object
  */
-export const orderReadingsByDate = (readings) => {
+export const orderReadingsByDate = (readings: Reading): Reading => {
   return Object.entries(readings)
     .filter(([key]) => key !== "ID")
     .sort((a, b) => {
@@ -79,7 +126,7 @@ export const orderReadingsByDate = (readings) => {
 
       // First compare years
       if (yearA !== yearB) {
-        return yearA - yearB;
+        return parseInt(yearA) - parseInt(yearB);
       }
 
       // If years are the same, compare months
@@ -90,7 +137,7 @@ export const orderReadingsByDate = (readings) => {
         acc[key] = value;
         return acc;
       },
-      { ID: readings.ID }
+      { ID: readings.ID } as Reading
     );
 };
 
@@ -100,7 +147,10 @@ export const orderReadingsByDate = (readings) => {
  * @param {Object} readingsState - Current state of readings
  * @returns {number} Index of first pending meter
  */
-export const findFirstPendingMeter = (meters, readingsState) => {
+export const findFirstPendingMeter = (
+  meters: MeterData[],
+  readingsState: ReadingsState
+): number => {
   const index = meters.findIndex((meter) => {
     const state = readingsState[meter.ID];
     return !state || !state.isConfirmed; // Return true for unfilled or unconfirmed readings
@@ -116,9 +166,16 @@ export const findFirstPendingMeter = (meters, readingsState) => {
  * @param {Object} readingsState - Current state of readings
  * @returns {string} CSV content as string
  */
-export const generateCSV = (meters, month, year, readingsState) => {
+export const generateCSV = (
+  meters: MeterData[],
+  month: string,
+  year: number,
+  readingsState: ReadingsState
+): string => {
   // Create CSV header
-  const csvRows = ["ID,Direccion,Lectura Anterior,Lectura Actual,Estado\n"];
+  const csvRows: string[] = [
+    "ID,Direccion,Lectura Anterior,Lectura Actual,Estado\n",
+  ];
 
   meters.forEach((meter) => {
     const reading = readingsState[meter.ID];
@@ -130,8 +187,8 @@ export const generateCSV = (meters, month, year, readingsState) => {
     const status = reading?.isConfirmed
       ? "Confirmado"
       : reading?.reading
-        ? "Sin Confirmar"
-        : "Omitido";
+      ? "Sin Confirmar"
+      : "Omitido";
 
     const currentReading = reading?.reading || "---";
 

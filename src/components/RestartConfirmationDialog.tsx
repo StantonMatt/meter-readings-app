@@ -9,6 +9,14 @@ import {
   Typography,
 } from "@mui/material";
 
+interface RestartConfirmationDialogProps {
+  open: boolean;
+  onClose: () => void;
+  confirmationText: string;
+  onConfirmationChange: (text: string) => void;
+  onConfirm: () => void;
+}
+
 /**
  * Dialog to confirm restarting the readings process
  * @param {Object} props - Component props
@@ -25,7 +33,7 @@ function RestartConfirmationDialog({
   confirmationText,
   onConfirmationChange,
   onConfirm,
-}) {
+}: RestartConfirmationDialogProps): JSX.Element {
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>¿Está seguro que desea reiniciar?</DialogTitle>

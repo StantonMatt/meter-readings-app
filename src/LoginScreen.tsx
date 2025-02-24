@@ -8,16 +8,21 @@ import {
   Box,
   Alert,
 } from "@mui/material";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword, AuthError } from "firebase/auth";
 import { auth } from "./firebase-config";
 
-function LoginScreen() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+interface LoginScreenProps {
+  // This component doesn't currently accept any props,
+  // but we define the interface for future extensibility
+}
 
-  const handleLogin = async (e) => {
+function LoginScreen({}: LoginScreenProps): JSX.Element {
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
@@ -26,8 +31,9 @@ function LoginScreen() {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err) {
       console.error("Login error:", err);
+      const authError = err as AuthError;
       setError(
-        err.code === "auth/invalid-credential"
+        authError.code === "auth/invalid-credential"
           ? "Credenciales inválidas"
           : "Error al iniciar sesión"
       );
@@ -67,7 +73,7 @@ function LoginScreen() {
             type="email"
             fullWidth
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
             margin="normal"
             required
             autoFocus
@@ -78,7 +84,7 @@ function LoginScreen() {
             type="password"
             fullWidth
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
             margin="normal"
             required
           />

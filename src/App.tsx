@@ -1,8 +1,16 @@
-// App.jsx
+// App.tsx
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, getDocs, doc, setDoc, getDoc, query, where } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  doc,
+  setDoc,
+  getDoc,
+  query,
+  where,
+} from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 
 // Components
@@ -13,46 +21,75 @@ import FinalCheckScreen from "./FinalCheckScreen";
 import SummaryScreen from "./SummaryScreen";
 import LoginScreen from "./LoginScreen";
 import EmailPreview from "./EmailPreview";
-import EmailPreviewTable from './EmailPreviewTable';
-import RestartConfirmationDialog from './components/RestartConfirmationDialog';
+import EmailPreviewTable from "./EmailPreviewTable";
+import RestartConfirmationDialog from "./components/RestartConfirmationDialog";
 
 // Data and Config
 import routeData from "./data/routes/San_Lorenzo-Portal_Primavera.json";
-import { db, storage, auth, functions, appCheck, appCheckInitialized } from "./firebase-config";
+import {
+  db,
+  storage,
+  auth,
+  functions,
+  appCheck,
+  appCheckInitialized,
+} from "./firebase-config";
 
 // Utilities
 import { months, getPreviousMonthYear } from "./utils/dateUtils";
-import { calculateMonthlyConsumption, findFirstPendingMeter, generateCSV } from "./utils/readingUtils";
+import {
+  calculateMonthlyConsumption,
+  findFirstPendingMeter,
+  generateCSV,
+  MeterData,
+  ReadingsState,
+} from "./utils/readingUtils";
 import { generateEmailContent } from "./utils/emailUtils";
-import { createNavigationHandlers } from "./utils/navigationUtils";
-import { loadPreviousReadings, initializeRouteData, uploadReadings } from "./services/firebaseService";
+import {
+  createNavigationHandlers,
+  NavigationHandlers,
+} from "./utils/navigationUtils";
+import {
+  loadPreviousReadings,
+  initializeRouteData,
+  uploadReadings,
+} from "./services/firebaseService";
 
-function App() {
+interface RouteData {
+  id: string;
+  name: string;
+  totalMeters: number;
+  [key: string]: any;
+}
+
+function App(): JSX.Element {
   // Core state
-  const [currentIndex, setCurrentIndex] = useState(null);
-  const [submittedReadings, setSubmittedReadings] = useState([]);
-  const [availableRoutes, setAvailableRoutes] = useState([]);
-  const [selectedRoute, setSelectedRoute] = useState(null);
-  const [previousReadings, setPreviousReadings] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [readingsData, setReadingsData] = useState([]);
-  const [user, setUser] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState<number | null>(null);
+  const [submittedReadings, setSubmittedReadings] = useState<any[]>([]);
+  const [availableRoutes, setAvailableRoutes] = useState<RouteData[]>([]);
+  const [selectedRoute, setSelectedRoute] = useState<RouteData | null>(null);
+  const [previousReadings, setPreviousReadings] = useState<any[] | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [readingsData, setReadingsData] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState<boolean>(false);
 
   // UI state
-  const [restartDialogOpen, setRestartDialogOpen] = useState(false);
-  const [restartConfirmation, setRestartConfirmation] = useState("");
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [pendingNavigation, setPendingNavigation] = useState(null);
-  
+  const [restartDialogOpen, setRestartDialogOpen] = useState<boolean>(false);
+  const [restartConfirmation, setRestartConfirmation] = useState<string>("");
+  const [showConfirmDialog, setShowConfirmDialog] = useState<boolean>(false);
+  const [pendingNavigation, setPendingNavigation] = useState<
+    (() => void) | null
+  >(null);
+
   // Date selection state
-  const [selectedMonth, setSelectedMonth] = useState(() => {
+  const [selectedMonth, setSelectedMonth] = useState<number>(() => {
     const currentDate = new Date();
     return currentDate.getMonth();
   });
 
-  const [selectedYear, setSelectedYear] = useState(() => {
+  const [selectedYear, setSelectedYear] = useState<number>(() => {
     const currentDate = new Date();
     return currentDate.getFullYear();
   });
@@ -85,12 +122,12 @@ function App() {
         estimatedReading: null,
         monthsEstimated: 0,
       };
-    });
-  }, [readingsData]);
+    }) as MeterData[];
+  }, [routeData, readingsData]);
 
   // Initialize readings state from localStorage
-  const [readingsState, setReadingsState] = useState(() => {
-    const initialState = {};
+  const [readingsState, setReadingsState] = useState<ReadingsState>(() => {
+    const initialState: ReadingsState = {};
     routeData.forEach((meter) => {
       const reading = localStorage.getItem(`meter_${meter.ID}_reading`);
       const isConfirmed =
@@ -106,13 +143,13 @@ function App() {
   });
 
   // Create navigation handlers
-  const { 
-    handleSelectMeter, 
-    handleHomeClick, 
+  const {
+    handleSelectMeter,
+    handleHomeClick,
     handleGoToSummary,
     handlePreviousMeter,
-    handleNextMeter
-  } = useMemo(() => {
+    handleNextMeter,
+  }: NavigationHandlers = useMemo(() => {
     return createNavigationHandlers(
       currentIndex,
       combinedMeters,
@@ -137,7 +174,7 @@ function App() {
   useEffect(() => {
     let isMounted = true;
 
-    const loadRoutes = async () => {
+    const loadRoutes = async (): Promise<void> => {
       if (!isMounted || !user) return;
 
       setIsLoading(true);
@@ -156,7 +193,13 @@ function App() {
         // First, try to initialize the route
         try {
           console.log("Attempting to initialize route data...");
-          await initializeRouteData(auth, db, routeData, months, appCheckInitialized);
+          await initializeRouteData(
+            auth,
+            db,
+            routeData as unknown as MeterData[],
+            months,
+            appCheckInitialized
+          );
           console.log("Route initialization completed");
         } catch (error) {
           console.error("Route initialization failed:", error);
@@ -174,14 +217,14 @@ function App() {
           const routes = routesSnapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
-          }));
+          })) as RouteData[];
           console.log("Routes loaded:", routes);
           setAvailableRoutes(routes);
         } else {
           console.log("No routes found in Firestore");
           setAvailableRoutes([]);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Load routes error details:", {
           code: error.code,
           message: error.message,
@@ -205,7 +248,7 @@ function App() {
 
   // Setup admin effect
   useEffect(() => {
-    const setupAdmin = async () => {
+    const setupAdmin = async (): Promise<void> => {
       if (!user) return;
 
       try {
@@ -227,7 +270,7 @@ function App() {
         }
       } catch (error) {
         // Just log the error without showing it to the user
-        console.log("Note: Admin setup skipped -", error.message);
+        console.log("Note: Admin setup skipped -", (error as Error).message);
       }
     };
 
@@ -240,20 +283,20 @@ function App() {
   }, [user]);
 
   // Handler for date changes
-  const handleDateChange = (month, year) => {
+  const handleDateChange = (month: number, year: number): void => {
     setSelectedMonth(month);
     setSelectedYear(year);
   };
 
   // Handler for starting the readings process
-  const handleStartClick = async () => {
+  const handleStartClick = async (): Promise<void> => {
     try {
       setIsLoading(true);
 
       // Load all 5 months of readings
       const readings = await loadPreviousReadings(
-        routeData, 
-        selectedYear, 
+        routeData as unknown as MeterData[],
+        selectedYear,
         selectedMonth,
         db,
         months
@@ -273,14 +316,23 @@ function App() {
   };
 
   // Handler for uploading readings
-  const handleUploadReadings = async () => {
+  const handleUploadReadings = async (): Promise<void> => {
     try {
       setIsLoading(true);
       setError(null);
 
       // Upload readings to Firebase
+      const readingsToUpload = combinedMeters.map((meter) => {
+        return {
+          ADDRESS: meter.ADDRESS,
+          ...meter.readings,
+          currentReading: readingsState[meter.ID]?.reading || "---",
+          ID: meter.ID,
+        };
+      });
+
       const uploadedReadings = await uploadReadings(
-        combinedMeters,
+        readingsToUpload as unknown as MeterData[],
         readingsState,
         selectedRoute,
         selectedMonth,
@@ -309,30 +361,42 @@ function App() {
       setSubmittedReadings(uploadedReadings);
     } catch (error) {
       console.error("Detailed error:", error);
-      setError("Error uploading readings: " + error.message);
+      setError("Error uploading readings: " + (error as Error).message);
     } finally {
       setIsLoading(false);
     }
   };
 
   // Handler for reading changes
-  const handleReadingChange = useCallback((meterId, reading) => {
+  const handleReadingChange = (
+    meterId: string | number,
+    reading: string
+  ): void => {
     setReadingsState((prev) => ({
       ...prev,
-      [meterId]: { ...prev[meterId], reading },
+      [String(meterId)]: {
+        ...prev[String(meterId)],
+        reading,
+      },
     }));
-  }, []);
+  };
 
   // Handler for confirmation changes
-  const handleConfirmationChange = useCallback((meterId, isConfirmed) => {
+  const handleConfirmationChange = (
+    meterId: string | number,
+    isConfirmed: boolean
+  ): void => {
     setReadingsState((prev) => ({
       ...prev,
-      [meterId]: { ...prev[meterId], isConfirmed },
+      [String(meterId)]: {
+        ...prev[String(meterId)],
+        isConfirmed,
+      },
     }));
-  }, []);
+  };
 
   // Handler for route selection
-  const handleRouteSelect = async (route) => {
+  const handleRouteSelect = async (route: RouteData | null): Promise<void> => {
     console.log("Route selected:", route);
     setSelectedRoute(route);
 
@@ -342,7 +406,7 @@ function App() {
     }
 
     // Check localStorage for existing readings for this route
-    const existingReadings = {};
+    const existingReadings: ReadingsState = {};
     combinedMeters.forEach((meter) => {
       const reading = localStorage.getItem(`meter_${meter.ID}_reading`);
       const isConfirmed =
@@ -362,7 +426,7 @@ function App() {
   };
 
   // Handler for viewing summary
-  const onViewSummary = useCallback(() => {
+  const onViewSummary = useCallback((): void => {
     const readingsToUpload = combinedMeters.map((meter) => ({
       ID: meter.ID,
       ADDRESS: meter.ADDRESS,
@@ -378,12 +442,12 @@ function App() {
   }, [combinedMeters, readingsState]);
 
   // Handler for restarting the process
-  const handleRestart = () => {
+  const handleRestart = (): void => {
     setRestartDialogOpen(true);
   };
 
   // Handler for confirming restart
-  const confirmRestart = () => {
+  const confirmRestart = (): void => {
     // Clear all readings from localStorage
     combinedMeters.forEach((meter) => {
       localStorage.removeItem(`meter_${meter.ID}_reading`);
@@ -398,7 +462,7 @@ function App() {
 
   // If authentication is still being checked, show nothing
   if (!authChecked) {
-    return null;
+    return <div>Loading...</div>;
   }
 
   // If no user is logged in, show login screen
@@ -438,25 +502,27 @@ function App() {
                   isLoading={isLoading}
                   error={error}
                   selectedRoute={selectedRoute}
-                  onInitialize={() => initializeRouteData(auth, db, routeData, months, appCheckInitialized)}
+                  onInitialize={() =>
+                    initializeRouteData(
+                      auth,
+                      db,
+                      routeData as unknown as MeterData[],
+                      months,
+                      appCheckInitialized
+                    )
+                  }
                   selectedMonth={selectedMonth}
                   selectedYear={selectedYear}
                   onDateChange={handleDateChange}
                   searchResults={[]}
                   combinedMeters={combinedMeters}
-                  onMeterSelect={handleSelectMeter}
+                  onMeterSelect={(index: number) => setCurrentIndex(index)}
                 />
               </Layout>
             }
           />
-          <Route
-            path="/email-preview"
-            element={<EmailPreview />}
-          />
-          <Route
-            path="/email-preview-table"
-            element={<EmailPreviewTable />}
-          />
+          <Route path="/email-preview" element={<EmailPreview />} />
+          <Route path="/email-preview-table" element={<EmailPreviewTable />} />
         </Routes>
         <RestartConfirmationDialog
           open={restartDialogOpen}
@@ -470,7 +536,7 @@ function App() {
         />
       </BrowserRouter>
     );
-  } 
+  }
   // Meter screens
   else if (currentIndex >= 0 && currentIndex < combinedMeters.length) {
     return (
@@ -478,7 +544,7 @@ function App() {
         showSidebar={true}
         meters={combinedMeters}
         currentIndex={currentIndex}
-        onSelectMeter={handleSelectMeter}
+        onSelectMeter={(i: number) => setCurrentIndex(i)}
         onHomeClick={handleHomeClick}
         onFinishClick={handleGoToSummary}
         readingsState={readingsState}
@@ -500,7 +566,7 @@ function App() {
         />
       </Layout>
     );
-  } 
+  }
   // Final check screen after readings are submitted
   else if (currentIndex === combinedMeters.length) {
     if (submittedReadings.length > 0) {
@@ -508,7 +574,7 @@ function App() {
         <Layout
           meters={combinedMeters}
           currentIndex={currentIndex}
-          onSelectMeter={handleSelectMeter}
+          onSelectMeter={(i: number) => setCurrentIndex(i)}
           onHomeClick={handleHomeClick}
           onFinishClick={handleUploadReadings}
           showSidebar={false}
@@ -543,7 +609,7 @@ function App() {
       <Layout
         meters={combinedMeters}
         currentIndex={currentIndex}
-        onSelectMeter={handleSelectMeter}
+        onSelectMeter={(i: number) => setCurrentIndex(i)}
         onHomeClick={handleHomeClick}
         onFinishClick={handleUploadReadings}
         showSidebar={false}
@@ -557,11 +623,11 @@ function App() {
           onFinalize={handleUploadReadings}
           selectedMonth={selectedMonth}
           selectedYear={selectedYear}
-          onSelectMeter={(index) => setCurrentIndex(index)}
+          onSelectMeter={(index: number) => setCurrentIndex(index)}
         />
       </Layout>
     );
-  } 
+  }
   // Summary screen
   else if (currentIndex === combinedMeters.length + 1) {
     return (
@@ -569,7 +635,7 @@ function App() {
         showSidebar={false}
         meters={combinedMeters}
         currentIndex={currentIndex}
-        onSelectMeter={(i) => setCurrentIndex(i)}
+        onSelectMeter={(i: number) => setCurrentIndex(i)}
         onHomeClick={handleHomeClick}
         onFinishClick={handleUploadReadings}
         readingsState={readingsState}
@@ -579,11 +645,11 @@ function App() {
           readingsState={readingsState}
           onFinalize={handleUploadReadings}
           onBack={() => setCurrentIndex(combinedMeters.length - 1)}
-          onSelectMeter={(i) => setCurrentIndex(i)}
+          onSelectMeter={(i: number) => setCurrentIndex(i)}
         />
       </Layout>
     );
-  } 
+  }
   // Invalid state
   else {
     return <div>Estado Inválido</div>;

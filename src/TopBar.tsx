@@ -1,4 +1,4 @@
-// src/TopBar.jsx
+// src/TopBar.tsx
 import React, { useCallback, useRef } from "react";
 import {
   AppBar,
@@ -8,26 +8,31 @@ import {
   TextField,
   InputAdornment,
   IconButton,
+  Typography,
+  useTheme,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import SearchIcon from "@mui/icons-material/Search";
 import { signOut } from "firebase/auth";
 import { auth } from "./firebase-config";
 
-// Define the drawer width to match Layout.jsx
+// Define the drawer width to match Layout.tsx
 const drawerWidth = 300;
 
 // Simple debounce implementation
-function useDebounce(callback, delay) {
-  const timeoutRef = useRef(null);
+function useDebounce<T extends (...args: any[]) => any>(
+  callback: T,
+  delay: number
+): (...args: Parameters<T>) => void {
+  const timeoutRef = useRef<number | null>(null);
 
   return useCallback(
-    (...args) => {
+    (...args: Parameters<T>) => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
 
-      timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = window.setTimeout(() => {
         callback(...args);
       }, delay);
     },
@@ -35,7 +40,19 @@ function useDebounce(callback, delay) {
   );
 }
 
-function TopBar({
+interface TopBarProps {
+  onHomeClick: () => void;
+  onMenuClick?: () => void;
+  onFinishClick?: () => void;
+  showButtons?: boolean;
+  currentScreen?: string;
+  showMenuButton?: boolean;
+  searchTerm?: string;
+  onSearchChange?: (value: string) => void;
+  isMobile?: boolean;
+}
+
+const TopBar: React.FC<TopBarProps> = ({
   onHomeClick,
   showButtons,
   currentScreen,
@@ -44,15 +61,17 @@ function TopBar({
   searchTerm,
   onSearchChange,
   isMobile,
-}) {
+}) => {
+  const theme = useTheme();
+
   // Debounce search input
   const debouncedSearchChange = useDebounce(
-    (value) => onSearchChange(value),
+    (value: string) => onSearchChange && onSearchChange(value),
     300
   );
 
   const handleSearchChange = useCallback(
-    (e) => {
+    (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       debouncedSearchChange(value);
     },
@@ -62,16 +81,18 @@ function TopBar({
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      window.location.reload();
     } catch (error) {
-      console.error("Error signing out:", error);
+      console.error("Error signing out: ", error);
     }
   };
 
   return (
     <AppBar
-      position="sticky"
+      position="fixed"
       sx={{
-        backgroundColor: "#0A0E17",
+        zIndex: theme.zIndex.drawer + 1,
+        backgroundColor: theme.palette.primary.main,
       }}
     >
       <Toolbar
@@ -88,7 +109,7 @@ function TopBar({
             aria-label="open drawer"
             edge="start"
             onClick={onMenuClick}
-            sx={{ display: { sm: "none" } }}
+            sx={{ display: { sm: "none" }, mr: 2 }}
           >
             <MenuIcon />
           </IconButton>
@@ -141,6 +162,10 @@ function TopBar({
         {/* Right side: Spacer and Logout button */}
         <Box sx={{ flexGrow: 1 }} />
 
+        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+          Water Meter Readings
+        </Typography>
+
         <Button
           color="inherit"
           onClick={handleLogout}
@@ -155,6 +180,6 @@ function TopBar({
       </Toolbar>
     </AppBar>
   );
-}
+};
 
 export default TopBar;

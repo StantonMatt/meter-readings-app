@@ -1,9 +1,11 @@
-import { getFirestore, doc, setDoc } from "firebase/firestore";
+import { getFirestore, doc, setDoc, Firestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { enableIndexedDbPersistence } from "firebase/firestore";
 
+type VerificationType = "lowConsumption" | "negativeConsumption" | "highConsumption";
+
 // Helper function to generate verification card HTML
-const generateVerificationCard = (type) => `
+const generateVerificationCard = (type: VerificationType): string => `
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:15px;background:#fff;border:1px solid #edf2f7;border-radius:4px;">
     <tr>
       <td style="padding:15px;">
@@ -45,7 +47,7 @@ const generateVerificationCard = (type) => `
   </table>
 `;
 
-const statsTemplate = `
+const statsTemplate: string = `
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff;border-radius:4px;border:1px solid #edf2f7;">
     <tr>
       <td style="padding:20px;">
@@ -85,7 +87,22 @@ const statsTemplate = `
   </table>
 `;
 
-export const initializeEmailTemplate = async () => {
+interface EmailTemplateData {
+  subject: string;
+  html: string;
+  text: string;
+  lastUpdated: Date;
+  templates: {
+    verificationCard: {
+      lowConsumption: string;
+      negativeConsumption: string;
+      highConsumption: string;
+    };
+    stats: string;
+  };
+}
+
+export const initializeEmailTemplate = async (): Promise<void> => {
   try {
     const auth = getAuth();
     if (!auth.currentUser) {
@@ -94,11 +111,11 @@ export const initializeEmailTemplate = async () => {
 
     console.log("Current user:", auth.currentUser.email);
 
-    const firestore = getFirestore();
+    const firestore: Firestore = getFirestore();
 
     try {
       await enableIndexedDbPersistence(firestore);
-    } catch (err) {
+    } catch (err: any) {
       if (err.code === "failed-precondition") {
         console.warn(
           "Multiple tabs open, persistence can only be enabled in one tab at a time."
@@ -112,7 +129,7 @@ export const initializeEmailTemplate = async () => {
     while (retries > 0) {
       try {
         const templateRef = doc(firestore, "emailTemplates", "readings");
-        await setDoc(templateRef, {
+        const templateData: EmailTemplateData = {
           subject: "Lecturas: {routeId} - {month} {year}",
           html: `
             <html>
@@ -251,7 +268,9 @@ export const initializeEmailTemplate = async () => {
             },
             stats: statsTemplate,
           },
-        });
+        };
+        
+        await setDoc(templateRef, templateData);
 
         console.log("Email template initialized successfully");
         break;

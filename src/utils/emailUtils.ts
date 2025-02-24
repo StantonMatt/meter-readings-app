@@ -1,6 +1,17 @@
 /**
  * Utilities for generating email content
  */
+import { MeterData, ReadingsState } from './readingUtils';
+
+interface VerificationData {
+  type: string;
+  details: {
+    answeredDoor: boolean;
+    hadIssues?: boolean;
+    residenceMonths?: number;
+    looksLivedIn?: boolean;
+  };
+}
 
 /**
  * Generate email content from verification data
@@ -8,7 +19,7 @@
  * @param {Object} readingsState - Current state of readings
  * @returns {string} Formatted email content
  */
-export const generateEmailContent = (meters, readingsState) => {
+export const generateEmailContent = (meters: MeterData[], readingsState: ReadingsState): string => {
   return meters
     .filter((meter) => {
       const reading = readingsState[meter.ID]?.reading;
@@ -16,7 +27,7 @@ export const generateEmailContent = (meters, readingsState) => {
       const verificationRaw = localStorage.getItem(
         `meter_${meter.ID}_verification`
       );
-      let verificationData = null;
+      let verificationData: VerificationData | null = null;
       try {
         verificationData =
           verificationRaw &&
@@ -46,7 +57,7 @@ export const generateEmailContent = (meters, readingsState) => {
           ? Number(reading) - Number(lastReading)
           : "---";
 
-      const verificationData = JSON.parse(
+      const verificationData: VerificationData | null = JSON.parse(
         localStorage.getItem(`meter_${meter.ID}_verification`) || "null"
       );
 

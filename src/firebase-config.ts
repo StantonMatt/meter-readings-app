@@ -7,15 +7,26 @@ import {
   initializeAppCheck,
   ReCaptchaEnterpriseProvider,
   getToken,
+  AppCheck,
 } from "firebase/app-check";
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+  appId: string;
+}
+
+const firebaseConfig: FirebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY as string,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string,
+  messagingSenderId: import.meta.env
+    .VITE_FIREBASE_MESSAGING_SENDER_ID as string,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID as string,
 };
 
 // Initialize Firebase
@@ -30,20 +41,22 @@ const functions = getFunctions(app);
 // Initialize App Check with debug token in development
 if (process.env.NODE_ENV === "development") {
   console.log("Initializing App Check debug token");
-  window.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+  (window as any).FIREBASE_APPCHECK_DEBUG_TOKEN = true;
 }
 
 // Initialize App Check after services
-const appCheck = initializeAppCheck(app, {
+const appCheck: AppCheck = initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider(
-    import.meta.env.VITE_RECAPTCHA_SITE_KEY
+    import.meta.env.VITE_RECAPTCHA_SITE_KEY as string
   ),
   isTokenAutoRefreshEnabled: true,
-  silentMode: true,
 });
 
 // Initialize App Check token immediately and export a promise
-const appCheckInitialized = getToken(appCheck, /* forceRefresh */ true)
+const appCheckInitialized: Promise<boolean> = getToken(
+  appCheck,
+  /* forceRefresh */ true
+)
   .then(() => {
     console.log("Initial App Check token acquired");
     return true;
