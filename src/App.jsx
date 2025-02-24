@@ -43,6 +43,8 @@ import {
 import { onAuthStateChanged } from "firebase/auth";
 import LoginScreen from "./LoginScreen";
 import { getToken } from "firebase/app-check";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import EmailPreview from "./EmailPreview";
 
 const months = [
   "Enero",
@@ -565,8 +567,8 @@ function App() {
       const status = reading?.isConfirmed
         ? "Confirmado"
         : reading?.reading
-        ? "Sin Confirmar"
-        : "Omitido";
+          ? "Sin Confirmar"
+          : "Omitido";
 
       const currentReading = reading?.reading || "---";
 
@@ -628,22 +630,50 @@ function App() {
       // Create standardized filename format
       const fileName = timestamp;
 
+      // Collect all verification data
+      const verifications = combinedMeters.reduce((acc, meter) => {
+        const verificationKey = "meter_" + meter.ID + "_verification";
+        const verificationRaw = localStorage.getItem(verificationKey);
+        if (verificationRaw) {
+          try {
+            const verification = JSON.parse(verificationRaw);
+            if (verification) {
+              acc.push({
+                meterId: meter.ID,
+                address: meter.ADDRESS,
+                ...verification,
+              });
+            }
+          } catch (error) {
+            console.error(
+              "Error parsing verification data for meter " + meter.ID + ":",
+              error
+            );
+          }
+        }
+        return acc;
+      }, []);
+
       // Generate the readings data
       const readingsToUpload = combinedMeters.map((meter) => {
         const reading = readingsState[meter.ID];
+        const verification = verifications.find((v) => v.meterId === meter.ID);
+
         return {
           ID: meter.ID,
           Reading: reading?.reading || "---",
+          verification: verification || null,
         };
       });
 
-      // Create the readings document with metadata - removed routeName
+      // Create the readings document with metadata
       const readingsInfo = {
         readings: readingsToUpload,
         timestamp: now,
         routeId: selectedRoute?.id || "San_Lorenzo-Portal_Primavera",
         month: months[selectedMonth],
         year: parseInt(selectedYear),
+        verifications: verifications,
       };
 
       // Upload to Firestore
@@ -656,65 +686,28 @@ function App() {
         months[selectedMonth],
         selectedYear
       );
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      link.setAttribute(
-        "download",
-        `lecturas-${
-          selectedRoute?.id || "San_Lorenzo-Portal_Primavera"
-        }-${selectedYear}-${months[selectedMonth]}.csv`
-      );
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
 
-      // Get a fresh App Check token before calling the function
-      await getToken(appCheck, /* forceRefresh */ true);
-
-      // Call the cloud function
-      const sendReadingsMail = httpsCallable(functions, "sendReadingsMail", {
-        limitedUseAppCheckTokens: true,
-      });
-
-      console.log("Calling sendReadingsMail with data:", {
-        readings: combinedMeters.map((meter) => ({
-          ID: meter.ID,
-          ADDRESS: meter.ADDRESS,
-          ...meter.readings,
-          currentReading: readingsState[meter.ID]?.reading || "---",
-        })),
-        month: months[selectedMonth],
-        year: selectedYear,
-        routeId: selectedRoute?.id || "San_Lorenzo-Portal_Primavera",
-      });
-
+      // Create email content from verifications
       const emailContent = combinedMeters
         .filter((meter) => {
           const reading = readingsState[meter.ID]?.reading;
           const isConfirmed = readingsState[meter.ID]?.isConfirmed;
-          const verificationRaw = localStorage.getItem(
-            `meter_${meter.ID}_verification`
-          );
+          const verificationKey = "meter_" + meter.ID + "_verification";
+          const verificationRaw = localStorage.getItem(verificationKey);
           let verificationData = null;
+
           try {
-            verificationData =
-              verificationRaw &&
-              verificationRaw.trim() !== "" &&
-              verificationRaw.trim().toLowerCase() !== "null"
-                ? JSON.parse(verificationRaw)
-                : null;
+            verificationData = verificationRaw
+              ? JSON.parse(verificationRaw)
+              : null;
           } catch (error) {
-            verificationData = null;
+            console.error(
+              "Error parsing verification for meter " + meter.ID + ":",
+              error
+            );
           }
-          // Only include if verificationData exists and is explicitly for lowConsumption
-          return (
-            reading &&
-            isConfirmed &&
-            verificationData &&
-            verificationData.type === "lowConsumption"
-          );
+
+          return reading && isConfirmed && verificationData;
         })
         .map((meter) => {
           const reading = readingsState[meter.ID]?.reading;
@@ -727,57 +720,71 @@ function App() {
               ? Number(reading) - Number(lastReading)
               : "---";
 
+          const verificationKey = "meter_" + meter.ID + "_verification";
           const verificationData = JSON.parse(
-            localStorage.getItem(`meter_${meter.ID}_verification`) || "null"
+            localStorage.getItem(verificationKey) || "null"
           );
 
-          let meterInfo = `
-CLIENTE: ${meter.ID}
-DIRECCIÓN: ${meter.ADDRESS}
-LECTURA ANTERIOR: ${lastReading}
-LECTURA ACTUAL: ${reading}
-CONSUMO: ${consumption} m³`;
+          let meterInfo = [
+            "CLIENTE: " + meter.ID,
+            "DIRECCIÓN: " + meter.ADDRESS,
+            "LECTURA ANTERIOR: " + lastReading,
+            "LECTURA ACTUAL: " + reading,
+            "CONSUMO: " + consumption + " m³",
+          ].join("\n");
 
           if (verificationData?.type === "lowConsumption") {
-            meterInfo += `\n\nNOTA DE VERIFICACIÓN:`;
+            meterInfo += "\n\nNOTA DE VERIFICACIÓN:";
             if (verificationData.details.answeredDoor) {
-              meterInfo += `
-• Atendió el cliente: Sí
-• Reportó problemas con el agua: ${
-                verificationData.details.hadIssues ? "Sí" : "No"
-              }
-• Tiempo viviendo en la casa: ${
-                verificationData.details.residenceMonths
-              } meses`;
+              meterInfo += [
+                "\n• Atendió el cliente: Sí",
+                "\n• Reportó problemas con el agua: " +
+                  (verificationData.details.hadIssues ? "Sí" : "No"),
+                "\n• Tiempo viviendo en la casa: " +
+                  verificationData.details.residenceMonths +
+                  " meses",
+              ].join("");
             } else {
-              meterInfo += `
-• Atendió el cliente: No
-• Casa parece habitada: ${verificationData.details.looksLivedIn ? "Sí" : "No"}`;
+              meterInfo += [
+                "\n• Atendió el cliente: No",
+                "\n• Casa parece habitada: " +
+                  (verificationData.details.looksLivedIn ? "Sí" : "No"),
+              ].join("");
             }
           }
 
-          return meterInfo + "\n----------------------------------------";
+          return meterInfo;
         })
-        .join("\n\n");
+        .join("\n----------------------------------------\n");
 
-      console.log("Final emailContent:", emailContent);
-
-      const result = await sendReadingsMail({
+      // Call the cloud function
+      const sendReadingsMail = httpsCallable(functions, "sendReadingsMail");
+      await sendReadingsMail({
         readings: readingsToUpload,
         routeId: selectedRoute?.id || "San_Lorenzo-Portal_Primavera",
         month: months[selectedMonth],
         year: selectedYear,
-        csvContent: csvContent,
         emailContent: emailContent,
       });
 
-      console.log("Cloud function result:", result);
+      // Clear all readings from localStorage
+      combinedMeters.forEach((meter) => {
+        const readingKey = "meter_" + meter.ID + "_reading";
+        const confirmedKey = "meter_" + meter.ID + "_confirmed";
+        const verificationKey = "meter_" + meter.ID + "_verification";
 
-      setSubmittedReadings(readingsToUpload);
+        localStorage.removeItem(readingKey);
+        localStorage.removeItem(confirmedKey);
+        localStorage.removeItem(verificationKey);
+      });
+
+      // Reset readings state
+      setReadingsState({});
       setCurrentIndex(combinedMeters.length);
+      setSubmittedReadings(readingsToUpload);
     } catch (error) {
       console.error("Detailed error:", error);
-      setError(`Error uploading readings: ${error.message}`);
+      setError("Error uploading readings: " + error.message);
     } finally {
       setIsLoading(false);
     }
@@ -1086,37 +1093,48 @@ CONSUMO: ${consumption} m³`;
     );
 
     return (
-      <>
-        <Layout
-          showSidebar={false}
-          meters={combinedMeters}
-          currentIndex={-1}
-          onSelectMeter={() => {}}
-          onHomeClick={handleHomeClick}
-          onFinishClick={handleUploadReadings}
-          readingsState={readingsState}
-        >
-          <HomeScreen
-            hasReadings={hasReadings}
-            onStart={handleStartClick}
-            onContinue={onContinue}
-            onRestart={handleRestart}
-            routes={availableRoutes}
-            onRouteSelect={handleRouteSelect}
-            isLoading={isLoading}
-            error={error}
-            selectedRoute={selectedRoute}
-            onInitialize={initializeRouteData}
-            selectedMonth={selectedMonth}
-            selectedYear={selectedYear}
-            onDateChange={handleDateChange}
-            searchResults={[]}
-            combinedMeters={combinedMeters}
-            onMeterSelect={handleSelectMeter}
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <Layout
+                showSidebar={false}
+                meters={combinedMeters}
+                currentIndex={-1}
+                onSelectMeter={() => {}}
+                onHomeClick={handleHomeClick}
+                onFinishClick={handleUploadReadings}
+                readingsState={readingsState}
+              >
+                <HomeScreen
+                  hasReadings={hasReadings}
+                  onStart={handleStartClick}
+                  onContinue={onContinue}
+                  onRestart={handleRestart}
+                  routes={availableRoutes}
+                  onRouteSelect={handleRouteSelect}
+                  isLoading={isLoading}
+                  error={error}
+                  selectedRoute={selectedRoute}
+                  onInitialize={initializeRouteData}
+                  selectedMonth={selectedMonth}
+                  selectedYear={selectedYear}
+                  onDateChange={handleDateChange}
+                  searchResults={[]}
+                  combinedMeters={combinedMeters}
+                  onMeterSelect={handleSelectMeter}
+                />
+              </Layout>
+            }
           />
-        </Layout>
+          <Route
+            path="/email-preview"
+            element={<EmailPreview />}
+          />
+        </Routes>
         {restartDialog}
-      </>
+      </BrowserRouter>
     );
   } else if (currentIndex >= 0 && currentIndex < combinedMeters.length) {
     // Meter screens

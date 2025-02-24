@@ -90,6 +90,143 @@ exports.sendReadingsMail = onCall(
           ? Math.min(...consumptionData.map((r) => r.consumption))
           : 0;
 
+      // Group verifications by type
+      const verificationsByType = readingsData.readings.reduce(
+        (acc, reading) => {
+          if (reading.verification) {
+            const type = reading.verification.type;
+            if (!acc[type]) acc[type] = [];
+            acc[type].push(reading);
+          }
+          return acc;
+        },
+        {}
+      );
+
+      // Helper function to generate verification card HTML
+      const generateVerificationCard = (reading, type) => {
+        const verification = reading.verification;
+        let cardContent = `
+          <div class="card" style="margin-bottom:15px;">
+            <div style="margin-bottom:10px;"><strong>CLIENTE:</strong> ${
+              reading.ID
+            }</div>
+            <div style="margin-bottom:10px;"><strong>DIRECCIÓN:</strong> ${
+              reading.ADDRESS || ""
+            }</div>
+            <div style="margin-bottom:10px;"><strong>Lectura Anterior:</strong> ${
+              verification.previousReading || "---"
+            }</div>
+            <div style="margin-bottom:10px;"><strong>Lectura Actual:</strong> ${
+              verification.currentReading || reading.Reading
+            }</div>`;
+
+        switch (type) {
+          case "lowConsumption":
+            cardContent += `
+              <div style="margin-bottom:10px;"><strong>CONSUMO:</strong> ${
+                verification.consumption
+              } m³</div>
+              <div style="margin-top:10px;padding:10px;background:#f0f4ff;border-left:4px solid #1c2c64;">
+                <strong>VERIFICACIÓN DE BAJO CONSUMO:</strong><br>
+                • Atendió el cliente: ${
+                  verification.details.answeredDoor ? "Sí" : "No"
+                }<br>`;
+
+            if (verification.details.answeredDoor) {
+              cardContent += `
+                • Reportó problemas con el agua: ${
+                  verification.details.hadIssues ? "Sí" : "No"
+                }<br>
+                • Tiempo viviendo en la casa: ${
+                  verification.details.residenceMonths
+                } meses`;
+            } else {
+              cardContent += `
+                • Casa parece habitada: ${
+                  verification.details.looksLivedIn ? "Sí" : "No"
+                }`;
+            }
+            break;
+
+          case "negativeConsumption":
+            cardContent += `
+              <div style="margin-bottom:10px;"><strong>CONSUMO:</strong> <span style="color:#d32f2f;">${verification.consumption} m³</span></div>
+              <div style="margin-top:10px;padding:10px;background:#fee2e2;border-left:4px solid #dc2626;">
+                <strong>CONSUMO NEGATIVO VERIFICADO</strong><br>
+                • Diferencia: ${verification.consumption} m³<br>
+                • Verificado y confirmado por el lector
+              </div>`;
+            break;
+
+          case "highConsumption":
+            cardContent += `
+              <div style="margin-bottom:10px;"><strong>CONSUMO:</strong> <span style="color:#0d47a1;">${
+                verification.consumption
+              } m³</span></div>
+              <div style="margin-top:10px;padding:10px;background:#e3f2fd;border-left:4px solid #0d47a1;">
+                <strong>ALTO CONSUMO VERIFICADO</strong><br>
+                • Consumo promedio: ${verification.average.toFixed(1)} m³<br>
+                • Porcentaje sobre promedio: ${verification.percentageAboveAverage.toFixed(
+                  1
+                )}%<br>
+                • Verificado y confirmado por el lector
+              </div>`;
+            break;
+        }
+
+        cardContent += `</div></div>`;
+        return cardContent;
+      };
+
+      // Generate HTML for each verification type
+      const verificationSections = [];
+
+      if (verificationsByType.lowConsumption?.length > 0) {
+        verificationSections.push(`
+          <div class="section-title">Lecturas con Bajo Consumo (${
+            verificationsByType.lowConsumption.length
+          })</div>
+          <div class="card">
+            ${verificationsByType.lowConsumption
+              .map((reading) =>
+                generateVerificationCard(reading, "lowConsumption")
+              )
+              .join("")}
+          </div>
+        `);
+      }
+
+      if (verificationsByType.negativeConsumption?.length > 0) {
+        verificationSections.push(`
+          <div class="section-title">Lecturas con Consumo Negativo (${
+            verificationsByType.negativeConsumption.length
+          })</div>
+          <div class="card">
+            ${verificationsByType.negativeConsumption
+              .map((reading) =>
+                generateVerificationCard(reading, "negativeConsumption")
+              )
+              .join("")}
+          </div>
+        `);
+      }
+
+      if (verificationsByType.highConsumption?.length > 0) {
+        verificationSections.push(`
+          <div class="section-title">Lecturas con Alto Consumo (${
+            verificationsByType.highConsumption.length
+          })</div>
+          <div class="card">
+            ${verificationsByType.highConsumption
+              .map((reading) =>
+                generateVerificationCard(reading, "highConsumption")
+              )
+              .join("")}
+          </div>
+        `);
+      }
+
       // Generate CSV content
       const csvRows = [
         "ID,Direccion,Lectura Anterior,Lectura Actual,Estado,Consumo\n",
@@ -123,44 +260,210 @@ exports.sendReadingsMail = onCall(
       // Updated: Minified and inlined email template to avoid Gmail clipping
       const logoHtml = `<div class="logo"><img src="${logoUrl}" alt="COAB Logo" style="max-width:200px;height:auto;"></div>`;
 
-      const htmlContent = `<html><head><meta name="viewport" content="width=device-width,initial-scale=1.0"><style type="text/css">body{font-family:Arial,sans-serif;line-height:1.6;color:#333;margin:0;padding:0;background:#f8f9fa}.container{width:100%;max-width:1200px;margin:0 auto;padding:20px;box-sizing:border-box}.header{background:#1c2c64;color:#fff;padding:25px;border-radius:12px;text-align:center}.table-wrapper{width:100%;border-collapse:collapse}.table-wrapper td{vertical-align:top;padding:10px}.column{width:50%}.section-title{font-size:20px;margin-bottom:15px;border-bottom:2px solid #1c2c64;padding-bottom:5px}.card{background:#fff;border:1px solid #e9ecef;border-radius:8px;padding:15px;margin-bottom:15px;box-shadow:0 2px 4px rgba(0,0,0,0.05)}.stats-grid{display:flex;flex-wrap:wrap;gap:20px}.stat-item{flex:1;min-width:150px;background:#f8f9fa;padding:15px;border-radius:8px;text-align:center}.stat-label{font-size:14px;color:#1c2c64;margin-bottom:5px}.stat-value{font-size:22px;font-weight:bold;color:#1c2c64}@media only screen and (max-width:600px){.column{display:block;width:100% !important}}</style></head><body><div class="container">${logoHtml}<div class="header"><h2 style="margin:0;">Lecturas: ${
-        readingsData.month
-      } ${
-        readingsData.year
-      }</h2><p style="margin:10px 0 0;opacity:0.9;">Ruta: ${
-        readingsData.routeId
-      }</p></div><table class="table-wrapper"><tr><td class="column"><div class="section-title">Resumen de Lecturas</div><div class="card"><div class="stats-grid"><div class="stat-item"><div class="stat-label">Total de Medidores</div><div class="stat-value">${totalMeters}</div></div><div class="stat-item"><div class="stat-label">Completadas</div><div class="stat-value">${completedMeters}</div></div><div class="stat-item"><div class="stat-label">Omitidas</div><div class="stat-value">${skippedMeters}</div></div><div class="stat-item"><div class="stat-label">Porcentaje</div><div class="stat-value">${Math.round(
-        (completedMeters / totalMeters) * 100
-      )}%</div></div></div></div><div class="section-title">Estadísticas de Consumo</div><div class="card"><div class="stats-grid"><div class="stat-item"><div class="stat-label">Consumo Total</div><div class="stat-value">${totalConsumption} m³</div></div><div class="stat-item"><div class="stat-label">Promedio</div><div class="stat-value">${avgConsumption} m³</div></div><div class="stat-item"><div class="stat-label">Máximo</div><div class="stat-value">${maxConsumption} m³</div></div><div class="stat-item"><div class="stat-label">Mínimo</div><div class="stat-value">${minConsumption} m³</div></div></div></div></td><td class="column"><div class="section-title">Lecturas con Verificación</div><div class="card">${readingsData.emailContent
-        .split("----------------------------------------")
-        .filter((s) => s.trim())
-        .filter((s) => s.includes("NOTA DE VERIFICACIÓN"))
-        .map((s) => {
-          const lines = s.trim().split("\n");
-          return `<div class="card" style="margin-bottom:15px;"><div style="margin-bottom:10px;"><strong>CLIENTE:</strong> ${
-            lines[0].split(": ")[1]
-          }</div><div style="margin-bottom:10px;"><strong>DIRECCIÓN:</strong> ${
-            lines[1].split(": ")[1]
-          }</div><div style="margin-bottom:10px;"><strong>Lectura Anterior:</strong> ${
-            lines[2].split(": ")[1]
-          }</div><div style="margin-bottom:10px;"><strong>Lectura Actual:</strong> ${
-            lines[3].split(": ")[1]
-          }</div><div style="margin-bottom:10px;"><strong>CONSUMO:</strong> <span style="${
-            Number(lines[4].split(": ")[1].split(" ")[0]) < 0
-              ? "color:#d32f2f;"
-              : ""
-          }">${
-            lines[4].split(": ")[1]
-          }</span></div><div style="margin-top:10px;padding:10px;background:#f0f4ff;border-left:4px solid #1c2c64;"><strong>NOTA DE VERIFICACIÓN:</strong><br>${lines
-            .slice(7)
-            .join("<br>")}</div></div>`;
-        })
-        .join(
-          ""
-        )}</div></td></tr></table><div style="text-align:center;margin-top:30px;color:#666;font-size:13px;"><p>Adjunto encontrará el archivo CSV con el detalle de las lecturas.</p><p>Este es un correo automático. Por favor no responder.</p><p>Generado el ${new Date().toLocaleString(
-        "es-CL",
-        { timeZone: "America/Santiago" }
-      )}</p></div></div></body></html>`;
+      // Update the HTML content with side-by-side columns
+      const htmlContent = `<html>
+        <head>
+          <meta name="viewport" content="width=device-width,initial-scale=1.0">
+          <style type="text/css">
+            body {
+              font-family: Arial, sans-serif;
+              line-height: 1.6;
+              color: #333;
+              margin: 0;
+              padding: 0;
+              background: #f8f9fa;
+            }
+            .container {
+              width: 100%;
+              max-width: 1200px;
+              margin: 0 auto;
+              padding: 20px;
+              box-sizing: border-box;
+            }
+            .header {
+              background: #1c2c64;
+              color: #fff;
+              padding: 25px;
+              border-radius: 12px;
+              text-align: center;
+              margin-bottom: 30px;
+            }
+            .stats-section {
+              background: #fff;
+              border-radius: 12px;
+              padding: 20px;
+              margin-bottom: 30px;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+            .section-title {
+              font-size: 20px;
+              margin-bottom: 20px;
+              padding-bottom: 10px;
+              border-bottom: 2px solid #1c2c64;
+              color: #1c2c64;
+            }
+            .stats-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+              gap: 20px;
+              margin-bottom: 20px;
+            }
+            .stat-item {
+              text-align: center;
+              padding: 15px;
+              background: #f8f9fa;
+              border-radius: 8px;
+            }
+            .verification-columns {
+              display: flex;
+              flex-direction: row;
+              gap: 20px;
+              margin-top: 30px;
+            }
+            
+            .verification-column {
+              flex: 1;
+              min-width: 300px;
+              background: #fff;
+              border-radius: 12px;
+              padding: 20px;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+            
+            /* Column-specific styles */
+            .low-consumption-column .section-title {
+              color: #1c2c64;
+              border-bottom-color: #1c2c64;
+            }
+            
+            .negative-consumption-column .section-title {
+              color: #d32f2f;
+              border-bottom-color: #d32f2f;
+            }
+            
+            .high-consumption-column .section-title {
+              color: #0d47a1;
+              border-bottom-color: #0d47a1;
+            }
+
+            @media screen and (max-width: 768px) {
+              .verification-columns {
+                flex-direction: column;
+              }
+              .verification-column {
+                width: 100%;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            ${logoHtml}
+            
+            <div class="header">
+              <h2 style="margin:0;">Lecturas: ${readingsData.month} ${readingsData.year}</h2>
+              <p style="margin:10px 0 0;opacity:0.9;">Ruta: ${readingsData.routeId}</p>
+            </div>
+
+            <div class="stats-section">
+              <div class="section-title">Resumen de Lecturas</div>
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <div style="font-size:14px;color:#666;">Total de Medidores</div>
+                  <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${totalMeters}</div>
+                </div>
+                <div class="stat-item">
+                  <div style="font-size:14px;color:#666;">Completadas</div>
+                  <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${completedMeters}</div>
+                </div>
+                <div class="stat-item">
+                  <div style="font-size:14px;color:#666;">Omitidas</div>
+                  <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${skippedMeters}</div>
+                </div>
+                <div class="stat-item">
+                  <div style="font-size:14px;color:#666;">Porcentaje</div>
+                  <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${Math.round(
+                    (completedMeters / totalMeters) * 100
+                  )}%</div>
+                </div>
+              </div>
+
+              <div class="section-title">Estadísticas de Consumo</div>
+              <div class="stats-grid">
+                <div class="stat-item">
+                  <div style="font-size:14px;color:#666;">Consumo Total</div>
+                  <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${totalConsumption} m³</div>
+                </div>
+                <div class="stat-item">
+                  <div style="font-size:14px;color:#666;">Promedio</div>
+                  <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${avgConsumption} m³</div>
+                </div>
+                <div class="stat-item">
+                  <div style="font-size:14px;color:#666;">Máximo</div>
+                  <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${maxConsumption} m³</div>
+                </div>
+                <div class="stat-item">
+                  <div style="font-size:14px;color:#666;">Mínimo</div>
+                  <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${minConsumption} m³</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="verification-columns">
+              ${
+                verificationsByType.lowConsumption?.length > 0
+                  ? `
+                <div class="verification-column low-consumption-column">
+                  <div class="section-title">Lecturas con Bajo Consumo (${verificationsByType.lowConsumption.length})</div>
+                  ${verificationsByType.lowConsumption
+                    .map((reading) =>
+                      generateVerificationCard(reading, "lowConsumption")
+                    )
+                    .join("")}
+                </div>
+              `
+                  : ""
+              }
+
+              ${
+                verificationsByType.negativeConsumption?.length > 0
+                  ? `
+                <div class="verification-column negative-consumption-column">
+                  <div class="section-title">Lecturas con Consumo Negativo (${verificationsByType.negativeConsumption.length})</div>
+                  ${verificationsByType.negativeConsumption
+                    .map((reading) =>
+                      generateVerificationCard(reading, "negativeConsumption")
+                    )
+                    .join("")}
+                </div>
+              `
+                  : ""
+              }
+
+              ${
+                verificationsByType.highConsumption?.length > 0
+                  ? `
+                <div class="verification-column high-consumption-column">
+                  <div class="section-title">Lecturas con Alto Consumo (${verificationsByType.highConsumption.length})</div>
+                  ${verificationsByType.highConsumption
+                    .map((reading) =>
+                      generateVerificationCard(reading, "highConsumption")
+                    )
+                    .join("")}
+                </div>
+              `
+                  : ""
+              }
+            </div>
+
+            <div class="footer">
+              <p>Adjunto encontrará el archivo CSV con el detalle de las lecturas.</p>
+              <p>Este es un correo automático. Por favor no responder.</p>
+              <p>Generado el ${new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" })}</p>
+            </div>
+          </div>
+        </body>
+      </html>`;
 
       // Get email recipients from Firestore
       const db = getFirestore();

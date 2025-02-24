@@ -18,6 +18,18 @@ import {
   FormControl,
 } from "@mui/material";
 
+// Add this helper function at the top level
+const storeVerificationData = (meterId, type, data) => {
+  localStorage.setItem(
+    `meter_${meterId}_verification`,
+    JSON.stringify({
+      type,
+      ...data,
+      timestamp: new Date().toISOString(),
+    })
+  );
+};
+
 function MeterScreen({
   meter,
   currentIndex,
@@ -295,6 +307,51 @@ function MeterScreen({
     ]
   );
 
+  // Update negative consumption handler
+  const handleNegativeConsumptionConfirm = useCallback(() => {
+    // Store verification data
+    storeVerificationData(meter.ID, "negativeConsumption", {
+      currentReading: currentConsumptionData.reading,
+      previousReading: previousValues[previousValues.length - 1],
+      consumption: currentConsumptionData.consumption,
+    });
+
+    setShowNegativeConsumptionDialog(false);
+    setIsConfirmed(true);
+    localStorage.setItem(confirmedKey, "true");
+    onConfirmationChange(meter.ID, true);
+  }, [
+    meter.ID,
+    currentConsumptionData,
+    previousValues,
+    confirmedKey,
+    onConfirmationChange,
+  ]);
+
+  // Update high consumption handler
+  const handleHighConsumptionConfirm = useCallback(() => {
+    storeVerificationData(meter.ID, "highConsumption", {
+      reading: currentConsumptionData.reading,
+      consumption: currentConsumptionData.consumption,
+      average: meter.averageConsumption,
+      percentageAboveAverage:
+        (currentConsumptionData.consumption / meter.averageConsumption) * 100 -
+        100,
+    });
+
+    setShowHighPercentageDialog(false);
+    setIsConfirmed(true);
+    localStorage.setItem(confirmedKey, "true");
+    onConfirmationChange(meter.ID, true);
+  }, [
+    meter.ID,
+    currentConsumptionData,
+    meter.averageConsumption,
+    confirmedKey,
+    onConfirmationChange,
+  ]);
+
+  // Update low consumption handler
   const handleLowConsumptionComplete = () => {
     if (lowConsumptionData.answeredDoor === null) {
       alert("Por favor indique si alguien respondió a la puerta");
@@ -315,9 +372,8 @@ function MeterScreen({
       return;
     }
 
-    // Store verification data in localStorage
-    const verificationData = {
-      type: "lowConsumption",
+    // Store verification data
+    storeVerificationData(meter.ID, "lowConsumption", {
       consumption: currentConsumptionData?.consumption,
       details: {
         answeredDoor: lowConsumptionData.answeredDoor,
@@ -330,12 +386,7 @@ function MeterScreen({
               looksLivedIn: lowConsumptionData.looksLivedIn,
             }),
       },
-    };
-
-    localStorage.setItem(
-      `meter_${meter.ID}_verification`,
-      JSON.stringify(verificationData)
-    );
+    });
 
     // Close dialog and proceed with confirmation
     setShowLowConsumptionDialog(false);
@@ -352,33 +403,6 @@ function MeterScreen({
       residenceMonths: "",
     });
   };
-
-  // Negative consumption dialog confirmation handler update
-  const handleNegativeConsumptionConfirm = useCallback(() => {
-    setShowNegativeConsumptionDialog(false);
-    localStorage.removeItem(`meter_${meter.ID}_verification`);
-    setIsConfirmed(true);
-    localStorage.setItem(confirmedKey, "true");
-    onConfirmationChange(meter.ID, true);
-  }, [meter.ID, confirmedKey, onConfirmationChange]);
-
-  // NEW: High consumption dialog confirmation handler (updated)
-  const handleHighConsumptionConfirm = useCallback(() => {
-    // Immediately clear any verification data for this meter
-    console.log(
-      "Clearing verification data for high consumption, meter:",
-      meter.ID
-    );
-    localStorage.removeItem(`meter_${meter.ID}_verification`);
-
-    // Set the verification data to "null" (as a string) so that JSON.parse("null") returns null
-    localStorage.setItem(`meter_${meter.ID}_verification`, "null");
-
-    setShowHighPercentageDialog(false);
-    setIsConfirmed(true);
-    localStorage.setItem(confirmedKey, "true");
-    onConfirmationChange(meter.ID, true);
-  }, [meter.ID, confirmedKey, onConfirmationChange]);
 
   // Add the initial low consumption dialog
   const initialLowConsumptionDialog = (
