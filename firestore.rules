@@ -30,10 +30,22 @@ service cloud.firestore {
     match /readings/{readingId} {
       allow read, write: if isAdmin();
     }
+
+    // Email templates - require auth for read, admin for write
+    match /emailTemplates/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Config collection - require auth for read, admin for write
+    match /config/{configId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
     
     // Default deny all
     match /{document=**} {
       allow read, write: if false;
     }
   }
-} 
+}
