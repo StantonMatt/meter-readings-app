@@ -45,6 +45,7 @@ import LoginScreen from "./LoginScreen";
 import { getToken } from "firebase/app-check";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import EmailPreview from "./EmailPreview";
+import EmailPreviewTable from './EmailPreviewTable';
 
 const months = [
   "Enero",
@@ -1131,6 +1132,10 @@ CONSUMO: ${consumption} m³`;
           <Route
             path="/email-preview"
             element={<EmailPreview />}
+          />
+          <Route
+            path="/email-preview-table"
+            element={<EmailPreviewTable />}
           />
         </Routes>
         {restartDialog}

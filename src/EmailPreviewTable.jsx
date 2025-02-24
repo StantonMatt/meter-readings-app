@@ -1,126 +1,204 @@
-/* eslint-disable no-undef */
-console.log("Using production v2 trigger");
-const { onCall } = require("firebase-functions/v2/https");
-const nodemailer = require("nodemailer");
-const { initializeApp } = require("firebase-admin/app");
-const { getFirestore } = require("firebase-admin/firestore");
+import React, { useEffect } from "react";
 
-// Initialize Firebase Admin
-initializeApp();
-
-// Create an HTTPS endpoint with CORS handling
-exports.sendReadingsMail = onCall(
+const mockReadings = [
+  // Low Consumption Examples
   {
-    maxInstances: 1,
-    minInstances: 0,
-    timeoutSeconds: 540,
-    memory: "128MiB",
-    region: "us-central1",
-    secrets: ["EMAIL_SENDER", "EMAIL_AUTH_KEY"],
-    cpu: "gcf_gen1",
-    enforceAppCheck: true,
-    consumeAppCheckToken: false,
-    cors: ["http://localhost:5173", "https://meter-readings-app.web.app"],
+    ID: "1234",
+    ADDRESS: "123 Test St",
+    Reading: "150",
+    verification: {
+      type: "lowConsumption",
+      consumption: 2,
+      currentReading: "150",
+      previousReading: "148",
+      details: {
+        answeredDoor: true,
+        hadIssues: false,
+        residenceMonths: "24",
+      },
+    },
   },
-  async (request) => {
-    try {
-      // Verify both auth and App Check
-      if (!request.auth) {
-        throw new Error("Unauthorized - User not authenticated");
-      }
+  {
+    ID: "2345",
+    ADDRESS: "234 Sample Ave",
+    Reading: "85",
+    verification: {
+      type: "lowConsumption",
+      consumption: 1,
+      currentReading: "85",
+      previousReading: "84",
+      details: {
+        answeredDoor: false,
+        looksLivedIn: true,
+      },
+    },
+  },
+  {
+    ID: "3456",
+    ADDRESS: "345 Example Rd",
+    Reading: "220",
+    verification: {
+      type: "lowConsumption",
+      consumption: 3,
+      currentReading: "220",
+      previousReading: "217",
+      details: {
+        answeredDoor: true,
+        hadIssues: true,
+        residenceMonths: "8",
+      },
+    },
+  },
 
-      if (!request.app) {
-        throw new Error("Unauthorized - Invalid App Check token");
-      }
+  // Negative Consumption Examples
+  {
+    ID: "4567",
+    ADDRESS: "456 Mock Ave",
+    Reading: "80",
+    verification: {
+      type: "negativeConsumption",
+      currentReading: 80,
+      previousReading: 100,
+      consumption: -20,
+    },
+  },
+  {
+    ID: "5678",
+    ADDRESS: "567 Test Blvd asdfff asdfas asdf asdf",
+    Reading: "150",
+    verification: {
+      type: "negativeConsumption",
+      currentReading: 150,
+      previousReading: 180,
+      consumption: -30,
+    },
+  },
+  {
+    ID: "6789",
+    ADDRESS: "678 Sample St",
+    Reading: "95",
+    verification: {
+      type: "negativeConsumption",
+      currentReading: 95,
+      previousReading: 105,
+      consumption: -10,
+    },
+  },
 
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.EMAIL_SENDER,
-          pass: process.env.EMAIL_AUTH_KEY,
-        },
-      });
+  // High Consumption Examples
+  {
+    ID: "7890",
+    ADDRESS: "789 Example Ave",
+    Reading: "200",
+    verification: {
+      type: "highConsumption",
+      consumption: 50,
+      currentReading: "200",
+      previousReading: "150",
+      average: 30,
+      percentageAboveAverage: 66.7,
+    },
+  },
+  {
+    ID: "8901",
+    ADDRESS: "890 Test Dr",
+    Reading: "350",
+    verification: {
+      type: "highConsumption",
+      consumption: 80,
+      currentReading: "350",
+      previousReading: "270",
+      average: 45,
+      percentageAboveAverage: 77.8,
+    },
+  },
+  {
+    ID: "9012",
+    ADDRESS: "901 Sample Ct",
+    Reading: "180",
+    verification: {
+      type: "highConsumption",
+      consumption: 40,
+      currentReading: "180",
+      previousReading: "140",
+      average: 25,
+      percentageAboveAverage: 60.0,
+    },
+  },
+];
 
-      const readingsData = request.data;
-      console.log("Processing data:", JSON.stringify(readingsData, null, 2));
-
-      if (!readingsData || !readingsData.readings) {
-        throw new Error("Invalid document structure");
-      }
-
-      // Enhanced statistics
-      const totalMeters = readingsData.readings.length;
-      const readings = readingsData.readings.map((meter) => {
-        const sortedReadings = Object.entries(meter)
-          .filter(([key]) => key !== "ID" && key !== "ADDRESS")
-          .sort((a, b) => b[0].localeCompare(a[0]));
-        return {
-          current: sortedReadings[0]?.[1] || "---",
-          previous: sortedReadings[1]?.[1] || "---",
-          isSkipped: sortedReadings[0]?.[1] === "---",
-        };
-      });
-
-      const skippedMeters = readings.filter((r) => r.isSkipped).length;
+function EmailPreviewTable() {
+  useEffect(() => {
+    const generateEmailHtml = () => {
+      const totalMeters = mockReadings.length;
+      const skippedMeters = mockReadings.filter(
+        (r) => r.Reading === "---"
+      ).length;
       const completedMeters = totalMeters - skippedMeters;
 
-      // Calculate consumption stats
-      const consumptionData = readings
-        .filter((r) => !r.isSkipped && r.previous !== "---")
+      const consumptionData = mockReadings
+        .filter((r) => r.Reading !== "---")
         .map((r) => ({
-          consumption: Number(r.current) - Number(r.previous),
-          current: Number(r.current),
-          previous: Number(r.previous),
+          consumption: r.verification?.consumption || 10,
+          current: Number(r.Reading),
+          previous: Number(r.Reading) - (r.verification?.consumption || 10),
         }));
 
       const totalConsumption = consumptionData.reduce(
         (sum, r) => sum + r.consumption,
         0
       );
-      const avgConsumption =
-        consumptionData.length > 0
-          ? Math.round(totalConsumption / consumptionData.length)
-          : 0;
-      const maxConsumption =
-        consumptionData.length > 0
-          ? Math.max(...consumptionData.map((r) => r.consumption))
-          : 0;
-      const minConsumption =
-        consumptionData.length > 0
-          ? Math.min(...consumptionData.map((r) => r.consumption))
-          : 0;
-
-      // Group verifications by type
-      const verificationsByType = readingsData.readings.reduce(
-        (acc, reading) => {
-          if (reading.verification) {
-            const type = reading.verification.type;
-            if (!acc[type]) acc[type] = [];
-            acc[type].push(reading);
-          }
-          return acc;
-        },
-        {}
+      const avgConsumption = Math.round(
+        totalConsumption / consumptionData.length
+      );
+      const maxConsumption = Math.max(
+        ...consumptionData.map((r) => r.consumption)
+      );
+      const minConsumption = Math.min(
+        ...consumptionData.map((r) => r.consumption)
       );
 
-      // Helper function to generate verification card HTML
+      const verificationsByType = mockReadings.reduce((acc, reading) => {
+        if (reading.verification) {
+          const type = reading.verification.type;
+          if (!acc[type]) acc[type] = [];
+          acc[type].push(reading);
+        }
+        return acc;
+      }, {});
+
+      const logoUrl = "/coab_logo.png";
+
       const generateVerificationCard = (reading, type) => {
         const verification = reading.verification;
         const truncateAddress = (address, maxLength = 25) => {
-          return address.length > maxLength ? address.substring(0, maxLength) + '...' : address;
+          return address.length > maxLength
+            ? address.substring(0, maxLength) + "..."
+            : address;
         };
 
-        // Switch to table-based card layout
         return `
           <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:15px;background:#fff;border:1px solid #edf2f7;border-radius:4px;">
             <tr>
               <td style="padding:15px;">
-                <div style="margin-bottom:8px;font-size:13px;"><strong>CLIENTE:</strong> ${reading.ID}</div>
-                <div style="margin-bottom:8px;font-size:13px;"><strong>DIRECCIÓN:</strong> ${truncateAddress(reading.ADDRESS || "")}</div>
-                <div style="margin-bottom:8px;font-size:13px;"><strong>Lectura Anterior:</strong> ${verification.previousReading || "---"}</div>
-                <div style="margin-bottom:8px;font-size:13px;"><strong>Lectura Actual:</strong> ${verification.currentReading || reading.Reading}</div>
-                ${type === "lowConsumption" ? `
-                  <div style="margin-bottom:8px;font-size:13px;"><strong>CONSUMO:</strong> ${verification.consumption} m³</div>
+                <div style="margin-bottom:8px;font-size:13px;"><strong>CLIENTE:</strong> ${
+                  reading.ID
+                }</div>
+                <div style="margin-bottom:8px;font-size:13px;"><strong>DIRECCIÓN:</strong> ${truncateAddress(
+                  reading.ADDRESS || ""
+                )}</div>
+                <div style="margin-bottom:8px;font-size:13px;"><strong>Lectura Anterior:</strong> ${
+                  verification.previousReading || "---"
+                }</div>
+                <div style="margin-bottom:8px;font-size:13px;"><strong>Lectura Actual:</strong> ${
+                  verification.currentReading || reading.Reading
+                }</div>
+                ${
+                  type === "lowConsumption"
+                    ? `
+                  <div style="margin-bottom:8px;font-size:13px;"><strong>CONSUMO:</strong> ${
+                    verification.consumption
+                  } m³</div>
                   <div style="
                     margin-top:15px;
                     padding:15px;
@@ -132,114 +210,76 @@ exports.sendReadingsMail = onCall(
                     overflow-y:auto;
                   ">
                     <strong style="display:block;margin-bottom:10px;letter-spacing:0.5px;">VERIFICACIÓN DE BAJO CONSUMO</strong>
-                    • Atendió el cliente: ${verification.details.answeredDoor ? "Sí" : "No"}<br>
-                    ${verification.details.answeredDoor ? `
-                      • Reportó problemas con el agua: ${verification.details.hadIssues ? "Sí" : "No"}<br>
-                      • Tiempo viviendo en la casa: ${verification.details.residenceMonths} meses
-                    ` : `
-                      • Casa parece habitada: ${verification.details.looksLivedIn ? "Sí" : "No"}
-                    `}
+                    • Atendió el cliente: ${
+                      verification.details.answeredDoor ? "Sí" : "No"
+                    }<br>
+                    ${
+                      verification.details.answeredDoor
+                        ? `
+                      • Reportó problemas con el agua: ${
+                        verification.details.hadIssues ? "Sí" : "No"
+                      }<br>
+                      • Tiempo viviendo en la casa: ${
+                        verification.details.residenceMonths
+                      } meses
+                    `
+                        : `
+                      • Casa parece habitada: ${
+                        verification.details.looksLivedIn ? "Sí" : "No"
+                      }
+                    `
+                    }
                   </div>
-                ` : type === "negativeConsumption" ? `
+                `
+                    : type === "negativeConsumption"
+                    ? `
                   <div style="margin-bottom:8px;font-size:13px;"><strong>CONSUMO:</strong> <span style="color:#dc2626;">${verification.consumption} m³</span></div>
-                  <div style="margin-top:15px;padding:15px;background:#fef2f2;border-left:3px solid #dc2626;font-size:12px;line-height:1.5;">
+                  <div style="
+                    margin-top:15px;
+                    padding:15px;
+                    background:#fef2f2;
+                    border-left:3px solid #dc2626;
+                    font-size:12px;
+                    line-height:1.5;
+                    height:120px;
+                    overflow-y:auto;
+                  ">
                     <strong style="display:block;margin-bottom:10px;letter-spacing:0.5px;">CONSUMO NEGATIVO VERIFICADO</strong>
                     • Diferencia: ${verification.consumption} m³<br>
                     • Verificado y confirmado por el lector
                   </div>
-                ` : `
-                  <div style="margin-bottom:8px;font-size:13px;"><strong>CONSUMO:</strong> <span style="color:#0d47a1;">${verification.consumption} m³</span></div>
-                  <div style="margin-top:15px;padding:15px;background:#f0f9ff;border-left:3px solid #0d47a1;font-size:12px;line-height:1.5;">
+                `
+                    : `
+                  <div style="margin-bottom:8px;font-size:13px;"><strong>CONSUMO:</strong> <span style="color:#0d47a1;">${
+                    verification.consumption
+                  } m³</span></div>
+                  <div style="
+                    margin-top:15px;
+                    padding:15px;
+                    background:#f0f9ff;
+                    border-left:3px solid #0d47a1;
+                    font-size:12px;
+                    line-height:1.5;
+                    height:120px;
+                    overflow-y:auto;
+                  ">
                     <strong style="display:block;margin-bottom:10px;letter-spacing:0.5px;">ALTO CONSUMO VERIFICADO</strong>
-                    • Consumo promedio: ${verification.average.toFixed(1)} m³<br>
-                    • Porcentaje sobre promedio: ${verification.percentageAboveAverage.toFixed(1)}%<br>
+                    • Consumo promedio: ${verification.average.toFixed(
+                      1
+                    )} m³<br>
+                    • Porcentaje sobre promedio: ${verification.percentageAboveAverage.toFixed(
+                      1
+                    )}%<br>
                     • Verificado y confirmado por el lector
                   </div>
-                `}
+                `
+                }
               </td>
             </tr>
           </table>
         `;
       };
 
-      // Generate HTML for each verification type
-      const verificationSections = [];
-
-      if (verificationsByType.lowConsumption?.length > 0) {
-        verificationSections.push(`
-          <div class="section-title">Lecturas con Bajo Consumo (${
-            verificationsByType.lowConsumption.length
-          })</div>
-          <div class="card">
-            ${verificationsByType.lowConsumption
-              .map((reading) =>
-                generateVerificationCard(reading, "lowConsumption")
-              )
-              .join("")}
-          </div>
-        `);
-      }
-
-      if (verificationsByType.negativeConsumption?.length > 0) {
-        verificationSections.push(`
-          <div class="section-title">Lecturas con Consumo Negativo (${
-            verificationsByType.negativeConsumption.length
-          })</div>
-          <div class="card">
-            ${verificationsByType.negativeConsumption
-              .map((reading) =>
-                generateVerificationCard(reading, "negativeConsumption")
-              )
-              .join("")}
-          </div>
-        `);
-      }
-
-      if (verificationsByType.highConsumption?.length > 0) {
-        verificationSections.push(`
-          <div class="section-title">Lecturas con Alto Consumo (${
-            verificationsByType.highConsumption.length
-          })</div>
-          <div class="card">
-            ${verificationsByType.highConsumption
-              .map((reading) =>
-                generateVerificationCard(reading, "highConsumption")
-              )
-              .join("")}
-          </div>
-        `);
-      }
-
-      // Generate CSV content
-      const csvRows = [
-        "ID,Direccion,Lectura Anterior,Lectura Actual,Estado,Consumo\n",
-      ];
-      readingsData.readings.forEach((meter) => {
-        const readings = Object.entries(meter)
-          .filter(([key]) => key !== "ID" && key !== "ADDRESS")
-          .sort((a, b) => b[0].localeCompare(a[0]));
-
-        const currentReading = readings[0]?.[1] || "---";
-        const lastReading = readings[1]?.[1] || "---";
-        const status = currentReading === "---" ? "Omitido" : "Confirmado";
-        const consumption =
-          currentReading !== "---" && lastReading !== "---"
-            ? parseInt(currentReading) - parseInt(lastReading)
-            : "---";
-
-        csvRows.push(
-          `${meter.ID},"${
-            meter.ADDRESS || ""
-          }",${lastReading},${currentReading},${status},${consumption}\n`
-        );
-      });
-
-      const csvContent = csvRows.join("");
-
-      // Use the public URL for the logo
-      const logoUrl = "https://firebasestorage.googleapis.com/v0/b/meter-readings-app.appspot.com/o/coab_logo.png?alt=media&token=63c9e784-4e18-40b3-b196-43a924afc7b2";
-
-      // Update the HTML content with table-based layout
       const htmlContent = `
         <html>
           <head>
@@ -259,8 +299,8 @@ exports.sendReadingsMail = onCall(
                               <img src="${logoUrl}" alt="COAB Logo" style="max-width:105px;height:auto;display:block;">
                             </td>
                             <td style="text-align:left;vertical-align:middle;">
-                              <h2 style="margin:0;font-size:42px;color:#2d3748;font-weight:600;line-height:1.2;">Lecturas: ${readingsData.month} ${readingsData.year}</h2>
-                              <p style="margin:5px 0 0;color:#64748b;font-size:16px;line-height:1.2;">Ruta: ${readingsData.routeId}</p>
+                              <h2 style="margin:0;font-size:42px;color:#2d3748;font-weight:600;line-height:1.2;">Lecturas: Enero 2024</h2>
+                              <p style="margin:5px 0 0;color:#64748b;font-size:16px;line-height:1.2;">Ruta: San_Lorenzo-Portal_Primavera</p>
                             </td>
                           </tr>
                         </table>
@@ -344,7 +384,7 @@ exports.sendReadingsMail = onCall(
                       </td>
                     </tr>
 
-                    <!-- Stats Section -->
+                    <!-- Consumption Stats -->
                     <tr>
                       <td style="padding-top:30px;">
                         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff;border-radius:4px;border:1px solid #edf2f7;">
@@ -440,10 +480,18 @@ exports.sendReadingsMail = onCall(
                                     ">
                                       Bajo Consumo
                                     </div>
-                                    ${verificationsByType.lowConsumption?.length > 0 
-                                      ? verificationsByType.lowConsumption.map(reading => 
-                                          generateVerificationCard(reading, "lowConsumption")).join("")
-                                      : '<p style="text-align:center;color:#666;padding:20px;">No hay lecturas con bajo consumo</p>'
+                                    ${
+                                      verificationsByType.lowConsumption
+                                        ?.length > 0
+                                        ? verificationsByType.lowConsumption
+                                            .map((reading) =>
+                                              generateVerificationCard(
+                                                reading,
+                                                "lowConsumption"
+                                              )
+                                            )
+                                            .join("")
+                                        : '<p style="text-align:center;color:#666;padding:20px;">No hay lecturas con bajo consumo</p>'
                                     }
                                   </td>
                                 </tr>
@@ -466,10 +514,18 @@ exports.sendReadingsMail = onCall(
                                     ">
                                       Consumo Negativo
                                     </div>
-                                    ${verificationsByType.negativeConsumption?.length > 0 
-                                      ? verificationsByType.negativeConsumption.map(reading => 
-                                          generateVerificationCard(reading, "negativeConsumption")).join("")
-                                      : '<p style="text-align:center;color:#666;padding:20px;">No hay lecturas con consumo negativo</p>'
+                                    ${
+                                      verificationsByType.negativeConsumption
+                                        ?.length > 0
+                                        ? verificationsByType.negativeConsumption
+                                            .map((reading) =>
+                                              generateVerificationCard(
+                                                reading,
+                                                "negativeConsumption"
+                                              )
+                                            )
+                                            .join("")
+                                        : '<p style="text-align:center;color:#666;padding:20px;">No hay lecturas con consumo negativo</p>'
                                     }
                                   </td>
                                 </tr>
@@ -492,10 +548,18 @@ exports.sendReadingsMail = onCall(
                                     ">
                                       Alto Consumo
                                     </div>
-                                    ${verificationsByType.highConsumption?.length > 0 
-                                      ? verificationsByType.highConsumption.map(reading => 
-                                          generateVerificationCard(reading, "highConsumption")).join("")
-                                      : '<p style="text-align:center;color:#666;padding:20px;">No hay lecturas con alto consumo</p>'
+                                    ${
+                                      verificationsByType.highConsumption
+                                        ?.length > 0
+                                        ? verificationsByType.highConsumption
+                                            .map((reading) =>
+                                              generateVerificationCard(
+                                                reading,
+                                                "highConsumption"
+                                              )
+                                            )
+                                            .join("")
+                                        : '<p style="text-align:center;color:#666;padding:20px;">No hay lecturas con alto consumo</p>'
                                     }
                                   </td>
                                 </tr>
@@ -510,7 +574,10 @@ exports.sendReadingsMail = onCall(
                     <tr>
                       <td style="padding-top:40px;text-align:center;border-top:1px solid #edf2f7;">
                         <p style="margin:0;color:#666;font-size:12px;">Este es un correo automático. Por favor no responder.</p>
-                        <p style="margin:0;color:#666;font-size:12px;">Generado el ${new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" })}</p>
+                        <p style="margin:0;color:#666;font-size:12px;">Generado el ${new Date().toLocaleString(
+                          "es-CL",
+                          { timeZone: "America/Santiago" }
+                        )}</p>
                       </td>
                     </tr>
                   </table>
@@ -521,71 +588,13 @@ exports.sendReadingsMail = onCall(
         </html>
       `;
 
-      // Get email recipients from Firestore
-      const db = getFirestore();
-      const configDoc = await db.collection("config").doc("email").get();
+      document.body.innerHTML = htmlContent;
+    };
 
-      if (!configDoc.exists || !configDoc.data().recipients?.length) {
-        throw new Error(
-          "No email recipients configured. Please set up recipients in Firestore."
-        );
-      }
+    generateEmailHtml();
+  }, []);
 
-      const recipients = configDoc.data().recipients;
+  return null;
+}
 
-      // Also update the text content to include our detail
-      const textContent =
-        `Lecturas: ${readingsData.month} ${readingsData.year}\n\n` +
-        `Ruta: ${readingsData.routeId}\n\n` +
-        `Resumen:\n` +
-        `- Total de Medidores: ${totalMeters}\n` +
-        `- Lecturas Completadas: ${completedMeters}\n` +
-        `- Lecturas Omitidas: ${skippedMeters}\n` +
-        `- Porcentaje Completado: ${Math.round(
-          (completedMeters / totalMeters) * 100
-        )}%\n\n` +
-        `Estadísticas de Consumo:\n` +
-        `- Consumo Total: ${totalConsumption} m³\n` +
-        `- Consumo Promedio: ${avgConsumption} m³\n` +
-        `- Consumo Máximo: ${maxConsumption} m³\n` +
-        `- Consumo Mínimo: ${minConsumption} m³\n\n` +
-        `Lecturas con Verificación:\n\n${readingsData.emailContent
-          .split("----------------------------------------")
-          .filter((section) => section.trim())
-          .filter((section) => section.includes("NOTA DE VERIFICACIÓN"))
-          .join("\n\n")}\n\n` +
-        `Adjunto encontrará el archivo CSV con el detalle de las lecturas.\n\n` +
-        `Este es un correo automático. Por favor no responder.\n` +
-        `Generado el ${new Date().toLocaleString("es-CL", {
-          timeZone: "America/Santiago",
-        })}`;
-
-      // Update the mailOptions
-      const mailOptions = {
-        from: process.env.EMAIL_SENDER,
-        to: recipients,
-        subject: `Lecturas: ${readingsData.routeId} - ${readingsData.month} ${readingsData.year}`,
-        html: htmlContent,
-        text: textContent,
-        attachments: [
-          {
-            filename: `lecturas-${readingsData.routeId}-${readingsData.year}-${readingsData.month}.csv`,
-            content: csvContent,
-          },
-        ],
-      };
-
-      console.log(
-        "Sending email with options:",
-        JSON.stringify(mailOptions, null, 2)
-      );
-      const result = await transporter.sendMail(mailOptions);
-      console.log("Email sent successfully:", result);
-
-      return { success: true, message: "Email sent successfully" };
-    } catch (error) {
-      console.error("Function error:", error);
-      throw new Error(`Failed to process readings: ${error.message}`);
-    }
-  }
-);
+export default EmailPreviewTable;
