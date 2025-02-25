@@ -10,10 +10,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { signOut } from "firebase/auth";
@@ -35,15 +31,15 @@ function FinalCheckScreen({
   onViewSummary,
   onFinish,
 }: FinalCheckScreenProps): JSX.Element {
-  const [showConfirmDialog, setShowConfirmDialog] = useState<boolean>(false);
-
   // Calculate statistics
   const confirmedReadings = meters.filter(
     (meter) => readingsState[meter.ID]?.isConfirmed
   ).length;
 
   const totalMeters = meters.length;
-  const completionPercentage = Math.round((confirmedReadings / totalMeters) * 100);
+  const completionPercentage = Math.round(
+    (confirmedReadings / totalMeters) * 100
+  );
 
   // Handle signing out
   const handleSignOut = async (): Promise<void> => {
@@ -58,7 +54,8 @@ function FinalCheckScreen({
   const hasPendingReadings = (): boolean => {
     return meters.some(
       (meter) =>
-        readingsState[meter.ID]?.reading && !readingsState[meter.ID]?.isConfirmed
+        readingsState[meter.ID]?.reading &&
+        !readingsState[meter.ID]?.isConfirmed
     );
   };
 
@@ -82,10 +79,7 @@ function FinalCheckScreen({
           textAlign: "center",
         }}
       >
-        <CheckCircleIcon
-          color="success"
-          sx={{ fontSize: 80, mb: 2 }}
-        />
+        <CheckCircleIcon color="success" sx={{ fontSize: 80, mb: 2 }} />
 
         <Typography variant="h4" gutterBottom>
           ¡Lecturas Enviadas!
@@ -122,56 +116,18 @@ function FinalCheckScreen({
 
         <Box sx={{ mt: 3, display: "flex", flexDirection: "column", gap: 2 }}>
           {hasPendingReadings() && (
-            <Button
-              variant="outlined"
-              onClick={onContinue}
-              fullWidth
-            >
+            <Button variant="outlined" onClick={onContinue} fullWidth>
               Continuar con Lecturas Pendientes
             </Button>
           )}
-          <Button
-            variant="outlined"
-            onClick={onViewSummary}
-            fullWidth
-          >
+          <Button variant="outlined" onClick={onViewSummary} fullWidth>
             Ver Resumen de Lecturas
           </Button>
-          <Button
-            variant="contained"
-            onClick={() => setShowConfirmDialog(true)}
-            fullWidth
-          >
+          <Button variant="contained" onClick={onFinish} fullWidth>
             Finalizar Sesión de Lecturas
           </Button>
         </Box>
       </Paper>
-
-      {/* Confirm dialog */}
-      <Dialog
-        open={showConfirmDialog}
-        onClose={() => setShowConfirmDialog(false)}
-      >
-        <DialogTitle>Finalizar Sesión de Lecturas</DialogTitle>
-        <DialogContent>
-          <Typography>
-            ¿Está seguro que desea finalizar la sesión de lecturas? Esto lo
-            llevará de vuelta a la pantalla de inicio.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowConfirmDialog(false)}>Cancelar</Button>
-          <Button
-            onClick={() => {
-              setShowConfirmDialog(false);
-              onFinish();
-            }}
-            variant="contained"
-          >
-            Finalizar Sesión
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }

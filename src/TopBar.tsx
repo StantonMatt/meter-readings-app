@@ -1,82 +1,39 @@
 // src/TopBar.tsx
-import React, { useCallback, useRef } from "react";
+import React from "react";
 import {
   AppBar,
   Toolbar,
   Box,
   Button,
-  TextField,
-  InputAdornment,
   IconButton,
   Typography,
   useTheme,
+  Tooltip,
+  alpha,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
-import SearchIcon from "@mui/icons-material/Search";
+import ExitToAppIcon from "@mui/icons-material/ExitToApp";
+import WaterDropIcon from "@mui/icons-material/WaterDrop";
+import HomeIcon from "@mui/icons-material/Home";
 import { signOut } from "firebase/auth";
 import { auth } from "./firebase-config";
-
-// Define the drawer width to match Layout.tsx
-const drawerWidth = 300;
-
-// Simple debounce implementation
-function useDebounce<T extends (...args: any[]) => any>(
-  callback: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  const timeoutRef = useRef<number | null>(null);
-
-  return useCallback(
-    (...args: Parameters<T>) => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-
-      timeoutRef.current = window.setTimeout(() => {
-        callback(...args);
-      }, delay);
-    },
-    [callback, delay]
-  );
-}
 
 interface TopBarProps {
   onHomeClick: () => void;
   onMenuClick?: () => void;
-  onFinishClick?: () => void;
   showButtons?: boolean;
-  currentScreen?: string;
   showMenuButton?: boolean;
-  searchTerm?: string;
-  onSearchChange?: (value: string) => void;
   isMobile?: boolean;
 }
 
 const TopBar: React.FC<TopBarProps> = ({
   onHomeClick,
   showButtons,
-  currentScreen,
   onMenuClick,
   showMenuButton,
-  searchTerm,
-  onSearchChange,
   isMobile,
 }) => {
   const theme = useTheme();
-
-  // Debounce search input
-  const debouncedSearchChange = useDebounce(
-    (value: string) => onSearchChange && onSearchChange(value),
-    300
-  );
-
-  const handleSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      debouncedSearchChange(value);
-    },
-    [debouncedSearchChange]
-  );
 
   const handleLogout = async () => {
     try {
@@ -90,93 +47,111 @@ const TopBar: React.FC<TopBarProps> = ({
   return (
     <AppBar
       position="fixed"
+      elevation={0}
       sx={{
         zIndex: theme.zIndex.drawer + 1,
         backgroundColor: theme.palette.primary.main,
+        backgroundImage: `linear-gradient(to right, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
       }}
     >
       <Toolbar
         sx={{
           display: "flex",
-          gap: 2,
-          pl: { sm: "12px" },
+          alignItems: "center",
+          padding: theme.spacing(0, 2),
+          minHeight: 64,
         }}
       >
-        {/* Mobile menu button */}
         {showMenuButton && (
           <IconButton
             color="inherit"
             aria-label="open drawer"
             edge="start"
             onClick={onMenuClick}
-            sx={{ display: { sm: "none" }, mr: 2 }}
+            sx={{
+              display: { sm: "none" },
+              mr: 2,
+              backgroundColor: alpha("#fff", 0.1),
+              "&:hover": {
+                backgroundColor: alpha("#fff", 0.15),
+              },
+            }}
           >
             <MenuIcon />
           </IconButton>
         )}
 
-        {/* Search field */}
-        {currentScreen === "meter" && !isMobile && (
-          <TextField
-            placeholder="Buscar Cliente"
-            variant="outlined"
-            size="small"
-            defaultValue={searchTerm}
-            onChange={handleSearchChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon />
-                </InputAdornment>
-              ),
-              sx: {
-                backgroundColor: "white",
-                borderRadius: 1,
-                "&:hover": {
-                  backgroundColor: "white",
-                },
-              },
-            }}
-            sx={{
-              width: "260px",
-              display: { xs: "none", sm: "block" },
-            }}
-          />
-        )}
+        <WaterDropIcon
+          sx={{
+            display: { xs: "flex" },
+            mr: 1.5,
+            fontSize: 28,
+            color: "#fff",
+          }}
+        />
 
-        {/* Home button - now next to search on meter screen */}
+        <Typography
+          variant="h6"
+          noWrap
+          component="div"
+          sx={{
+            flexGrow: { xs: 1, md: 0 },
+            fontWeight: 600,
+            letterSpacing: "0.5px",
+            mr: 3,
+            color: "#fff",
+          }}
+        >
+          Water Meter App
+        </Typography>
+
         {showButtons && (
           <Button
             color="inherit"
+            startIcon={<HomeIcon />}
             onClick={onHomeClick}
+            variant="text"
             sx={{
+              borderRadius: "8px",
+              px: 2,
+              py: 1,
+              mr: 1,
+              display: { xs: "none", sm: "flex" },
+              backgroundColor: alpha("#fff", 0.08),
               "&:hover": {
-                backgroundColor: "rgba(255, 255, 255, 0.08)",
+                backgroundColor: alpha("#fff", 0.15),
               },
+              transition: "all 0.2s",
             }}
           >
             Inicio
           </Button>
         )}
 
-        {/* Right side: Spacer and Logout button */}
         <Box sx={{ flexGrow: 1 }} />
 
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          Water Meter Readings
-        </Typography>
-
-        <Button
-          color="inherit"
-          onClick={handleLogout}
-          sx={{
-            "&:hover": {
-              backgroundColor: "rgba(255, 255, 255, 0.08)",
-            },
-          }}
-        >
-          Cerrar Sesión
-        </Button>
+        <Tooltip title="Cerrar Sesión">
+          <Button
+            color="inherit"
+            onClick={handleLogout}
+            variant="text"
+            startIcon={<ExitToAppIcon />}
+            sx={{
+              borderRadius: "8px",
+              px: { xs: 1, sm: 2 },
+              py: 1,
+              backgroundColor: alpha("#fff", 0.08),
+              "&:hover": {
+                backgroundColor: alpha("#fff", 0.15),
+              },
+              transition: "all 0.2s",
+            }}
+          >
+            <Box sx={{ display: { xs: "none", sm: "block" } }}>
+              Cerrar Sesión
+            </Box>
+          </Button>
+        </Tooltip>
       </Toolbar>
     </AppBar>
   );

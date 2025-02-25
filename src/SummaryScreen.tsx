@@ -13,10 +13,6 @@ import {
   Chip,
   Button,
   Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   List,
   ListItem,
   ListItemText,
@@ -53,9 +49,6 @@ function SummaryScreen({
   selectedMonth,
   selectedYear,
 }: SummaryScreenProps): JSX.Element {
-  const [showConfirmDialog, setShowConfirmDialog] = useState<boolean>(false);
-  const [showSendDialog, setShowSendDialog] = useState<boolean>(false);
-
   // Calculate reading statistics
   const stats: SummaryStats = useMemo(() => {
     const confirmed = meters.filter(
@@ -126,20 +119,19 @@ function SummaryScreen({
     });
   }, [meters, readingsState]);
 
-  // Reset a reading if needed
-  const handleResetReading = (meterId: string | number): void => {
-    if (setReadingsState) {
-      setReadingsState((prev) => {
-        const next = { ...prev };
-        delete next[String(meterId)];
-        return next;
-      });
+  // Simplify the reset function to act immediately without confirmation
+  const handleResetReading = (meterId: string | number) => {
+    if (!setReadingsState) return;
 
-      // Also remove from localStorage
-      localStorage.removeItem(`meter_${meterId}_reading`);
-      localStorage.removeItem(`meter_${meterId}_confirmed`);
-      localStorage.removeItem(`meter_${meterId}_verification`);
-    }
+    // Directly reset the reading without showing a confirmation dialog
+    const newReadingsState = { ...readingsState };
+    delete newReadingsState[meterId];
+    setReadingsState(newReadingsState);
+
+    // Also remove from localStorage
+    localStorage.removeItem(`meter_${meterId}_reading`);
+    localStorage.removeItem(`meter_${meterId}_confirmed`);
+    localStorage.removeItem(`meter_${meterId}_verification`);
   };
 
   // Format the month name
@@ -341,81 +333,16 @@ function SummaryScreen({
         <Button
           variant="contained"
           color="primary"
-          onClick={() => setShowConfirmDialog(true)}
+          onClick={() => {
+            if (stats.confirmed > 0) {
+              onFinalize();
+            }
+          }}
           disabled={stats.confirmed === 0}
         >
           Finalizar y Enviar
         </Button>
       </Box>
-
-      {/* Confirm dialog */}
-      <Dialog
-        open={showConfirmDialog}
-        onClose={() => setShowConfirmDialog(false)}
-      >
-        <DialogTitle>Confirmar envío de lecturas</DialogTitle>
-        <DialogContent>
-          <Typography paragraph>
-            ¿Está seguro que desea finalizar y enviar las lecturas? Se enviará
-            un correo electrónico con el resumen de las lecturas.
-          </Typography>
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Resumen de lecturas:
-            </Typography>
-            <List dense>
-              <ListItem>
-                <ListItemText
-                  primary={`${stats.confirmed} lecturas confirmadas`}
-                />
-              </ListItem>
-              <Divider />
-              <ListItem>
-                <ListItemText
-                  primary={`${stats.pending} lecturas pendientes`}
-                  secondary={
-                    stats.pending > 0
-                      ? "Estas lecturas no se enviarán"
-                      : undefined
-                  }
-                />
-              </ListItem>
-              <Divider />
-              <ListItem>
-                <ListItemText primary={`${stats.skipped} lecturas omitidas`} />
-              </ListItem>
-            </List>
-          </Box>
-          <Typography variant="body2" color="text.secondary">
-            Esta acción no se puede deshacer. ¿Desea continuar?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowConfirmDialog(false)}>Cancelar</Button>
-          <Button
-            onClick={() => {
-              setShowConfirmDialog(false);
-              setShowSendDialog(true);
-              onFinalize();
-            }}
-            variant="contained"
-            color="primary"
-            autoFocus
-          >
-            Confirmar y Enviar
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Sending dialog */}
-      <Dialog open={showSendDialog}>
-        <DialogTitle>Enviando lecturas</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Enviando lecturas al servidor. Por favor espere...
-          </Typography>
-        </DialogContent>
-      </Dialog>
     </Container>
   );
 }

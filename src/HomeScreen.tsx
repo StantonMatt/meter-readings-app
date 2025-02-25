@@ -1,5 +1,5 @@
 // HomeScreen.tsx
-import React from "react";
+import React, { useState } from "react";
 import {
   Container,
   Typography,
@@ -12,6 +12,14 @@ import {
   FormControl,
   InputLabel,
   SelectChangeEvent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  FormControlLabel,
+  Checkbox,
+  Alert,
 } from "@mui/material";
 import { MeterData } from "./utils/readingUtils";
 
@@ -118,6 +126,58 @@ function HomeScreen({
     }
   };
 
+  // Add new state variables for the reset confirmation dialog
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState<boolean>(false);
+  const [resetConfirmChecked, setResetConfirmChecked] =
+    useState<boolean>(false);
+  const [resetSuccess, setResetSuccess] = useState<boolean>(false);
+
+  // Add dialog handlers
+  const handleOpenResetDialog = () => {
+    setIsResetDialogOpen(true);
+    setResetConfirmChecked(false); // Reset checkbox state when opening dialog
+    setResetSuccess(false); // Reset success message state
+  };
+
+  const handleCloseResetDialog = () => {
+    setIsResetDialogOpen(false);
+    // If we just completed a reset successfully, clear the success message after a delay
+    if (resetSuccess) {
+      setTimeout(() => setResetSuccess(false), 2000);
+    }
+  };
+
+  const handleResetConfirm = () => {
+    if (resetConfirmChecked) {
+      // Clear all reading-related data from localStorage
+      const keys = Object.keys(localStorage);
+      keys.forEach((key) => {
+        // Only clear keys related to meter readings
+        if (key.startsWith("meter_")) {
+          localStorage.removeItem(key);
+        }
+      });
+
+      // Also clear the lastViewedMeterIndex from localStorage
+      localStorage.removeItem("lastViewedMeterIndex");
+
+      // Call the onRestart prop to let parent component know
+      onRestart();
+
+      // Show success message
+      setResetSuccess(true);
+
+      // Close dialog after successful reset
+      handleCloseResetDialog();
+    }
+  };
+
+  const handleResetCheckboxChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setResetConfirmChecked(event.target.checked);
+  };
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
@@ -156,8 +216,7 @@ function HomeScreen({
             {selectedRoute && (
               <Box sx={{ mt: 2 }}>
                 <Typography variant="body2" color="textSecondary">
-                  Última actualización:{" "}
-                  {formatDate(selectedRoute.lastUpdated)}
+                  Última actualización: {formatDate(selectedRoute.lastUpdated)}
                 </Typography>
               </Box>
             )}
@@ -296,7 +355,7 @@ function HomeScreen({
           1234567890123456789012345678901234567890123456789012345678901234567890123456789 */}
           <Typography variant="body1" paragraph>
             Esta aplicación le permite registrar y gestionar lecturas de
-            medidores de agua de la Comunidad de Aguas Obras de Bocatoma.
+            medidores de agua.
           </Typography>
 
           <Box sx={{ mt: 3, display: "flex", gap: 2, flexWrap: "wrap" }}>
@@ -304,7 +363,7 @@ function HomeScreen({
               <>
                 <Button
                   variant="outlined"
-                  onClick={onRestart}
+                  onClick={handleOpenResetDialog}
                   disabled={isLoading}
                 >
                   Reiniciar Lecturas
@@ -329,6 +388,58 @@ function HomeScreen({
           </Box>
         </CardContent>
       </Card>
+
+      {/* Reset Confirmation Dialog */}
+      <Dialog
+        open={isResetDialogOpen}
+        onClose={handleCloseResetDialog}
+        aria-labelledby="reset-dialog-title"
+        aria-describedby="reset-dialog-description"
+      >
+        <DialogTitle id="reset-dialog-title">
+          ¿Reiniciar todas las lecturas?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="reset-dialog-description">
+            Esta acción eliminará todas las lecturas actuales y no se podrán
+            recuperar. Todos los datos no enviados se perderán permanentemente.
+          </DialogContentText>
+          <Box sx={{ mt: 2 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={resetConfirmChecked}
+                  onChange={handleResetCheckboxChange}
+                  color="primary"
+                />
+              }
+              label="Entiendo que esta acción no se puede deshacer"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseResetDialog} color="primary">
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleResetConfirm}
+            color="error"
+            disabled={!resetConfirmChecked}
+            variant="contained"
+          >
+            Reiniciar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Success snackbar or alert */}
+      {resetSuccess && (
+        <Box sx={{ mt: 2 }}>
+          <Alert severity="success" onClose={() => setResetSuccess(false)}>
+            Todas las lecturas han sido reiniciadas correctamente.
+          </Alert>
+        </Box>
+      )}
     </Container>
   );
 }

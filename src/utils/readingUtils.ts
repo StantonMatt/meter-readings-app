@@ -202,3 +202,31 @@ export const generateCSV = (
 
   return csvRows.join("");
 };
+
+/**
+ * Debounce helper function to limit how often a function can be called
+ * @param func The function to debounce
+ * @param wait Wait time in milliseconds
+ * @returns Debounced function
+ */
+export const debounce = <T extends (...args: any[]) => void>(
+  func: T,
+  wait: number
+): T => {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+
+  const debounced = function (this: any, ...args: Parameters<T>) {
+    const context = this;
+
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+
+    timeout = setTimeout(() => {
+      func.apply(context, args);
+      timeout = null;
+    }, wait);
+  } as T;
+
+  return debounced;
+};

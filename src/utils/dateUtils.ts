@@ -72,10 +72,13 @@ interface MonthYearPair {
  * @param {number} month - Current month (0-11)
  * @returns {Object} Object with previous year and month
  */
-export const getPreviousMonthYear = (year: number, month: number): MonthYearPair => {
+export const getPreviousMonthYear = (
+  year: number,
+  month: number
+): MonthYearPair => {
   if (month === 0) {
     // If January, go to December of previous year
-    return { year: year - 1, month: 11 }; 
+    return { year: year - 1, month: 11 };
   }
   return { year, month: month - 1 };
 };
@@ -90,3 +93,71 @@ export const getMonthFileName = (year: number, month: number): string => {
   const monthName = months[month];
   return `${year}-${monthName}`;
 };
+
+// Array of Spanish month names
+export const monthNames = [
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
+];
+
+/**
+ * Get the previous month and year based on current month and year
+ */
+export function getPreviousMonth(
+  currentMonth: number,
+  currentYear: number
+): { month: number; year: number; name: string } {
+  let prevMonth = currentMonth - 1;
+  let prevYear = currentYear;
+
+  if (prevMonth < 0) {
+    prevMonth = 11; // December
+    prevYear -= 1;
+  }
+
+  return {
+    month: prevMonth,
+    year: prevYear,
+    name: monthNames[prevMonth],
+  };
+}
+
+/**
+ * Format a reading key in the format YYYY-Month
+ */
+export function formatReadingKey(year: number, monthName: string): string {
+  return `${year}-${monthName}`;
+}
+
+/**
+ * Find previous month's reading from a meter's readings object
+ */
+export function findPreviousMonthReading(
+  readings: Record<string, any>,
+  selectedMonth: number,
+  selectedYear: number
+): { key: string; reading: string | null } {
+  // Get previous month info
+  const prevMonth = getPreviousMonth(selectedMonth, selectedYear);
+
+  // Create the key for previous month
+  const key = formatReadingKey(prevMonth.year, prevMonth.name);
+
+  // Look for the reading with this key
+  if (readings && readings[key] !== undefined) {
+    return { key, reading: readings[key] };
+  }
+
+  // If not found, return null reading
+  return { key, reading: null };
+}

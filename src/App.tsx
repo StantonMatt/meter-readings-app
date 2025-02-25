@@ -20,9 +20,9 @@ import MeterScreen from "./MeterScreen";
 import FinalCheckScreen from "./FinalCheckScreen";
 import SummaryScreen from "./SummaryScreen";
 import LoginScreen from "./LoginScreen";
-import EmailPreview from "./EmailPreview";
-import EmailPreviewTable from "./EmailPreviewTable";
-import RestartConfirmationDialog from "./components/RestartConfirmationDialog";
+// Remove imports for non-existent files
+// import EmailPreview from "./EmailPreview";
+// import EmailPreviewTable from "./EmailPreviewTable";
 
 // Data and Config
 import routeData from "./data/routes/San_Lorenzo-Portal_Primavera.json";
@@ -46,10 +46,6 @@ import {
 } from "./utils/readingUtils";
 import { generateEmailContent } from "./utils/emailUtils";
 import {
-  createNavigationHandlers,
-  NavigationHandlers,
-} from "./utils/navigationUtils";
-import {
   loadPreviousReadings,
   initializeRouteData,
   uploadReadings,
@@ -60,6 +56,16 @@ interface RouteData {
   name: string;
   totalMeters: number;
   [key: string]: any;
+}
+
+// Implement the navigation handlers function directly in App.tsx
+// This replaces the import from navigationUtils
+interface NavigationHandlers {
+  handleSelectMeter: (index: number) => void;
+  handleHomeClick: () => void;
+  handleGoToSummary: () => void;
+  handlePreviousMeter: () => void;
+  handleNextMeter: () => void;
 }
 
 function App(): JSX.Element {
@@ -76,12 +82,11 @@ function App(): JSX.Element {
   const [authChecked, setAuthChecked] = useState<boolean>(false);
 
   // UI state
-  const [restartDialogOpen, setRestartDialogOpen] = useState<boolean>(false);
-  const [restartConfirmation, setRestartConfirmation] = useState<string>("");
-  const [showConfirmDialog, setShowConfirmDialog] = useState<boolean>(false);
   const [pendingNavigation, setPendingNavigation] = useState<
     (() => void) | null
   >(null);
+  const [navigationHandledByChild, setNavigationHandledByChild] =
+    useState<boolean>(false);
 
   // Date selection state
   const [selectedMonth, setSelectedMonth] = useState<number>(() => {
@@ -93,6 +98,15 @@ function App(): JSX.Element {
     const currentDate = new Date();
     return currentDate.getFullYear();
   });
+
+  // Add this new state variable to track the last viewed meter
+  const [lastViewedMeterIndex, setLastViewedMeterIndex] = useState<number>(
+    () => {
+      // Initialize from localStorage if available
+      const saved = localStorage.getItem("lastViewedMeterIndex");
+      return saved ? parseInt(saved, 10) : 0;
+    }
+  );
 
   // Calculate combined meters data
   const combinedMeters = useMemo(() => {
@@ -142,23 +156,76 @@ function App(): JSX.Element {
     return initialState;
   });
 
-  // Create navigation handlers
+  // Function to create navigation handlers directly in App.tsx
+  const createNavigationHandlersInternal =
+    useCallback((): NavigationHandlers => {
+      const navigateWithConfirmationCheck = (
+        navigationFunction: () => void
+      ): void => {
+        // Always navigate directly, no dialogs
+        navigationFunction();
+      };
+
+      // Return all navigation handlers
+      return {
+        handleSelectMeter: (index: number): void => {
+          setCurrentIndex(index);
+          // Remember this position
+          setLastViewedMeterIndex(index);
+          localStorage.setItem("lastViewedMeterIndex", index.toString());
+        },
+
+        handleHomeClick: (): void => {
+          // If we're on a meter screen, save the position before navigating away
+          if (currentIndex !== null && currentIndex < combinedMeters.length) {
+            setLastViewedMeterIndex(currentIndex);
+            localStorage.setItem(
+              "lastViewedMeterIndex",
+              currentIndex.toString()
+            );
+          }
+          setCurrentIndex(null);
+        },
+
+        handleGoToSummary: (): void => {
+          setCurrentIndex(combinedMeters.length + 1);
+        },
+
+        handlePreviousMeter: (): void => {
+          if (currentIndex === null) return;
+          const newIndex = currentIndex - 1;
+          if (newIndex >= 0) {
+            setCurrentIndex(newIndex);
+            setLastViewedMeterIndex(newIndex);
+            localStorage.setItem("lastViewedMeterIndex", newIndex.toString());
+          }
+        },
+
+        handleNextMeter: (): void => {
+          if (currentIndex === null) return;
+          const newIndex = currentIndex + 1;
+          setCurrentIndex(newIndex);
+
+          // Only save if we're still on a meter screen
+          if (newIndex < combinedMeters.length) {
+            setLastViewedMeterIndex(newIndex);
+            localStorage.setItem("lastViewedMeterIndex", newIndex.toString());
+          }
+        },
+      };
+    }, [currentIndex, combinedMeters.length]);
+
+  // Use our internal function instead of the imported one
   const {
     handleSelectMeter,
     handleHomeClick,
     handleGoToSummary,
     handlePreviousMeter,
     handleNextMeter,
-  }: NavigationHandlers = useMemo(() => {
-    return createNavigationHandlers(
-      currentIndex,
-      combinedMeters,
-      readingsState,
-      setCurrentIndex,
-      setShowConfirmDialog,
-      setPendingNavigation
-    );
-  }, [currentIndex, combinedMeters, readingsState]);
+  } = useMemo(
+    () => createNavigationHandlersInternal(),
+    [createNavigationHandlersInternal]
+  );
 
   // Authentication effect
   useEffect(() => {
@@ -305,11 +372,12 @@ function App(): JSX.Element {
 
       // Update state
       setPreviousReadings(readings);
-      setCurrentIndex(0);
+      // Use the saved meter index if available, otherwise start at 0
+      setCurrentIndex(lastViewedMeterIndex || 0);
     } catch (error) {
       console.error("Error in handleStartClick:", error);
       setError("Failed to load route data. Using local data.");
-      setCurrentIndex(0);
+      setCurrentIndex(lastViewedMeterIndex || 0);
     } finally {
       setIsLoading(false);
     }
@@ -368,17 +436,22 @@ function App(): JSX.Element {
   };
 
   // Handler for reading changes
-  const handleReadingChange = (
-    meterId: string | number,
-    reading: string
-  ): void => {
-    setReadingsState((prev) => ({
-      ...prev,
-      [String(meterId)]: {
-        ...prev[String(meterId)],
-        reading,
-      },
-    }));
+  const handleReadingChange = (meterId: string | number, reading: string) => {
+    // Update the readingsState
+    setReadingsState((prev) => {
+      const newState = {
+        ...prev,
+        [meterId]: {
+          ...prev[meterId],
+          reading,
+        },
+      };
+
+      // Save to localStorage immediately
+      localStorage.setItem("readingsState", JSON.stringify(newState));
+
+      return newState;
+    });
   };
 
   // Handler for confirmation changes
@@ -443,22 +516,84 @@ function App(): JSX.Element {
 
   // Handler for restarting the process
   const handleRestart = (): void => {
-    setRestartDialogOpen(true);
+    // Clear readings state
+    setReadingsState({});
+
+    // Reset the last viewed meter index to 0
+    setLastViewedMeterIndex(0);
+
+    // Also make sure localStorage doesn't have this value
+    localStorage.removeItem("lastViewedMeterIndex");
+
+    // Other reset logic...
   };
 
-  // Handler for confirming restart
-  const confirmRestart = (): void => {
-    // Clear all readings from localStorage
-    combinedMeters.forEach((meter) => {
-      localStorage.removeItem(`meter_${meter.ID}_reading`);
-      localStorage.removeItem(`meter_${meter.ID}_confirmed`);
-      localStorage.removeItem(`meter_${meter.ID}_verification`);
-    });
-    // Reset readings state
-    setReadingsState({});
-    setRestartDialogOpen(false);
-    setRestartConfirmation("");
-  };
+  // Keep this separate useEffect for SAVING state
+  useEffect(() => {
+    // Don't try to save until we have data
+    if (!user || isLoading) return;
+
+    // Save current meter index (if it's not null)
+    if (currentIndex !== null) {
+      localStorage.setItem("currentMeterIndex", currentIndex.toString());
+    }
+
+    // Save current view state
+    const currentScreen =
+      currentIndex === null
+        ? "home"
+        : currentIndex >= combinedMeters.length
+        ? "summary"
+        : "meter";
+    localStorage.setItem("viewState", currentScreen);
+
+    // Save readings state
+    localStorage.setItem("readingsState", JSON.stringify(readingsState));
+  }, [currentIndex, combinedMeters.length, readingsState, user, isLoading]);
+
+  // Update the handleNavigationAttempt function in App.tsx
+  const handleNavigationAttempt = useCallback(
+    (navigationCallback: () => void) => {
+      // If the child component is already handling navigation, respect that
+      if (navigationHandledByChild) {
+        // Just update the pending navigation without re-checking anything
+        setPendingNavigation(() => navigationCallback);
+        return;
+      }
+
+      // Check if we have a reading with value but not confirmed
+      const hasUnconfirmedReading = Object.entries(readingsState).some(
+        ([meterId, state]) => {
+          const isCurrentMeter =
+            currentIndex !== null &&
+            currentIndex < combinedMeters.length &&
+            combinedMeters[currentIndex].ID.toString() === meterId;
+
+          return isCurrentMeter && state?.reading && !state?.isConfirmed;
+        }
+      );
+
+      if (hasUnconfirmedReading) {
+        // Tell the MeterScreen to handle this navigation
+        setNavigationHandledByChild(true);
+        setPendingNavigation(() => navigationCallback);
+        return;
+      }
+
+      // No unconfirmed readings, execute immediately
+      navigationCallback();
+    },
+    [readingsState, currentIndex, combinedMeters, navigationHandledByChild]
+  );
+
+  // Add a cleanup effect to ensure no stale state persists between renders
+  useEffect(() => {
+    return () => {
+      // Cleanup function - runs when component unmounts
+      setNavigationHandledByChild(false);
+      setPendingNavigation(null);
+    };
+  }, []);
 
   // If authentication is still being checked, show nothing
   if (!authChecked) {
@@ -491,11 +626,12 @@ function App(): JSX.Element {
                 onHomeClick={handleHomeClick}
                 onFinishClick={handleUploadReadings}
                 readingsState={readingsState}
+                onNavigationAttempt={handleNavigationAttempt}
               >
                 <HomeScreen
                   hasReadings={hasReadings}
                   onStart={handleStartClick}
-                  onContinue={() => setCurrentIndex(0)}
+                  onContinue={() => setCurrentIndex(lastViewedMeterIndex)}
                   onRestart={handleRestart}
                   routes={availableRoutes}
                   onRouteSelect={handleRouteSelect}
@@ -521,33 +657,28 @@ function App(): JSX.Element {
               </Layout>
             }
           />
+          {/* Remove routes to non-existent components 
           <Route path="/email-preview" element={<EmailPreview />} />
           <Route path="/email-preview-table" element={<EmailPreviewTable />} />
+          */}
         </Routes>
-        <RestartConfirmationDialog
-          open={restartDialogOpen}
-          onClose={() => {
-            setRestartDialogOpen(false);
-            setRestartConfirmation("");
-          }}
-          confirmationText={restartConfirmation}
-          onConfirmationChange={setRestartConfirmation}
-          onConfirm={confirmRestart}
-        />
       </BrowserRouter>
     );
   }
   // Meter screens
-  else if (currentIndex >= 0 && currentIndex < combinedMeters.length) {
+  else if (currentIndex !== null && currentIndex < combinedMeters.length) {
     return (
       <Layout
         showSidebar={true}
         meters={combinedMeters}
         currentIndex={currentIndex}
-        onSelectMeter={(i: number) => setCurrentIndex(i)}
-        onHomeClick={handleHomeClick}
-        onFinishClick={handleGoToSummary}
+        onSelectMeter={(i: number) =>
+          handleNavigationAttempt(() => setCurrentIndex(i))
+        }
+        onHomeClick={() => handleNavigationAttempt(handleHomeClick)}
+        onFinishClick={() => handleNavigationAttempt(handleGoToSummary)}
         readingsState={readingsState}
+        onNavigationAttempt={handleNavigationAttempt}
       >
         <MeterScreen
           meter={combinedMeters[currentIndex]}
@@ -559,10 +690,11 @@ function App(): JSX.Element {
           onFinish={handleGoToSummary}
           onReadingChange={handleReadingChange}
           onConfirmationChange={handleConfirmationChange}
-          showConfirmDialog={showConfirmDialog}
-          setShowConfirmDialog={setShowConfirmDialog}
           pendingNavigation={pendingNavigation}
           setPendingNavigation={setPendingNavigation}
+          setNavigationHandledByChild={setNavigationHandledByChild}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
         />
       </Layout>
     );
@@ -572,13 +704,16 @@ function App(): JSX.Element {
     if (submittedReadings.length > 0) {
       return (
         <Layout
+          showSidebar={false}
           meters={combinedMeters}
           currentIndex={currentIndex}
-          onSelectMeter={(i: number) => setCurrentIndex(i)}
-          onHomeClick={handleHomeClick}
-          onFinishClick={handleUploadReadings}
-          showSidebar={false}
+          onSelectMeter={(i: number) =>
+            handleNavigationAttempt(() => setCurrentIndex(i))
+          }
+          onHomeClick={() => handleNavigationAttempt(handleHomeClick)}
+          onFinishClick={handleGoToSummary}
           readingsState={readingsState}
+          onNavigationAttempt={handleNavigationAttempt}
         >
           <FinalCheckScreen
             readingsState={readingsState}
@@ -614,6 +749,7 @@ function App(): JSX.Element {
         onFinishClick={handleUploadReadings}
         showSidebar={false}
         readingsState={readingsState}
+        onNavigationAttempt={handleNavigationAttempt}
       >
         <SummaryScreen
           meters={combinedMeters}
@@ -639,6 +775,7 @@ function App(): JSX.Element {
         onHomeClick={handleHomeClick}
         onFinishClick={handleUploadReadings}
         readingsState={readingsState}
+        onNavigationAttempt={handleNavigationAttempt}
       >
         <SummaryScreen
           meters={combinedMeters}
