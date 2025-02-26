@@ -1,15 +1,21 @@
 // App.tsx
 import React, { useState, useCallback, useEffect, useMemo } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { onAuthStateChanged } from "firebase/auth";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useNavigate,
+  useLocation,
+} from "react-router-dom";
+import { onAuthStateChanged, getAuth, signOut } from "firebase/auth";
 import {
   collection,
   getDocs,
   doc,
-  setDoc,
   getDoc,
   query,
   where,
+  setDoc,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 
@@ -20,12 +26,13 @@ import MeterScreen from "./MeterScreen";
 import FinalCheckScreen from "./FinalCheckScreen";
 import SummaryScreen from "./SummaryScreen";
 import LoginScreen from "./LoginScreen";
+import RoutesScreen from "./RoutesScreen";
 // Remove imports for non-existent files
 // import EmailPreview from "./EmailPreview";
 // import EmailPreviewTable from "./EmailPreviewTable";
 
 // Data and Config
-import routeData from "./data/routes/San_Lorenzo-Portal_Primavera.json";
+import routeData from "./data/routes/sl-pp/ruta_sl-pp.json";
 import {
   db,
   storage,
@@ -47,8 +54,7 @@ import {
 import { generateEmailContent } from "./utils/emailUtils";
 import {
   loadPreviousReadings,
-  initializeRouteData,
-  uploadReadings,
+  initializeFirebaseData,
 } from "./services/firebaseService";
 
 interface RouteData {
@@ -80,6 +86,7 @@ function App(): JSX.Element {
   const [readingsData, setReadingsData] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [authChecked, setAuthChecked] = useState<boolean>(false);
+  const [isAuthStateReady, setIsAuthStateReady] = useState<boolean>(false);
 
   // UI state
   const [pendingNavigation, setPendingNavigation] = useState<
@@ -111,17 +118,22 @@ function App(): JSX.Element {
   // Calculate combined meters data
   const combinedMeters = useMemo(() => {
     return routeData.map((meter) => {
-      const matchingReading = readingsData.find((r) => r.ID === meter.ID);
-      if (matchingReading) {
+      // Check if readingsData is an array before using find
+      const previousReadings = Array.isArray(readingsData)
+        ? readingsData.find(
+            (reading) => reading.ID.toString() === meter.ID.toString()
+          )
+        : null;
+      if (previousReadings) {
         const {
           monthlyConsumption,
           averageConsumption,
           estimatedReading,
           monthsEstimated,
-        } = calculateMonthlyConsumption(matchingReading);
+        } = calculateMonthlyConsumption(previousReadings);
         return {
           ...meter,
-          readings: matchingReading,
+          readings: previousReadings,
           monthlyConsumption,
           averageConsumption,
           estimatedReading,
@@ -229,89 +241,162 @@ function App(): JSX.Element {
 
   // Authentication effect
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setAuthChecked(true);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setIsAuthStateReady(true);
+
+      if (user) {
+        // User is logged in
+        setUser(user);
+
+        // Store the saved state in a variable but don't apply it immediately
+        let savedStateToRestore = null;
+
+        try {
+          const savedState = localStorage.getItem("appState");
+          if (savedState) {
+            savedStateToRestore = JSON.parse(savedState);
+            console.log(
+              "Found saved session state, will restore after routes load"
+            );
+          }
+        } catch (error) {
+          console.error("Error parsing saved session:", error);
+        }
+
+        // Load routes first - don't try to restore state here
+        // The routes will be loaded by the useEffect for routes
+
+        // Store the saved state in a ref or state so it can be used after routes load
+        if (savedStateToRestore) {
+          setSavedStateToRestore(savedStateToRestore);
+        }
+      } else {
+        // User is logged out
+        setUser(null);
+        setCurrentIndex(0);
+        setSavedStateToRestore(null);
+      }
     });
 
     return () => unsubscribe();
   }, []);
 
+  // Add this new state
+  const [savedStateToRestore, setSavedStateToRestore] = useState(null);
+
+  // Add a new effect that handles restoration AFTER routes are loaded
+  useEffect(() => {
+    const restoreSavedState = async () => {
+      // Only proceed if we have saved state AND routes are available
+      if (
+        savedStateToRestore &&
+        availableRoutes.length > 0 &&
+        savedStateToRestore.selectedRoute
+      ) {
+        console.log("Routes are loaded, now restoring saved session state");
+
+        // Find the matching route object from available routes
+        const matchingRoute = availableRoutes.find(
+          (route) => route.id === savedStateToRestore.selectedRoute.id
+        );
+
+        if (matchingRoute) {
+          // Now it's safe to select the route
+          await handleRouteSelect(matchingRoute);
+
+          // After a short delay to let route data load, restore the meter index
+          setTimeout(() => {
+            if (savedStateToRestore.currentIndex !== undefined) {
+              setCurrentIndex(savedStateToRestore.currentIndex);
+              console.log(
+                `Restored to meter index: ${savedStateToRestore.currentIndex}`
+              );
+            }
+
+            // Clear the saved state to restore since we've handled it
+            setSavedStateToRestore(null);
+          }, 500);
+        }
+      }
+    };
+
+    restoreSavedState();
+  }, [availableRoutes, savedStateToRestore]);
+
   // Load routes effect
   useEffect(() => {
+    if (!user) return;
+
     let isMounted = true;
 
-    const loadRoutes = async (): Promise<void> => {
-      if (!isMounted || !user) return;
-
-      setIsLoading(true);
+    const loadRoutes = async () => {
       try {
-        console.log("Starting route load process...");
-        console.log("Current user:", user.uid);
-
-        // Wait for App Check initialization
-        const isInitialized = await appCheckInitialized;
-        console.log("App Check initialization status:", isInitialized);
-
-        if (!isInitialized) {
-          throw new Error("App Check initialization failed");
-        }
-
-        // First, try to initialize the route
-        try {
-          console.log("Attempting to initialize route data...");
-          await initializeRouteData(
-            auth,
-            db,
-            routeData as unknown as MeterData[],
-            months,
-            appCheckInitialized
-          );
-          console.log("Route initialization completed");
-        } catch (error) {
-          console.error("Route initialization failed:", error);
-        }
-
-        // Now try to fetch all routes
-        console.log("Fetching all routes...");
+        console.log("Loading routes...");
         const routesRef = collection(db, "routes");
         const routesSnapshot = await getDocs(routesRef);
 
-        console.log("Routes query completed, empty?", routesSnapshot.empty);
-        console.log("Number of routes found:", routesSnapshot.size);
-
-        if (!routesSnapshot.empty) {
-          const routes = routesSnapshot.docs.map((doc) => ({
+        const loadedRoutes = routesSnapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
             id: doc.id,
-            ...doc.data(),
-          })) as RouteData[];
-          console.log("Routes loaded:", routes);
-          setAvailableRoutes(routes);
-        } else {
-          console.log("No routes found in Firestore");
-          setAvailableRoutes([]);
-        }
-      } catch (error: any) {
-        console.error("Load routes error details:", {
-          code: error.code,
-          message: error.message,
-          details: error.details,
+            name: data.name || "Unnamed Route",
+            totalMeters: data.totalMeters || 0,
+            meters: data.meters || [],
+            lastUpdated: data.lastUpdated || null,
+          };
         });
-        if (!isMounted) return;
-        setError(error.message);
-      } finally {
+
+        if (isMounted) {
+          console.log("Setting available routes:", loadedRoutes);
+          setAvailableRoutes(loadedRoutes);
+
+          // Auto-select first route if none is selected and we have routes
+          if (loadedRoutes.length > 0 && !selectedRoute) {
+            setSelectedRoute(loadedRoutes[0]);
+          }
+
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error("Error loading routes:", error);
         if (isMounted) {
           setIsLoading(false);
         }
       }
     };
 
-    loadRoutes();
+    const initializeAndLoadRoutes = async () => {
+      // Always initialize data on login, regardless of whether it's been done this session
+      try {
+        console.log("Initializing Firebase data on login");
+        // First initialize Firebase with data - do this every login
+        await initializeFirebaseData(auth, db, appCheckInitialized);
+
+        // Then load routes
+        await loadRoutes();
+      } catch (error) {
+        console.error("Error during initialization:", error);
+        if (isMounted) {
+          // Even if initialization fails, try to load routes
+          try {
+            await loadRoutes();
+          } catch (loadError) {
+            console.error(
+              "Error loading routes after init failure:",
+              loadError
+            );
+          }
+          setIsLoading(false);
+        }
+      }
+    };
+
+    initializeAndLoadRoutes();
 
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user]); // Remove selectedRoute from dependencies to prevent reinitialization
 
   // Setup admin effect
   useEffect(() => {
@@ -361,17 +446,12 @@ function App(): JSX.Element {
       setIsLoading(true);
 
       // Load all 5 months of readings
-      const readings = await loadPreviousReadings(
-        routeData as unknown as MeterData[],
-        selectedYear,
-        selectedMonth,
-        db,
-        months
-      );
-      setReadingsData(readings);
+      const result = await loadPreviousReadings();
+      const readingsData = result.readings || [];
+      setReadingsData(readingsData);
 
       // Update state
-      setPreviousReadings(readings);
+      setPreviousReadings(readingsData);
       // Use the saved meter index if available, otherwise start at 0
       setCurrentIndex(lastViewedMeterIndex || 0);
     } catch (error) {
@@ -399,17 +479,10 @@ function App(): JSX.Element {
         };
       });
 
-      const uploadedReadings = await uploadReadings(
-        readingsToUpload as unknown as MeterData[],
-        readingsState,
-        selectedRoute,
-        selectedMonth,
-        selectedYear,
+      const uploadedReadings = await initializeFirebaseData(
+        auth,
         db,
-        functions,
-        months,
-        appCheckInitialized,
-        auth
+        appCheckInitialized
       );
 
       // Clear all readings from localStorage
@@ -426,7 +499,7 @@ function App(): JSX.Element {
       // Reset readings state
       setReadingsState({});
       setCurrentIndex(combinedMeters.length);
-      setSubmittedReadings(uploadedReadings);
+      setSubmittedReadings([uploadedReadings]);
     } catch (error) {
       console.error("Detailed error:", error);
       setError("Error uploading readings: " + (error as Error).message);
@@ -530,26 +603,21 @@ function App(): JSX.Element {
 
   // Keep this separate useEffect for SAVING state
   useEffect(() => {
-    // Don't try to save until we have data
-    if (!user || isLoading) return;
+    // Only save state if user is logged in and we have meters
+    if (user && selectedRoute && combinedMeters.length > 0) {
+      const stateToSave = {
+        currentIndex,
+        selectedRoute,
+        combinedMeters: combinedMeters.map((meter) => ({
+          ID: meter.ID,
+          ADDRESS: meter.ADDRESS,
+        })),
+      };
 
-    // Save current meter index (if it's not null)
-    if (currentIndex !== null) {
-      localStorage.setItem("currentMeterIndex", currentIndex.toString());
+      localStorage.setItem("appState", JSON.stringify(stateToSave));
+      console.log(`Saved app state: meter index ${currentIndex}`);
     }
-
-    // Save current view state
-    const currentScreen =
-      currentIndex === null
-        ? "home"
-        : currentIndex >= combinedMeters.length
-        ? "summary"
-        : "meter";
-    localStorage.setItem("viewState", currentScreen);
-
-    // Save readings state
-    localStorage.setItem("readingsState", JSON.stringify(readingsState));
-  }, [currentIndex, combinedMeters.length, readingsState, user, isLoading]);
+  }, [currentIndex, selectedRoute, combinedMeters, user]);
 
   // Update the handleNavigationAttempt function in App.tsx
   const handleNavigationAttempt = useCallback(
@@ -596,7 +664,7 @@ function App(): JSX.Element {
   }, []);
 
   // If authentication is still being checked, show nothing
-  if (!authChecked) {
+  if (!isAuthStateReady) {
     return <div>Loading...</div>;
   }
 
@@ -639,12 +707,8 @@ function App(): JSX.Element {
                   error={error}
                   selectedRoute={selectedRoute}
                   onInitialize={() =>
-                    initializeRouteData(
-                      auth,
-                      db,
-                      routeData as unknown as MeterData[],
-                      months,
-                      appCheckInitialized
+                    initializeFirebaseData(auth, db, appCheckInitialized).then(
+                      (result) => result.success
                     )
                   }
                   selectedMonth={selectedMonth}
@@ -695,6 +759,8 @@ function App(): JSX.Element {
           setNavigationHandledByChild={setNavigationHandledByChild}
           selectedMonth={selectedMonth}
           selectedYear={selectedYear}
+          routeId={selectedRoute?.id || null}
+          onUpdateReadings={() => {}}
         />
       </Layout>
     );
@@ -792,5 +858,17 @@ function App(): JSX.Element {
     return <div>Estado Inválido</div>;
   }
 }
+
+// Also add a function to clear the saved state when logging out
+const handleLogout = async () => {
+  try {
+    await signOut(auth);
+    // Clear saved state
+    localStorage.removeItem("appState");
+    console.log("Cleared saved app state on logout");
+  } catch (error) {
+    console.error("Error signing out:", error);
+  }
+};
 
 export default App;

@@ -24,9 +24,15 @@ service cloud.firestore {
     match /routes/{routeId} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+      
+      // Nested collection rule for readings under routes
+      match /readings/{readingId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
     }
     
-    // Readings - require auth and admin status
+    // Keep top-level readings collection (if you're using it)
     match /readings/{readingId} {
       allow read, write: if isAdmin();
     }

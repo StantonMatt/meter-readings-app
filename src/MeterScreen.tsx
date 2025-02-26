@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useMemo,
-  useCallback,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 
 import {
   Paper,
@@ -14,7 +8,6 @@ import {
   TextField,
   Container,
   FormControlLabel,
-  Checkbox,
   RadioGroup,
   Radio,
   FormLabel,
@@ -24,10 +17,8 @@ import {
   Divider,
   Card,
   CardContent,
-  Stack,
   alpha,
   useTheme,
-  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -35,222 +26,125 @@ import {
   DialogActions,
   Alert,
   InputAdornment,
+  List,
+  ListItem,
+  ListItemText,
 } from "@mui/material";
 
-import { MeterData } from "./utils/readingUtils";
+import { MeterData, ReadingsState } from "./utils/readingUtils";
 import { months } from "./utils/dateUtils";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-
-import HistoryIcon from "@mui/icons-material/History";
-
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-
-import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
-
 import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
-
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
-
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-
 import WarningIcon from "@mui/icons-material/Warning";
 
-import { createPortal } from "react-dom";
-
 import { findPreviousMonthReading } from "./utils/dateUtils";
+import { getPreviousReadings } from "./services/firebaseService";
 
 interface VerificationData {
   type: string;
-
   details: {
     answeredDoor?: boolean;
-
     hadIssues?: boolean;
-
     residenceMonths?: number;
-
     looksLivedIn?: boolean;
-
     [key: string]: any;
   };
-
   timestamp: string;
-
   [key: string]: any;
 }
 
-// Add this helper function at the top level
-
-const storeVerificationData = (
-  meterId: string | number,
-
-  type: string,
-
-  data: { details: any; [key: string]: any },
-
-  resolved: boolean = true
-): void => {
-  localStorage.setItem(
-    `meter_${meterId}_verification`,
-
-    JSON.stringify({
-      type,
-
-      ...data,
-
-      resolved,
-
-      timestamp: new Date().toISOString(),
-    })
-  );
-};
-
 interface MeterScreenProps {
   meter: MeterData;
-
   currentIndex: number;
-
   totalMeters: number;
-
   onHome: () => void;
-
   onPrev: () => void;
-
   onNext: () => void;
-
   onFinish: () => void;
-
   onReadingChange: (meterId: string | number, reading: string) => void;
-
   onConfirmationChange: (
     meterId: string | number,
-
     isConfirmed: boolean
   ) => void;
-
   pendingNavigation: (() => void) | null;
-
   setPendingNavigation: React.Dispatch<
     React.SetStateAction<(() => void) | null>
   >;
-
   setNavigationHandledByChild: React.Dispatch<React.SetStateAction<boolean>>;
-
   selectedMonth: number;
-
   selectedYear: number;
+  routeId: string | null;
+  onUpdateReadings: (updatedReadings: ReadingsState) => void;
 }
 
-// Add a month order mapping function at the top of the file or import it
-
-const getMonthOrder = (monthName: string): number => {
-  const months: Record<string, number> = {
-    enero: 1,
-
-    febrero: 2,
-
-    marzo: 3,
-
-    abril: 4,
-
-    mayo: 5,
-
-    junio: 6,
-
-    julio: 7,
-
-    agosto: 8,
-
-    septiembre: 9,
-
-    octubre: 10,
-
-    noviembre: 11,
-
-    diciembre: 12,
-  };
-
-  return months[monthName.toLowerCase()] || 0;
+// Format month helpers
+const formatMonthOnly = (dateKey: string): string => {
+  const parts = dateKey.split("-");
+  if (parts.length >= 2) {
+    return parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+  }
+  return dateKey;
 };
 
-// Add this at the top level
+// Add this helper component at the top of your file
+const SafeDisplay = ({ children }: { children: any }) => {
+  if (children === null || children === undefined) {
+    return null;
+  }
 
-const INPUT_DEBOUNCE_MS = 500; // Debounce delay for input
+  if (typeof children === "object" && !React.isValidElement(children)) {
+    // Handle array special case
+    if (Array.isArray(children)) {
+      return (
+        <>
+          {children.map((item, i) => (
+            <SafeDisplay key={`item-${i}`}>{item}</SafeDisplay>
+          ))}
+        </>
+      );
+    }
 
-// Add these enum types for clarity at the top of your file
+    // Format object to string
+    return <>{JSON.stringify(children)}</>;
+  }
 
-enum NavigationAction {
-  NONE,
-
-  PREV,
-
-  NEXT,
-
-  HOME,
-
-  FINISH,
-}
-
-// Add these interfaces/types at the top of your file
-
-interface NavigationIntent {
-  type: "prev" | "next" | "home" | "finish" | "none";
-
-  action: () => void;
-}
+  return <>{children}</>;
+};
 
 function MeterScreen({
   meter,
-
   currentIndex,
-
   totalMeters,
-
   onHome,
-
   onPrev,
-
   onNext,
-
   onFinish,
-
   onReadingChange,
-
   onConfirmationChange,
-
   pendingNavigation,
-
   setPendingNavigation,
-
   setNavigationHandledByChild,
-
   selectedMonth,
-
   selectedYear,
+  routeId,
+  onUpdateReadings,
 }: MeterScreenProps): JSX.Element {
   const theme = useTheme();
 
   // Create unique keys for this meter's reading and confirmation state
-
   const readingKey = `meter_${meter.ID}_reading`;
-
   const confirmedKey = `meter_${meter.ID}_confirmed`;
 
   // We need a LOCAL inputValue separate from the persisted reading
-
   const [inputValue, setInputValue] = useState<string>("");
-
   const [isConfirmed, setIsConfirmed] = useState<boolean>(false);
-
-  // Add this ref inside the component function
-  const previousValueRef = useRef<string>("");
 
   // Add state for navigation dialog
   const [isNavigationDialogOpen, setIsNavigationDialogOpen] =
@@ -273,21 +167,387 @@ function MeterScreen({
   const [showUnconfirmDialog, setShowUnconfirmDialog] =
     useState<boolean>(false);
 
-  // Extract and memoize the previous readings from the meter data for performance
-  const previousEntries = useMemo(() => {
-    if (!meter.readings) return [];
+  // Initialize input value and confirmation status when meter changes
+  useEffect(() => {
+    // Retrieve stored reading from localStorage
+    const storedReading = localStorage.getItem(readingKey) || "";
+    setInputValue(storedReading);
 
-    // Convert the readings object to an array of entries, excluding ID and ADDRESS
-    return Object.entries(meter.readings)
-      .filter(([key]) => key !== "ID" && key !== "ADDRESS")
-      .sort((a, b) => {
-        // Sort by date in descending order (most recent first)
-        return new Date(b[0]).getTime() - new Date(a[0]).getTime();
-      });
-  }, [meter.readings]);
+    // Also retrieve stored confirmation status
+    const storedConfirmation = localStorage.getItem(confirmedKey) === "true";
+    setIsConfirmed(storedConfirmation);
+  }, [meter.ID, readingKey, confirmedKey]);
 
-  // Remove the useEffect and state for consumption calculation
-  // Instead, add a ref to store the calculated consumption
+  // Load previous readings for the current meter
+  const [previousReadingEntries, setPreviousReadingEntries] = useState<any[]>(
+    []
+  );
+  const [hasPreviousReadings, setHasPreviousReadings] =
+    useState<boolean>(false);
+  const [historicalReadings, setHistoricalReadings] = useState<any[]>([]);
+  const [previousReading, setPreviousReading] = useState<any>(null);
+
+  // Add a ref to track if we've already fetched for this meter
+  const hasFetchedRef = useRef<{ [key: string]: boolean }>({});
+
+  // Add state variables for average consumption and estimated reading if they don't exist
+  const [averageConsumption, setAverageConsumption] = useState<number>(
+    meter.averageConsumption || 0
+  );
+  const [estimatedReading, setEstimatedReading] = useState<number | string>(
+    meter.estimatedReading || 0
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    // Create a unique request ID for this meter/route combination
+    const requestId = `meter_${meter.ID}_route_${routeId}_request`;
+
+    const fetchPreviousReadings = async () => {
+      // Check if this exact API call is already in progress
+      if ((window as any)[requestId]) {
+        console.log(`Request already in progress for meter ${meter.ID}`);
+        return;
+      }
+
+      // Set flag to indicate this request is in progress
+      (window as any)[requestId] = true;
+
+      try {
+        console.log(
+          `Fetching previous readings for meter ${meter.ID} in route ${routeId}`
+        );
+
+        const response = await getPreviousReadings(
+          meter.ID.toString(),
+          routeId
+        );
+
+        if (!isMounted) return;
+
+        if (response && response.readings) {
+          // Extract reading entries for display
+          const entries = Object.entries(response.readings)
+            .map(([key, value]) => ({
+              date: key,
+              value:
+                typeof value === "number" ? value : parseFloat(String(value)),
+            }))
+            .filter((entry) => !isNaN(entry.value))
+            .sort((a, b) => b.date.localeCompare(a.date)); // Sort newest first
+
+          // Filter to only include entries from the 5 previous months from selected date
+          const filteredEntries = filterEntriesForSelectedDate(
+            entries,
+            selectedMonth,
+            selectedYear
+          );
+          console.log("Filtered entries for selected date:", filteredEntries);
+
+          // Calculate average consumption from available readings
+          const validEntries = entries.filter(
+            (entry) => typeof entry.value === "number"
+          );
+
+          // Log all entries with their dates for debugging
+          console.log(
+            "All valid entries before sorting:",
+            validEntries.map((e) => `${e.date}: ${e.value}`)
+          );
+
+          // Parse dates and sort properly (oldest to newest)
+          validEntries.sort((a, b) => {
+            // Parse dates like "2023-enero" by extracting year and month
+            const [yearA, monthA] = a.date.split("-");
+            const [yearB, monthB] = b.date.split("-");
+
+            // First compare years
+            const yearDiff = parseInt(yearA) - parseInt(yearB);
+            if (yearDiff !== 0) return yearDiff;
+
+            // If same year, compare months by their names (using the monthOrder map)
+            const months = {
+              enero: 1,
+              febrero: 2,
+              marzo: 3,
+              abril: 4,
+              mayo: 5,
+              junio: 6,
+              julio: 7,
+              agosto: 8,
+              septiembre: 9,
+              octubre: 10,
+              noviembre: 11,
+              diciembre: 12,
+            };
+
+            return months[monthA.toLowerCase()] - months[monthB.toLowerCase()];
+          });
+
+          // Log sorted entries to confirm order
+          console.log(
+            "Sorted entries (oldest to newest):",
+            validEntries.map((e) => `${e.date}: ${e.value}`)
+          );
+
+          // Calculate consumption between consecutive readings
+          const consumptionValues = [];
+          for (let i = 0; i < validEntries.length - 1; i++) {
+            const oldReading = validEntries[i].value;
+            const newReading = validEntries[i + 1].value;
+            const diff = newReading - oldReading; // Newer reading minus older reading
+
+            // Only include positive consumption values
+            if (diff > 0) {
+              console.log(
+                `Consumption ${validEntries[i].date} to ${
+                  validEntries[i + 1].date
+                }: ${diff}`
+              );
+              consumptionValues.push(diff);
+            } else {
+              console.log(
+                `Skipping negative/zero consumption ${
+                  validEntries[i].date
+                } to ${validEntries[i + 1].date}: ${diff}`
+              );
+            }
+          }
+
+          // Calculate average consumption
+          console.log(
+            "Consumption values used for average:",
+            consumptionValues
+          );
+          let avgConsumption = 0;
+          if (consumptionValues.length > 0) {
+            const sum = consumptionValues.reduce((acc, val) => acc + val, 0);
+            console.log("Sum of consumption values:", sum);
+            console.log(
+              "Number of consumption values:",
+              consumptionValues.length
+            );
+
+            avgConsumption = sum / consumptionValues.length;
+            avgConsumption = Math.round(avgConsumption * 10) / 10;
+            console.log("Final average consumption:", avgConsumption);
+          }
+
+          // Calculate the estimated reading with correct business logic
+          let estimatedValue: number | string = "---";
+          if (validEntries.length > 0 && avgConsumption > 0) {
+            // Get the most recent reading
+            const mostRecentEntry = validEntries[validEntries.length - 1];
+            const [entryYear, entryMonthName] = mostRecentEntry.date.split("-");
+
+            const months = {
+              enero: 1,
+              febrero: 2,
+              marzo: 3,
+              abril: 4,
+              mayo: 5,
+              junio: 6,
+              julio: 7,
+              agosto: 8,
+              septiembre: 9,
+              octubre: 10,
+              noviembre: 11,
+              diciembre: 12,
+            };
+
+            const entryMonth = months[entryMonthName.toLowerCase()];
+            const entryYearNum = parseInt(entryYear);
+
+            // Get current month/year for comparison
+            console.log(
+              "Current month/year in the app:",
+              selectedMonth,
+              selectedYear
+            );
+            console.log(
+              "Entry month/year from reading:",
+              entryMonth,
+              entryYearNum
+            );
+
+            // IMPORTANT: Calculate inclusive months to estimate - count current month too
+            let monthsToEstimate = 0;
+
+            // For February 2025 from January 2025, we want to estimate 2 months
+            if (selectedYear === entryYearNum) {
+              // Same year - simple calculation + 1 for inclusive
+              monthsToEstimate = selectedMonth - entryMonth + 1;
+            } else if (selectedYear > entryYearNum) {
+              // Different years
+              monthsToEstimate =
+                (selectedYear - entryYearNum) * 12 +
+                (selectedMonth - entryMonth) +
+                1;
+            }
+
+            // Make sure we always estimate at least 1 month
+            monthsToEstimate = Math.max(1, monthsToEstimate);
+
+            console.log(
+              "FIXED CALCULATION - Months to estimate:",
+              monthsToEstimate
+            );
+
+            // Now calculate the estimated reading
+            const baseReading = mostRecentEntry.value;
+            const estimatedNumber = Math.round(
+              baseReading + avgConsumption * monthsToEstimate
+            );
+            estimatedValue = estimatedNumber;
+
+            console.log("Base reading:", baseReading);
+            console.log("Average consumption:", avgConsumption);
+            console.log(
+              "FORMULA:",
+              `${baseReading} + (${avgConsumption} × ${monthsToEstimate}) = ${estimatedNumber}`
+            );
+          }
+
+          // Update UI elements
+          if (filteredEntries.length > 0) {
+            setPreviousReadingEntries(filteredEntries);
+            setHistoricalReadings(filteredEntries);
+            setHasPreviousReadings(true);
+
+            // Store the most recent reading for consumption calculations
+            if (validEntries.length > 0) {
+              setPreviousReading(validEntries[0].value);
+            }
+
+            // Store average consumption and estimated reading
+            setAverageConsumption(avgConsumption);
+            setEstimatedReading(estimatedValue);
+          } else {
+            setHasPreviousReadings(false);
+          }
+        } else {
+          setHasPreviousReadings(false);
+        }
+      } catch (error) {
+        console.error("Error fetching previous readings:", error);
+        setHasPreviousReadings(false);
+      } finally {
+        // Clear the in-progress flag when done
+        if (isMounted) {
+          (window as any)[requestId] = false;
+        }
+      }
+    };
+
+    // Only run if we don't already have readings data
+    if (!historicalReadings || historicalReadings.length === 0) {
+      fetchPreviousReadings();
+    }
+
+    return () => {
+      isMounted = false;
+      // Also clear the request flag when component unmounts
+      (window as any)[requestId] = false;
+    };
+  }, [meter.ID, routeId, selectedMonth, selectedYear, historicalReadings]);
+
+  // Helper function to get previous months
+  const getPreviousMonths = (month: number, year: number, count: number) => {
+    const result = [];
+    let currentMonth = month;
+    let currentYear = year;
+
+    for (let i = 0; i < count; i++) {
+      // Move to previous month
+      currentMonth--;
+      if (currentMonth === 0) {
+        currentMonth = 12;
+        currentYear--;
+      }
+
+      result.push({ month: currentMonth, year: currentYear });
+    }
+
+    return result;
+  };
+
+  // Update the filterEntriesForSelectedDate function to ensure all 5 months are displayed
+  const filterEntriesForSelectedDate = (
+    entries: any[],
+    selectedMonth: number,
+    selectedYear: number
+  ) => {
+    // Convert month names to numbers for comparison
+    const monthNameToNumber: { [key: string]: number } = {
+      enero: 1,
+      febrero: 2,
+      marzo: 3,
+      abril: 4,
+      mayo: 5,
+      junio: 6,
+      julio: 7,
+      agosto: 8,
+      septiembre: 9,
+      octubre: 10,
+      noviembre: 11,
+      diciembre: 12,
+    };
+
+    // Convert number to month name for display
+    const monthNumberToName: { [key: number]: string } = {
+      1: "enero",
+      2: "febrero",
+      3: "marzo",
+      4: "abril",
+      5: "mayo",
+      6: "junio",
+      7: "julio",
+      8: "agosto",
+      9: "septiembre",
+      10: "octubre",
+      11: "noviembre",
+      12: "diciembre",
+    };
+
+    // Get the 5 previous months (including the selected month)
+    const relevantMonths = [
+      { month: selectedMonth, year: selectedYear },
+      ...getPreviousMonths(selectedMonth, selectedYear, 4),
+    ];
+
+    console.log("Relevant months:", relevantMonths);
+
+    // Create a map of existing entries keyed by year-month
+    const entriesMap = new Map();
+    entries.forEach((entry) => {
+      const [yearStr, monthName] = entry.date.split("-");
+      const year = parseInt(yearStr);
+      const month = monthNameToNumber[monthName.toLowerCase()];
+      if (year && month) {
+        entriesMap.set(`${year}-${month}`, entry);
+      }
+    });
+
+    // Create a complete list of entries (including placeholders for missing months)
+    const completeEntries = relevantMonths.map(({ month, year }) => {
+      const key = `${year}-${month}`;
+      if (entriesMap.has(key)) {
+        return entriesMap.get(key);
+      } else {
+        // Create placeholder for missing month
+        return {
+          date: `${year}-${monthNumberToName[month]}`,
+          value: "no data",
+          isMissing: true, // Flag to identify placeholder entries
+        };
+      }
+    });
+
+    return completeEntries;
+  };
+
+  // Reference to store the calculated consumption
   const currentConsumptionRef = useRef<number | null>(null);
 
   // Update the handleInputChange function to directly find the previous month's reading
@@ -320,18 +580,6 @@ function MeterScreen({
             months[prevDate.getMonth()]
           }`; // e.g., "2025-Enero"
 
-          console.log(
-            `Looking for previous month reading with patterns: ${prevMonthPattern1} or ${prevMonthPattern2}`
-          );
-
-          // Log all available reading keys for debugging
-          console.log(
-            "Available reading keys:",
-            Object.keys(meter.readings).filter(
-              (key) => key !== "ID" && key !== "ADDRESS"
-            )
-          );
-
           // Try to find the previous month reading by matching patterns
           let prevReading = null;
           let prevReadingKey = null;
@@ -346,9 +594,6 @@ function MeterScreen({
             ) {
               prevReading = value;
               prevReadingKey = key;
-              console.log(
-                `Found exact match for previous month: ${key} = ${value}`
-              );
               break;
             }
           }
@@ -364,15 +609,6 @@ function MeterScreen({
               }))
               .sort((a, b) => b.date.getTime() - a.date.getTime()); // Sort by date desc
 
-            console.log(
-              "Sorted readings:",
-              readingsArray.map((r) => ({
-                key: r.key,
-                date: r.date.toISOString().slice(0, 7),
-                value: r.value,
-              }))
-            );
-
             // Find the most recent reading that's before or equal to the previous month
             for (const reading of readingsArray) {
               const readingYear = reading.date.getFullYear();
@@ -386,9 +622,6 @@ function MeterScreen({
               if (isPrevMonthOrBefore) {
                 prevReading = reading.value;
                 prevReadingKey = reading.key;
-                console.log(
-                  `Found closest previous reading: ${reading.key} = ${reading.value}`
-                );
                 break;
               }
             }
@@ -397,48 +630,29 @@ function MeterScreen({
           // Now calculate consumption with the found value
           if (prevReading !== null) {
             const previousReading = parseFloat(String(prevReading || "0"));
-
-            console.log(`Calculating consumption for meter ${meter.ID}:`);
-            console.log(`  Current reading: ${currentReading}`);
-            console.log(
-              `  Previous month (${prevReadingKey}) reading: ${previousReading}`
-            );
-
             const consumption = parseFloat(
               (currentReading - previousReading).toFixed(1)
             );
-            console.log(`  Calculated consumption: ${consumption} m³`);
 
             // Store the calculated value
             currentConsumptionRef.current = consumption;
           } else {
-            console.log(`No suitable previous reading found for comparison`);
             currentConsumptionRef.current = null;
           }
         } else {
-          console.log(
-            `Invalid reading value: ${newValue}, cannot calculate consumption`
-          );
           currentConsumptionRef.current = null;
         }
       } catch (e) {
-        console.error("Error calculating consumption:", e);
         currentConsumptionRef.current = null;
       }
     } else {
-      console.log("No readings data available for this meter");
       currentConsumptionRef.current = null;
     }
   };
 
   // Estimate the next reading
-
-  const previousReading =
-    previousEntries.length > 0 ? previousEntries[0][1] : "---";
-
   const suggestedReading = useMemo(() => {
     if (meter.estimatedReading === null) return "";
-
     return Math.round(meter.estimatedReading).toString();
   }, [meter.estimatedReading]);
 
@@ -517,25 +731,6 @@ function MeterScreen({
     setNavigationHandledByChild(false);
   };
 
-  // Replace the validateConsumption function with this version that doesn't log anything
-  const validateConsumption = (): boolean => {
-    if (!inputValue) return true;
-
-    const currentValue = parseFloat(inputValue);
-
-    // If there are no previous readings, allow the reading
-    if (previousEntries.length === 0) return true;
-
-    const prevReading = previousEntries[previousEntries.length - 1][1];
-    if (prevReading === "---" || prevReading === "NO DATA") return true;
-
-    const previousValue = parseFloat(String(prevReading));
-    const consumption = currentValue - previousValue;
-
-    // For any issues, just silently return true without logging
-    return true;
-  };
-
   // Handle customer interaction response
   const handleAnsweredDoorChange = (
     event: React.ChangeEvent<HTMLInputElement>
@@ -597,9 +792,14 @@ function MeterScreen({
       details: verificationData,
       consumption: currentConsumptionRef.current,
       currentReading: inputValue,
-      previousReading: previousEntries.length > 0 ? previousEntries[0][1] : "0",
+      previousReading:
+        previousReadingEntries.length > 0
+          ? previousReadingEntries[0].value
+          : "0",
       previousReadingDate:
-        previousEntries.length > 0 ? previousEntries[0][0] : null,
+        previousReadingEntries.length > 0
+          ? previousReadingEntries[0].key
+          : null,
       timestamp: new Date().toISOString(),
     };
 
@@ -616,25 +816,9 @@ function MeterScreen({
     onConfirmationChange(meter.ID, true);
   };
 
-  // Format the month to show only the month name without year
-
-  const formatMonthOnly = (dateKey: string): string => {
-    const parts = dateKey.split("-");
-
-    if (parts.length >= 2) {
-      // This assumes the date format is YYYY-MMM or similar
-
-      return parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
-    }
-
-    return dateKey;
-  };
-
   // Add this to the beginning of the component to restore verification state
-
   useEffect(() => {
     // Restore verification states from localStorage on mount or meter change
-
     const verificationData = localStorage.getItem(
       `meter_${meter.ID}_verification`
     );
@@ -644,14 +828,12 @@ function MeterScreen({
         const parsedData = JSON.parse(verificationData) as VerificationData;
 
         // Determine if we need to restore any validation state
-
         if (parsedData.type === "highConsumption" && !parsedData.resolved) {
           setIsConfirmed(true);
         }
 
         if (parsedData.type === "lowConsumption" && !parsedData.resolved) {
           // Restore the low consumption verification dialog state
-
           if (parsedData.details) {
             setIsConfirmed(true);
           }
@@ -665,12 +847,6 @@ function MeterScreen({
       }
     }
   }, [meter.ID]);
-
-  // Add a useEffect for debugging
-
-  useEffect(() => {
-    console.log("[DEBUG-METER] showConfirmDialog changed to:", isConfirmed);
-  }, [isConfirmed]);
 
   // Update the handleConfirmClick function
   const handleConfirmClick = () => {
@@ -695,10 +871,10 @@ function MeterScreen({
             );
           } else {
             // Fallback to using the most recent reading in previousEntries
-            if (previousEntries.length > 0) {
-              const lastReadingEntry = previousEntries[0];
+            if (previousReadingEntries.length > 0) {
+              const lastReadingEntry = previousReadingEntries[0];
               const fallbackReading = parseFloat(
-                String(lastReadingEntry[1] || "0")
+                String(lastReadingEntry.value || "0")
               );
               consumption = parseFloat(
                 (currentReading - fallbackReading).toFixed(1)
@@ -796,15 +972,171 @@ function MeterScreen({
   };
 
   // Find this function or similar in the component
-  const formatConsumption = (): string => {
-    // Update this function to use the correctly calculated consumption
-    if (currentConsumptionRef.current === null || !inputValue) {
+  const formatConsumption = () => {
+    if (!inputValue || !previousReadingEntries.length) return "---";
+
+    try {
+      // Use the first entry (most recent), not the last entry
+      const previousValue = previousReadingEntries[0]?.value || 0;
+      const current = parseFloat(inputValue);
+      const previous = parseFloat(String(previousValue));
+
+      if (isNaN(current) || isNaN(previous)) return "---";
+
+      const difference = current - previous;
+      return difference.toFixed(1);
+    } catch (error) {
+      console.error("Error calculating consumption:", error);
       return "---";
     }
-
-    // Use the correctly calculated consumption value
-    return currentConsumptionRef.current.toFixed(1);
   };
+
+  // Update the renderHistoricalReadings function to handle placeholder entries
+  const renderHistoricalReadings = () => {
+    // Add detailed logging to debug the render process
+    console.log(
+      "Rendering historical readings:",
+      historicalReadings,
+      "hasPreviousReadings:",
+      hasPreviousReadings
+    );
+
+    if (!historicalReadings || historicalReadings.length === 0) {
+      return (
+        <Typography variant="body2" color="text.secondary">
+          No hay lecturas anteriores disponibles.
+        </Typography>
+      );
+    }
+
+    return (
+      <Box sx={{ mt: 2 }}>
+        <Typography variant="subtitle2" gutterBottom>
+          Lecturas Anteriores:
+        </Typography>
+        <List dense>
+          {historicalReadings.map((item, index) => (
+            <ListItem key={index} disablePadding>
+              <ListItemText
+                primary={`${item.date}: ${
+                  item.isMissing ? "No hay datos" : `${item.value} m³`
+                }`}
+                primaryTypographyProps={{
+                  variant: "body2",
+                  style: {
+                    fontWeight: index === 0 ? "bold" : "normal",
+                    color: item.isMissing
+                      ? theme.palette.text.secondary
+                      : "inherit",
+                  },
+                }}
+              />
+            </ListItem>
+          ))}
+        </List>
+      </Box>
+    );
+  };
+
+  // Also update the dialog version
+  const renderHistoricalReadingsInDialog = () => {
+    if (!historicalReadings || historicalReadings.length === 0) {
+      return (
+        <Typography variant="body2" color="text.secondary">
+          No hay lecturas anteriores disponibles.
+        </Typography>
+      );
+    }
+
+    return (
+      <Box sx={{ mt: 2 }}>
+        <Typography variant="subtitle2" gutterBottom>
+          Historial de Lecturas:
+        </Typography>
+        <List dense>
+          {historicalReadings.map((item, index) => (
+            <ListItem key={index} disablePadding>
+              <ListItemText
+                primary={`${item.date}: ${
+                  item.isMissing ? "No hay datos" : `${item.value} m³`
+                }`}
+                primaryTypographyProps={{
+                  variant: "body2",
+                  style: {
+                    fontWeight: index === 0 ? "bold" : "normal",
+                    color: item.isMissing
+                      ? theme.palette.text.secondary
+                      : "inherit",
+                  },
+                }}
+              />
+            </ListItem>
+          ))}
+        </List>
+      </Box>
+    );
+  };
+
+  // Update the renderMeterInfo function or similar that displays the meter details
+  const renderMeterInfo = () => {
+    return (
+      <Box sx={{ my: 2 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <Typography variant="subtitle2" component="div">
+              Detalles del Medidor:
+            </Typography>
+            <Typography variant="body2">ID: {meter.ID}</Typography>
+            <Typography variant="body2">Dirección: {meter.ADDRESS}</Typography>
+            {/* Add additional meter details here if available */}
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Typography variant="subtitle2" component="div">
+              Estimaciones:
+            </Typography>
+            <Typography variant="body2">
+              Promedio de consumo:{" "}
+              {averageConsumption > 0 ? `${averageConsumption} m³` : "---"}
+            </Typography>
+            <Typography variant="body2">
+              Lectura estimada:{" "}
+              {estimatedReading && estimatedReading !== "---"
+                ? `${estimatedReading} m³`
+                : "--- m³"}
+            </Typography>
+          </Grid>
+        </Grid>
+      </Box>
+    );
+  };
+
+  // Also add console logging right before rendering to help debug
+  useEffect(() => {
+    console.log("Current estimatedReading value:", estimatedReading);
+    console.log("Current averageConsumption value:", averageConsumption);
+  }, [estimatedReading, averageConsumption]);
+
+  // Add this right before the return statement in your component
+  useEffect(() => {
+    // Fallback calculation for estimated reading if it's not being set
+    if (
+      (!estimatedReading || estimatedReading === "---") &&
+      previousReadingEntries.length > 0 &&
+      averageConsumption > 0
+    ) {
+      // Use the most recent reading (index 0) since we sorted newest first
+      const lastReading = previousReadingEntries[0].value;
+      const manualEstimate = Math.round(lastReading + averageConsumption);
+
+      console.log("Manual estimated reading calculation:");
+      console.log("- Last reading:", lastReading);
+      console.log("- Average consumption:", averageConsumption);
+      console.log("- Calculated estimate:", manualEstimate);
+
+      // Set the estimated reading explicitly
+      setEstimatedReading(manualEstimate);
+    }
+  }, [previousReadingEntries, averageConsumption, estimatedReading]);
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
@@ -814,15 +1146,10 @@ function MeterScreen({
         <Box
           sx={{
             display: "flex",
-
             alignItems: "center",
-
             backgroundColor: alpha(theme.palette.primary.main, 0.1),
-
             borderRadius: 2,
-
             px: 2,
-
             py: 0.75,
           }}
         >
@@ -842,11 +1169,8 @@ function MeterScreen({
           elevation={2}
           sx={{
             mb: 4,
-
             borderRadius: 2,
-
             overflow: "visible",
-
             boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
           }}
         >
@@ -856,17 +1180,12 @@ function MeterScreen({
             <Box
               sx={{
                 p: 3,
-
                 pb: 2,
-
                 background: `linear-gradient(to right, ${
                   theme.palette.primary.main
                 }, ${alpha(theme.palette.primary.main, 0.8)})`,
-
                 color: "white",
-
                 borderTopLeftRadius: 4,
-
                 borderTopRightRadius: 4,
               }}
             >
@@ -893,92 +1212,7 @@ function MeterScreen({
                   Lecturas Anteriores
                 </Typography>
 
-                {previousEntries.length > 0 ? (
-                  <Box
-                    sx={{
-                      display: "flex",
-
-                      overflowX: "auto",
-
-                      pb: 1,
-
-                      gap: 2,
-
-                      "&::-webkit-scrollbar": {
-                        height: "6px",
-                      },
-
-                      "&::-webkit-scrollbar-thumb": {
-                        backgroundColor: "rgba(0,0,0,0.1)",
-
-                        borderRadius: "3px",
-                      },
-                    }}
-                  >
-                    {previousEntries.map(([dateKey, value], index) => (
-                      <Box
-                        key={dateKey}
-                        sx={{
-                          minWidth: "80px",
-
-                          p: 1.5,
-
-                          backgroundColor:
-                            index === previousEntries.length - 1
-                              ? alpha(theme.palette.primary.main, 0.08)
-                              : "rgba(0,0,0,0.03)",
-
-                          border:
-                            index === previousEntries.length - 1
-                              ? `1px solid ${alpha(
-                                  theme.palette.primary.main,
-
-                                  0.15
-                                )}`
-                              : "1px solid rgba(0,0,0,0.06)",
-
-                          borderRadius: 1,
-
-                          textAlign: "center",
-                        }}
-                      >
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            display: "block",
-
-                            fontWeight: 500,
-
-                            color:
-                              index === previousEntries.length - 1
-                                ? "primary.main"
-                                : "text.secondary",
-
-                            mb: 0.5,
-                          }}
-                        >
-                          {formatMonthOnly(dateKey)}
-                        </Typography>
-
-                        <Typography
-                          variant="body1"
-                          fontWeight={600}
-                          color={
-                            index === previousEntries.length - 1
-                              ? "primary.main"
-                              : "text.primary"
-                          }
-                        >
-                          {value} m³
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                ) : (
-                  <Typography variant="body2" color="text.secondary">
-                    No hay lecturas anteriores
-                  </Typography>
-                )}
+                {renderHistoricalReadings()}
               </Box>
 
               {/* Consumption Summary - Now with only 2 boxes */}
@@ -995,17 +1229,12 @@ function MeterScreen({
                     <Box
                       sx={{
                         borderRadius: 1,
-
                         p: 1.5,
-
                         backgroundColor: alpha(theme.palette.info.main, 0.08),
-
                         border: `1px solid ${alpha(
                           theme.palette.info.main,
-
                           0.15
                         )}`,
-
                         height: "100%",
                       }}
                     >
@@ -1013,11 +1242,8 @@ function MeterScreen({
                         variant="caption"
                         sx={{
                           display: "block",
-
                           fontWeight: 500,
-
                           color: "text.secondary",
-
                           mb: 0.5,
                         }}
                       >
@@ -1029,7 +1255,7 @@ function MeterScreen({
                         fontWeight={600}
                         color="info.main"
                       >
-                        {meter.averageConsumption?.toFixed(1) || "---"} m³
+                        {averageConsumption.toFixed(1) || "---"} m³
                       </Typography>
                     </Box>
                   </Grid>
@@ -1040,20 +1266,15 @@ function MeterScreen({
                     <Box
                       sx={{
                         borderRadius: 1,
-
                         p: 1.5,
-
                         backgroundColor: alpha(
                           theme.palette.warning.main,
                           0.08
                         ),
-
                         border: `1px solid ${alpha(
                           theme.palette.warning.main,
-
                           0.15
                         )}`,
-
                         height: "100%",
                       }}
                     >
@@ -1061,11 +1282,8 @@ function MeterScreen({
                         variant="caption"
                         sx={{
                           display: "block",
-
                           fontWeight: 500,
-
                           color: "text.secondary",
-
                           mb: 0.5,
                         }}
                       >
@@ -1077,7 +1295,9 @@ function MeterScreen({
                         fontWeight={600}
                         color="warning.main"
                       >
-                        {suggestedReading || "---"} m³
+                        {estimatedReading && estimatedReading !== "---"
+                          ? `${estimatedReading} m³`
+                          : "--- m³"}
                       </Typography>
                     </Box>
                   </Grid>
@@ -1111,48 +1331,35 @@ function MeterScreen({
                   }}
                   disabled={isConfirmed}
                   InputProps={{
-                    endAdornment: <Typography sx={{ ml: 1 }}>m³</Typography>,
-
+                    endAdornment: <span style={{ marginLeft: "4px" }}>m³</span>,
                     sx: {
                       fontSize: "1.1rem",
-
                       fontWeight: 500,
-
                       backgroundColor: isConfirmed
                         ? alpha("#f5f5f5", 0.8)
                         : "white",
-
                       opacity: isConfirmed ? 0.8 : 1,
-
                       "& input": {
                         color: "text.primary",
-
                         WebkitTextFillColor: isConfirmed
                           ? "rgba(0, 0, 0, 0.7) !important"
                           : undefined,
-
                         fontWeight: isConfirmed ? 600 : 500,
                       },
                     },
                   }}
                   sx={{
                     mb: 2,
-
                     "& .MuiOutlinedInput-root": {
                       bgcolor: isConfirmed ? alpha("#f5f5f5", 0.8) : "white",
-
                       borderRadius: 1,
                     },
-
                     "& .MuiInputLabel-root": {
                       color: isConfirmed ? "text.secondary" : undefined,
                     },
-
                     "& .Mui-disabled": {
                       opacity: "0.9 !important",
-
                       color: "text.primary !important",
-
                       WebkitTextFillColor: "rgba(0, 0, 0, 0.8) !important",
                     },
                   }}
@@ -1161,25 +1368,18 @@ function MeterScreen({
                 {/* Move Consumo Actual here - just after the TextField and before the confirm button */}
 
                 {inputValue &&
-                  previousEntries.length > 0 &&
-                  previousEntries[previousEntries.length - 1][1] && (
+                  previousReadingEntries.length > 0 &&
+                  previousReadingEntries[0]?.value && (
                     <Box
                       sx={{
                         mb: 2.5,
-
                         p: 1.5,
-
                         border: "1px solid",
-
                         borderColor: (consumption) => {
                           const consumptionValue =
                             parseFloat(inputValue) -
                             parseFloat(
-                              String(
-                                previousEntries[
-                                  previousEntries.length - 1
-                                ][1] || "0"
-                              )
+                              String(previousReadingEntries[0]?.value || "0")
                             );
 
                           if (consumptionValue > 0)
@@ -1195,11 +1395,7 @@ function MeterScreen({
                           const consumptionValue =
                             parseFloat(inputValue) -
                             parseFloat(
-                              String(
-                                previousEntries[
-                                  previousEntries.length - 1
-                                ][1] || "0"
-                              )
+                              String(previousReadingEntries[0]?.value || "0")
                             );
 
                           if (consumptionValue > 0)
@@ -1218,11 +1414,8 @@ function MeterScreen({
                         variant="caption"
                         sx={{
                           display: "block",
-
                           fontWeight: 500,
-
                           color: "text.secondary",
-
                           mb: 0.5,
                         }}
                       >
@@ -1234,16 +1427,11 @@ function MeterScreen({
                         fontWeight={600}
                         sx={{
                           fontSize: "1.1rem",
-
                           color: () => {
                             const consumptionValue =
                               parseFloat(inputValue) -
                               parseFloat(
-                                String(
-                                  previousEntries[
-                                    previousEntries.length - 1
-                                  ][1] || "0"
-                                )
+                                String(previousReadingEntries[0]?.value || "0")
                               );
 
                             if (consumptionValue > 0)
@@ -1452,6 +1640,7 @@ function MeterScreen({
               <DialogContent sx={{ px: 3, py: 3 }}>
                 <DialogContentText
                   sx={{ color: "text.primary", mb: 2, fontSize: "1rem" }}
+                  component="div"
                 >
                   El consumo calculado{" "}
                   <Chip
@@ -1836,6 +2025,7 @@ function MeterScreen({
                 color: "text.primary",
                 fontSize: "1rem",
               }}
+              component="div"
             >
               Si desconfirma esta lectura, se perderán los datos de verificación
               y necesitará completar nuevamente la información de verificación

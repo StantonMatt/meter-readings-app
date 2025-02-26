@@ -16,6 +16,8 @@ import {
   DocumentData,
   Timestamp,
   updateDoc,
+  serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { httpsCallable, Functions } from "firebase/functions";
 import { Auth } from "firebase/auth";
@@ -27,6 +29,10 @@ import {
   Reading,
 } from "../utils/readingUtils";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db } from "../firebase-config";
+
+// REMOVE ALL MOCK DATA - Delete these sections entirely
+// No more mockReadingsData or any other hard-coded data
 
 interface Verification {
   meterId: string;
@@ -63,354 +69,42 @@ interface ReadingData {
   year?: string;
 }
 
+// Add this at the top level of the file (outside any function)
+const readingsCache: { [key: string]: any } = {};
+
 /**
- * Load previous readings from Firestore
- * @param {Array} routeData - Route data containing meters
- * @param {number} selectedYear - Selected year
- * @param {number} selectedMonth - Selected month
- * @param {Object} db - Firestore database instance
- * @param {Array} months - Array of month names
- * @returns {Promise<Array>} Array of readings
+ * Get reading data directly from Firebase or fall back to empty arrays
+ * This function should remain to load previous readings from Firestore
  */
-export const loadPreviousReadings = async (
-  routeData: MeterData[],
-  selectedYear: number,
-  selectedMonth: number,
-  db: Firestore,
-  months: string[]
-): Promise<Reading[]> => {
+export const loadPreviousReadings = async (): Promise<{
+  readings: any[];
+  success: boolean;
+  error?: any;
+}> => {
   try {
-    const startDate = getPreviousMonthYear(selectedYear, selectedMonth);
-    let currentYear = startDate.year;
-    let currentMonth = startDate.month;
-    const readings: Reading[] = [];
+    console.log("Loading reading data from Firebase...");
 
-    // Initialize all meters with ID
-    routeData.forEach((meter) => {
-      readings.push({ ID: meter.ID });
-    });
+    const readingsCollection = collection(db, "readings");
+    const querySnapshot = await getDocs(readingsCollection);
 
-    // Try to load last 5 months of readings
-    for (let i = 0; i < 5; i++) {
-      const monthPrefix = `${currentYear}-${months[currentMonth]}`;
-      const monthKey = monthPrefix;
-
-      try {
-        // Get all documents for this month
-        const readingsRef = collection(db, "readings");
-        const q = query(
-          readingsRef,
-          where("year", "==", currentYear),
-          where("month", "==", months[currentMonth])
-        );
-
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-          // Sort the documents in memory instead
-          const docs = querySnapshot.docs;
-          docs.sort((a, b) => {
-            const aTimestamp = a.data().timestamp as Timestamp;
-            const bTimestamp = b.data().timestamp as Timestamp;
-            return bTimestamp.toMillis() - aTimestamp.toMillis();
-          });
-
-          // Use the most recent document
-          const latestDoc = docs[0];
-          const monthData = latestDoc.data().readings;
-
-          // Transform the data to include the month
-          monthData.forEach((reading: any) => {
-            const existingReading = readings.find((r) => r.ID === reading.ID);
-            if (existingReading) {
-              existingReading[monthKey] = reading.Reading;
-            }
-          });
-        } else {
-          // If no readings found for this month
-          readings.forEach((reading) => {
-            reading[monthKey] = "NO DATA";
-          });
-        }
-      } catch (error) {
-        console.log(`Failed to load readings for ${monthPrefix}:`, error);
-        readings.forEach((reading) => {
-          reading[monthKey] = "NO DATA";
-        });
-      }
-
-      // Move to previous month
-      const prev = getPreviousMonthYear(currentYear, currentMonth);
-      currentYear = prev.year;
-      currentMonth = prev.month;
+    if (querySnapshot.empty) {
+      console.log("No previous readings found in Firebase");
+      return { readings: [], success: true };
     }
 
-    return readings;
+    const readings = querySnapshot.docs.map((doc) => {
+      return { id: doc.id, ...doc.data() };
+    });
+
+    console.log("Successfully loaded reading data from Firebase");
+    return { readings, success: true };
   } catch (error) {
-    console.error("Error in loadPreviousReadings:", error);
-    throw error;
+    console.error("Error loading reading data:", error);
+    return { readings: [], success: false, error };
   }
 };
 
-/**
- * Initialize route data in Firestore
- * @param {Object} auth - Firebase auth instance
- * @param {Object} db - Firestore database instance
- * @param {Array} routeData - Route data to initialize
- * @param {Array} months - Array of month names
- * @returns {Promise<void>}
- */
-export const initializeRouteData = async (
-  auth: Auth,
-  db: Firestore,
-  routeData: MeterData[],
-  months: string[],
-  appCheckInitialized: Promise<boolean>
-): Promise<boolean> => {
-  try {
-    // Wait for App Check token and verify auth
-    const isInitialized = await appCheckInitialized;
-    if (!isInitialized) {
-      throw new Error("App Check initialization failed");
-    }
-
-    if (!auth.currentUser) {
-      throw new Error("User not authenticated");
-    }
-
-    // Initialize route
-    const routeId = "San_Lorenzo-Portal_Primavera";
-    const routeRef = doc(db, "routes", routeId);
-
-    const routeInfo = {
-      name: routeId.replace(/_/g, " "),
-      id: routeId,
-      totalMeters: routeData.length,
-      lastUpdated: new Date(),
-      meters: routeData,
-    };
-
-    await setDoc(routeRef, routeInfo, { merge: true });
-    console.log("Route data updated successfully");
-
-    // Initialize readings
-    const readingsCollectionRef = collection(db, "readings");
-
-    // TypeScript can't handle this import.meta.glob easily - need a different approach
-    // Use a more direct approach for the TypeScript version
-    console.log("Would normally process JSON files here");
-
-    // Initialize email config if needed
-    const emailConfigRef = doc(db, "config", "email");
-    const emailConfigDoc = await getDoc(emailConfigRef);
-
-    if (!emailConfigDoc.exists()) {
-      await setDoc(emailConfigRef, {
-        recipients: ["stantonmatthewj@gmail.com", "matthew@temuco.com"],
-      });
-      console.log("Email config initialized");
-    }
-
-    console.log("All data initialized successfully");
-    return true;
-  } catch (error) {
-    console.error("Detailed initialization error:", error);
-    throw error;
-  }
-};
-
-/**
- * Upload readings to Firestore and send email notification
- * @param {Array} combinedMeters - Array of meter objects
- * @param {Object} readingsState - Current state of readings
- * @param {Object} selectedRoute - Selected route
- * @param {number} selectedMonth - Selected month
- * @param {number} selectedYear - Selected year
- * @param {Object} db - Firestore database instance
- * @param {Object} functions - Firebase functions instance
- * @param {Array} months - Array of month names
- * @param {boolean} appCheckInitialized - App check status
- * @param {Object} auth - Firebase auth instance
- * @returns {Promise<Array>} Array of uploaded readings
- */
-export const uploadReadings = async (
-  combinedMeters: MeterData[],
-  readingsState: ReadingsState,
-  selectedRoute: { id: string } | null,
-  selectedMonth: number,
-  selectedYear: number,
-  db: Firestore,
-  functions: Functions,
-  months: string[],
-  appCheckInitialized: Promise<boolean>,
-  auth: Auth
-): Promise<ReadingToUpload[]> => {
-  try {
-    // Wait for App Check token
-    const isInitialized = await appCheckInitialized;
-    if (!isInitialized) {
-      throw new Error("App Check initialization failed");
-    }
-
-    // Verify user is authenticated
-    if (!auth.currentUser) {
-      throw new Error("User not authenticated");
-    }
-
-    // Generate standardized timestamp format: YYYY-MM-DDThh-mm-ss-SSS
-    const now = new Date();
-    const timestamp = now.toISOString().replace(/[:.]/g, "-").replace("Z", "");
-
-    // Create standardized filename format
-    const fileName = timestamp;
-
-    // Collect all verification data
-    const verifications: Verification[] = combinedMeters.reduce(
-      (acc: Verification[], meter) => {
-        const verificationKey = "meter_" + meter.ID + "_verification";
-        const verificationRaw = localStorage.getItem(verificationKey);
-        if (verificationRaw) {
-          try {
-            const verification = JSON.parse(verificationRaw);
-            if (verification) {
-              acc.push({
-                meterId: meter.ID,
-                address: meter.ADDRESS,
-                ...verification,
-              });
-            }
-          } catch (error) {
-            console.error(
-              "Error parsing verification data for meter " + meter.ID + ":",
-              error
-            );
-          }
-        }
-        return acc;
-      },
-      []
-    );
-
-    // Generate the readings data
-    const readingsToUpload: ReadingToUpload[] = combinedMeters.map((meter) => {
-      const reading = readingsState[meter.ID];
-      const verification = verifications.find((v) => v.meterId === meter.ID);
-
-      return {
-        ID: meter.ID,
-        Reading: reading?.reading || "---",
-        verification: verification || null,
-      };
-    });
-
-    // Create the readings document with metadata
-    const readingsInfo = {
-      readings: readingsToUpload,
-      timestamp: now,
-      routeId: selectedRoute?.id || "San_Lorenzo-Portal_Primavera",
-      month: months[selectedMonth],
-      year: parseInt(selectedYear.toString()),
-      verifications: verifications,
-    };
-
-    // Upload to Firestore
-    const readingsRef = doc(db, "readings", fileName);
-    await setDoc(readingsRef, readingsInfo);
-
-    // Generate and download CSV file
-    const csvContent = generateCSV(
-      combinedMeters,
-      months[selectedMonth],
-      selectedYear,
-      readingsState
-    );
-
-    // Generate email content
-    let emailContent = combinedMeters
-      .filter((meter) => {
-        const reading = readingsState[meter.ID]?.reading;
-        const isConfirmed = readingsState[meter.ID]?.isConfirmed;
-        const verificationKey = "meter_" + meter.ID + "_verification";
-        const verificationRaw = localStorage.getItem(verificationKey);
-        let verificationData = null;
-
-        try {
-          verificationData = verificationRaw
-            ? JSON.parse(verificationRaw)
-            : null;
-        } catch (error) {
-          console.error(
-            "Error parsing verification for meter " + meter.ID + ":",
-            error
-          );
-        }
-
-        return reading && isConfirmed && verificationData;
-      })
-      .map((meter) => {
-        const reading = readingsState[meter.ID]?.reading;
-        const sortedReadings = Object.entries(meter.readings)
-          .filter(([k]) => k !== "ID")
-          .sort((a, b) => b[0].localeCompare(a[0]));
-        const lastReading = sortedReadings[0]?.[1] || "---";
-        const consumption =
-          reading !== "---" && lastReading !== "---"
-            ? Number(reading) - Number(lastReading)
-            : "---";
-
-        const verificationKey = "meter_" + meter.ID + "_verification";
-        const verificationData = JSON.parse(
-          localStorage.getItem(verificationKey) || "null"
-        );
-
-        let meterInfo = [
-          "CLIENTE: " + meter.ID,
-          "DIRECCIÓN: " + meter.ADDRESS,
-          "LECTURA ANTERIOR: " + lastReading,
-          "LECTURA ACTUAL: " + reading,
-          "CONSUMO: " + consumption + " m³",
-        ].join("\n");
-
-        if (verificationData?.type === "lowConsumption") {
-          meterInfo += "\n\nNOTA DE VERIFICACIÓN:";
-          if (verificationData.details.answeredDoor) {
-            meterInfo += [
-              "\n• Atendió el cliente: Sí",
-              "\n• Reportó problemas con el agua: " +
-                (verificationData.details.hadIssues ? "Sí" : "No"),
-              "\n• Tiempo viviendo en la casa: " +
-                verificationData.details.residenceMonths +
-                " meses",
-            ].join("");
-          } else {
-            meterInfo += [
-              "\n• Atendió el cliente: No",
-              "\n• Casa parece habitada: " +
-                (verificationData.details.looksLivedIn ? "Sí" : "No"),
-            ].join("");
-          }
-        }
-
-        return meterInfo;
-      })
-      .join("\n----------------------------------------\n");
-
-    // Call the cloud function
-    const sendReadingsMail = httpsCallable(functions, "sendReadingsMail");
-    await sendReadingsMail({
-      readings: readingsToUpload,
-      routeId: selectedRoute?.id || "San_Lorenzo-Portal_Primavera",
-      month: months[selectedMonth],
-      year: selectedYear,
-      emailContent: emailContent,
-    });
-
-    return readingsToUpload;
-  } catch (error) {
-    console.error("Detailed error in uploadReadings:", error);
-    throw error;
-  }
-};
+// Keep legitimate functions that work with Firebase
 
 export const uploadPhoto = async (
   photo: File,
@@ -429,5 +123,326 @@ export const uploadPhoto = async (
   } catch (error) {
     console.error("Error uploading photo:", error);
     throw error;
+  }
+};
+
+/**
+ * Initialize Firebase with data from local files
+ * This is our consolidated initialization function that combines the functionality
+ * from both initializeFirebaseWithLocalData and initializeFirebaseData
+ */
+export const initializeFirebaseData = async (
+  auth: Auth,
+  db: Firestore,
+  appCheckInitialized: Promise<boolean>
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    // Wait for App Check initialization
+    const isInitialized = await appCheckInitialized;
+    if (!isInitialized) {
+      throw new Error("App Check initialization failed");
+    }
+
+    // Verify user is authenticated
+    if (!auth.currentUser) {
+      throw new Error("User not authenticated");
+    }
+
+    console.log("Starting Firebase initialization...");
+
+    // Define month names (using lowercase for consistency)
+    const monthNames = [
+      "enero",
+      "febrero",
+      "marzo",
+      "abril",
+      "mayo",
+      "junio",
+      "julio",
+      "agosto",
+      "septiembre",
+      "octubre",
+      "noviembre",
+      "diciembre",
+    ];
+
+    // Use Vite's glob import to load files dynamically
+    const readingFiles = import.meta.glob(
+      "../data/routes/sl-pp/readings/*.json",
+      { eager: false }
+    );
+
+    console.log(`Found ${Object.keys(readingFiles).length} reading files`);
+
+    // Import route data directly, no mock data
+    const routeData = (await import("../data/routes/sl-pp/ruta_sl-pp.json"))
+      .default;
+
+    // Process reading files to build a map of readings by meter ID
+    const meterReadingsMap = new Map();
+    const processedFiles = [];
+
+    // Process each reading file
+    for (const path in readingFiles) {
+      try {
+        // Extract month and year from filename
+        const filename = path.split("/").pop()?.replace(".json", "") || "";
+        if (!filename) continue;
+
+        // Parse the filename to extract year and month
+        let year, month;
+
+        if (filename.includes("T")) {
+          // Format: YYYY-MM-00T00-00-00-000
+          const parts = filename.split("-");
+          if (parts.length >= 2) {
+            year = parts[0];
+            month = parts[1];
+          } else {
+            console.warn(`Invalid filename format: ${filename}, skipping`);
+            continue;
+          }
+        } else {
+          // Format: YYYY-MM
+          [year, month] = filename.split("-");
+        }
+
+        if (!year || !month) {
+          console.warn(
+            `Couldn't extract year/month from: ${filename}, skipping`
+          );
+          continue;
+        }
+
+        // Get month name
+        const monthIndex = parseInt(month) - 1;
+        if (monthIndex < 0 || monthIndex >= 12) {
+          console.warn(
+            `Invalid month index: ${monthIndex}, skipping file ${filename}`
+          );
+          continue;
+        }
+
+        const monthName = monthNames[monthIndex];
+
+        // Import the file and get its data
+        const module = await readingFiles[path]();
+        const readingData = (module as any).default;
+
+        // Format for key in the readings object: year-monthname (lowercase)
+        const readingKey = `${year}-${monthName}`;
+
+        // Process each reading and add to the map
+        if (Array.isArray(readingData)) {
+          readingData.forEach((reading) => {
+            if (reading.ID) {
+              const meterId = reading.ID.toString();
+              if (!meterReadingsMap.has(meterId)) {
+                meterReadingsMap.set(meterId, {});
+              }
+
+              // Add reading to the meter's readings object (ensure it's a number)
+              const meterReadings = meterReadingsMap.get(meterId);
+              const readingValue = reading.Reading || reading.reading;
+              meterReadings[readingKey] =
+                typeof readingValue === "string"
+                  ? parseInt(readingValue, 10)
+                  : readingValue;
+            }
+          });
+        }
+
+        processedFiles.push({
+          path,
+          month: monthName,
+          year,
+          count: Array.isArray(readingData) ? readingData.length : 0,
+        });
+      } catch (err) {
+        console.error(`Error processing file ${path}:`, err);
+      }
+    }
+
+    // Enhance route data with the readings
+    const enhancedMeterData = routeData.map((meter) => {
+      const meterId = meter.ID.toString();
+      const readings = meterReadingsMap.get(meterId) || {};
+
+      // Extract readings for consumption calculation
+      const readingsByDate = Object.entries(readings)
+        .map(([key, value]) => ({
+          date: key,
+          value: typeof value === "number" ? value : parseFloat(String(value)),
+        }))
+        .filter((item) => !isNaN(item.value));
+
+      // Sort readings by date
+      readingsByDate.sort((a, b) => b.date.localeCompare(a.date));
+
+      // Calculate monthly consumption (difference between consecutive readings)
+      const consumption = [];
+      for (let i = 0; i < readingsByDate.length - 1; i++) {
+        const diff = readingsByDate[i].value - readingsByDate[i + 1].value;
+        if (diff >= 0) {
+          consumption.push(diff);
+        }
+      }
+
+      // Ensure consumption is an array
+      const monthlyConsumption = consumption.length > 0 ? consumption : [0];
+
+      // Calculate average consumption
+      const averageConsumption =
+        consumption.length > 0
+          ? consumption.reduce((sum, val) => sum + val, 0) / consumption.length
+          : 0;
+
+      return {
+        ...meter,
+        readings, // Direct use of readings object
+        monthlyConsumption,
+        averageConsumption,
+        estimatedReading: 0,
+        monthsEstimated: 0,
+      };
+    });
+
+    // Route ID and name
+    const routeId = "sl-pp";
+    const routeName = "San Lorenzo-Portal Primavera";
+
+    // Create the route document with enhanced meter data
+    const routeRef = doc(db, "routes", routeId);
+    await setDoc(routeRef, {
+      id: routeId,
+      name: routeName,
+      meters: enhancedMeterData,
+      totalMeters: enhancedMeterData.length,
+      lastUpdated: serverTimestamp(),
+    });
+
+    console.log("Route document created");
+
+    // Also create the reading documents in the subcollection for reference
+    const batch = writeBatch(db);
+
+    for (const processedFile of processedFiles) {
+      const { month, year, path } = processedFile;
+      const module = await readingFiles[path]();
+      const readingData = (module as any).default;
+
+      // Use the original filename as the document ID for clarity
+      const filename = path.split("/").pop()?.replace(".json", "") || "";
+      const readingRef = doc(db, "routes", routeId, "readings", filename);
+
+      // Store original reading file data
+      batch.set(readingRef, {
+        readings: readingData,
+        timestamp: serverTimestamp(),
+        month,
+        year: parseInt(year),
+      });
+    }
+
+    await batch.commit();
+
+    console.log(
+      `Processed ${processedFiles.length} reading files, created ${enhancedMeterData.length} meters`
+    );
+
+    return {
+      success: true,
+      message: `Firebase initialization complete. Processed ${processedFiles.length} reading files and enhanced ${enhancedMeterData.length} meters.`,
+    };
+  } catch (error) {
+    console.error("Error initializing Firebase data:", error);
+    return {
+      success: false,
+      message: `Error: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
+    };
+  }
+};
+
+/**
+ * Load previous readings for a meter
+ */
+export const getPreviousReadings = async (
+  meterId: string,
+  routeId: string | null
+) => {
+  if (!routeId) {
+    console.error("No route ID provided for previous readings");
+    return null;
+  }
+
+  // Create a cache key
+  const cacheKey = `${routeId}_${meterId}`;
+
+  // Check if we already have this data in cache
+  if (readingsCache[cacheKey]) {
+    console.log(`Using cached data for meter ${meterId} in route ${routeId}`);
+    return readingsCache[cacheKey];
+  }
+
+  try {
+    console.log(
+      `Getting previous readings for meter ${meterId} in route ${routeId}`
+    );
+
+    // Fetch the route document
+    const routeRef = doc(db, "routes", routeId);
+    const routeDoc = await getDoc(routeRef);
+
+    if (!routeDoc.exists()) {
+      console.warn(`Route ${routeId} not found`);
+      return null;
+    }
+
+    const routeData = routeDoc.data();
+    const meters = routeData.meters || [];
+
+    // Find the meter with this ID
+    const meter = meters.find((m: any) => String(m.ID) === String(meterId));
+
+    if (!meter) {
+      console.warn(`Meter ${meterId} not found in route ${routeId}`);
+      return null;
+    }
+
+    let result;
+
+    if (meter.readings && Object.keys(meter.readings).length > 0) {
+      // Extract entries for convenience, but don't filter them here
+      // The filtering will happen in the component
+      const entries = Object.entries(meter.readings)
+        .map(([key, value]) => ({
+          date: key,
+          value: typeof value === "number" ? value : parseFloat(String(value)),
+        }))
+        .filter((entry) => !isNaN(entry.value));
+
+      // Sort by date (newest first)
+      entries.sort((a, b) => b.date.localeCompare(a.date));
+
+      result = {
+        ...meter,
+        entries,
+      };
+    } else {
+      result = {
+        ...meter,
+        entries: [],
+      };
+    }
+
+    // Cache the result for future use
+    readingsCache[cacheKey] = result;
+
+    return result;
+  } catch (error) {
+    console.error("Error getting previous readings:", error);
+    return null;
   }
 };

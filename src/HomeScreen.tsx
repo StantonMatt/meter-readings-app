@@ -1,5 +1,5 @@
 // HomeScreen.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Typography,
@@ -20,8 +20,11 @@ import {
   FormControlLabel,
   Checkbox,
   Alert,
+  CircularProgress,
 } from "@mui/material";
 import { MeterData } from "./utils/readingUtils";
+import { initializeFirebaseData } from "./services/firebaseService";
+import { auth, db, appCheckInitialized } from "./firebase-config";
 
 interface RouteData {
   id: string;
@@ -56,8 +59,8 @@ function HomeScreen({
   onRestart,
   routes,
   onRouteSelect,
-  isLoading,
-  error,
+  isLoading: appIsLoading, // Renamed to avoid conflict with local state
+  error: appError, // Renamed to avoid conflict with local state
   selectedRoute,
   onInitialize,
   selectedMonth,
@@ -87,6 +90,20 @@ function HomeScreen({
     "Noviembre",
     "Diciembre",
   ];
+
+  // Local states for reset dialog
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState<boolean>(false);
+  const [resetConfirmChecked, setResetConfirmChecked] =
+    useState<boolean>(false);
+  const [resetSuccess, setResetSuccess] = useState<boolean>(false);
+
+  // Add local states for initialization
+  const [initializationLoading, setInitializationLoading] =
+    useState<boolean>(false);
+  const [initializationError, setInitializationError] = useState<string | null>(
+    null
+  );
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Function to format the timestamp
   const formatDate = (timestamp: any): string => {
@@ -125,12 +142,6 @@ function HomeScreen({
       onMeterSelect(meterIndex);
     }
   };
-
-  // Add new state variables for the reset confirmation dialog
-  const [isResetDialogOpen, setIsResetDialogOpen] = useState<boolean>(false);
-  const [resetConfirmChecked, setResetConfirmChecked] =
-    useState<boolean>(false);
-  const [resetSuccess, setResetSuccess] = useState<boolean>(false);
 
   // Add dialog handlers
   const handleOpenResetDialog = () => {
@@ -178,6 +189,61 @@ function HomeScreen({
     setResetConfirmChecked(event.target.checked);
   };
 
+  const handleInitializeData = async () => {
+    try {
+      // Prevent multiple simultaneous initialization attempts
+      if (initializationLoading) return;
+
+      // Set loading state
+      setInitializationLoading(true);
+      setInitializationError(null);
+      setSuccessMessage(null);
+
+      // Call the initialization function
+      const result = await onInitialize();
+
+      if (result) {
+        // Show success message
+        setSuccessMessage("Firebase data initialized successfully!");
+
+        // Refresh routes after initialization
+        // You can add a callback here if needed
+      } else {
+        // Handle the case where initialization returns false
+        setInitializationError("Initialization failed - please try again");
+      }
+    } catch (error) {
+      setInitializationError(
+        `Error: ${
+          error instanceof Error
+            ? error.message
+            : "Unknown error during initialization"
+        }`
+      );
+    } finally {
+      setInitializationLoading(false);
+    }
+  };
+
+  // Use either the app loading state or the local initialization loading state
+  const isLoading = appIsLoading || initializationLoading;
+
+  // Combine errors for display
+  const error = appError || initializationError;
+
+  // Add a more robust logging that helps us see when routes change
+  useEffect(() => {
+    // Add more descriptive logging
+    if (routes.length === 0) {
+      console.log("HomeScreen: No routes received yet");
+    } else {
+      console.log(
+        `HomeScreen: Received ${routes.length} routes:`,
+        routes.map((r) => `${r.id} (${r.totalMeters} meters)`)
+      );
+    }
+  }, [routes]);
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
@@ -186,30 +252,41 @@ function HomeScreen({
             <Typography variant="overline" color="textSecondary">
               Rutas Disponibles
             </Typography>
-            <FormControl fullWidth variant="outlined" sx={{ mt: 2 }}>
-              <InputLabel id="route-select-label">Seleccionar Ruta</InputLabel>
+            <FormControl fullWidth margin="normal">
+              <InputLabel id="route-select-label">Ruta</InputLabel>
               <Select
                 labelId="route-select-label"
                 id="route-select"
                 value={selectedRoute?.id || ""}
                 onChange={(e: SelectChangeEvent<string>) => {
                   const routeId = e.target.value;
-                  const selectedRoute = routes.find(
+                  const foundRoute = routes.find(
                     (route) => route.id === routeId
                   );
-                  onRouteSelect(selectedRoute || null);
+                  console.log(
+                    "Route selected:",
+                    routeId,
+                    "Found route:",
+                    foundRoute
+                  );
+                  onRouteSelect(foundRoute || null);
                 }}
-                label="Seleccionar Ruta"
-                disabled={isLoading}
+                disabled={isLoading || routes.length === 0}
+                label="Ruta"
               >
-                <MenuItem value="">
-                  <em>Ninguna</em>
-                </MenuItem>
-                {routes.map((route) => (
-                  <MenuItem key={route.id} value={route.id}>
-                    {route.name} ({route.totalMeters} medidores)
+                {routes.length === 0 ? (
+                  <MenuItem value="" disabled>
+                    {isLoading
+                      ? "Cargando rutas..."
+                      : "No hay rutas disponibles"}
                   </MenuItem>
-                ))}
+                ) : (
+                  routes.map((route) => (
+                    <MenuItem key={route.id} value={route.id}>
+                      {route.name} ({route.totalMeters} medidores)
+                    </MenuItem>
+                  ))
+                )}
               </Select>
             </FormControl>
 
@@ -241,10 +318,13 @@ function HomeScreen({
             >
               <Button
                 variant="contained"
-                onClick={onInitialize}
+                onClick={handleInitializeData}
                 disabled={isLoading}
+                startIcon={
+                  initializationLoading ? <CircularProgress size={20} /> : null
+                }
               >
-                Inicializar Datos
+                {initializationLoading ? "Initializing..." : "Initialize Data"}
               </Button>
             </Box>
           </CardContent>
@@ -437,6 +517,15 @@ function HomeScreen({
         <Box sx={{ mt: 2 }}>
           <Alert severity="success" onClose={() => setResetSuccess(false)}>
             Todas las lecturas han sido reiniciadas correctamente.
+          </Alert>
+        </Box>
+      )}
+
+      {/* Show success message if present */}
+      {successMessage && (
+        <Box sx={{ mt: 2, mb: 2 }}>
+          <Alert severity="success" onClose={() => setSuccessMessage(null)}>
+            {successMessage}
           </Alert>
         </Box>
       )}

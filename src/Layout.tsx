@@ -331,7 +331,7 @@ function MeterList({
     items: filteredMeters,
     currentIndex,
     onSelect: onSelectMeter,
-    readingsState,
+    readingsState: readingsState || {},
     meters,
     onNavigationAttempt,
   };
@@ -418,34 +418,38 @@ function MeterList({
 }
 
 interface LayoutProps {
-  children: ReactNode;
+  children: React.ReactNode;
   showSidebar?: boolean;
+  title?: string;
+  subtitle?: string;
+  onFinishClick?: () => void;
+  readingsState?: ReadingsState;
+  onNavigationAttempt: (navigationCallback: () => void) => void;
   meters: MeterData[];
   currentIndex: number;
   onSelectMeter: (index: number) => void;
   onHomeClick: () => void;
-  onFinishClick: () => void;
-  readingsState: ReadingsState;
-  onNavigationAttempt?: () => boolean;
 }
 
 const Layout: React.FC<LayoutProps> = ({
   children,
   showSidebar = true,
+  title,
+  subtitle,
+  onFinishClick,
+  readingsState,
+  onNavigationAttempt,
   meters,
   currentIndex,
   onSelectMeter,
   onHomeClick,
-  onFinishClick,
-  readingsState,
-  onNavigationAttempt,
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const theme = useTheme();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Determine if we're on the meter screen based on the currentIndex
+  // Now currentIndex and meters will be properly defined
   const isMeterScreen = currentIndex >= 0 && currentIndex < meters.length;
 
   const handleDrawerToggle = useCallback(() => {
@@ -492,12 +496,15 @@ const Layout: React.FC<LayoutProps> = ({
         filteredMeters={filteredMeters}
         currentIndex={currentIndex}
         onSelectMeter={onSelectMeter}
-        readingsState={readingsState}
+        readingsState={readingsState || {}}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         isMobile={isSmallScreen}
         meters={meters}
-        onNavigationAttempt={handleNavigationAttempt}
+        onNavigationAttempt={() => {
+          handleNavigationAttempt(() => true);
+          return true;
+        }}
         isMeterScreen={isMeterScreen}
       />
     ),
