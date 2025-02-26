@@ -113,8 +113,9 @@ const theme = createTheme({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          boxShadow: "0 1px 8px rgba(0,0,0,0.08)",
-          backgroundColor: "#334155", // Darkish blue/grey
+          borderRadius: 0,
+          boxShadow: "none",
+          backgroundImage: "none",
         },
       },
     },
@@ -148,8 +149,9 @@ const theme = createTheme({
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          borderRight: "none",
+          borderRadius: 0,
           boxShadow: "0 0 20px rgba(0,0,0,0.08)",
+          borderRight: "none",
           backgroundColor: "#334155", // Darkish blue/grey for sidebar
           color: "#fff",
         },

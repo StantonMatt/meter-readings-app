@@ -82,6 +82,8 @@ interface MeterScreenProps {
   selectedYear: number;
   routeId: string | null;
   onUpdateReadings: (updatedReadings: ReadingsState) => void;
+  reading: string;
+  isConfirmed: boolean;
 }
 
 // Format month helpers
@@ -135,6 +137,8 @@ function MeterScreen({
   selectedYear,
   routeId,
   onUpdateReadings,
+  reading,
+  isConfirmed: propIsConfirmed,
 }: MeterScreenProps): JSX.Element {
   const theme = useTheme();
 
@@ -144,7 +148,8 @@ function MeterScreen({
 
   // We need a LOCAL inputValue separate from the persisted reading
   const [inputValue, setInputValue] = useState<string>("");
-  const [isConfirmed, setIsConfirmed] = useState<boolean>(false);
+  const [localIsConfirmed, setLocalIsConfirmed] =
+    useState<boolean>(propIsConfirmed);
 
   // Add state for navigation dialog
   const [isNavigationDialogOpen, setIsNavigationDialogOpen] =
@@ -175,7 +180,7 @@ function MeterScreen({
 
     // Also retrieve stored confirmation status
     const storedConfirmation = localStorage.getItem(confirmedKey) === "true";
-    setIsConfirmed(storedConfirmation);
+    setLocalIsConfirmed(storedConfirmation);
   }, [meter.ID, readingKey, confirmedKey]);
 
   // Load previous readings for the current meter
@@ -282,7 +287,10 @@ function MeterScreen({
               diciembre: 12,
             };
 
-            return months[monthA.toLowerCase()] - months[monthB.toLowerCase()];
+            return (
+              months[monthA.toLowerCase() as keyof typeof months] -
+              months[monthB.toLowerCase() as keyof typeof months]
+            );
           });
 
           // Log sorted entries to confirm order
@@ -341,22 +349,8 @@ function MeterScreen({
             const mostRecentEntry = validEntries[validEntries.length - 1];
             const [entryYear, entryMonthName] = mostRecentEntry.date.split("-");
 
-            const months = {
-              enero: 1,
-              febrero: 2,
-              marzo: 3,
-              abril: 4,
-              mayo: 5,
-              junio: 6,
-              julio: 7,
-              agosto: 8,
-              septiembre: 9,
-              octubre: 10,
-              noviembre: 11,
-              diciembre: 12,
-            };
-
-            const entryMonth = months[entryMonthName.toLowerCase()];
+            const entryMonth =
+              months[entryMonthName.toLowerCase() as keyof typeof months] ?? 0;
             const entryYearNum = parseInt(entryYear);
 
             // Get current month/year for comparison
@@ -377,12 +371,12 @@ function MeterScreen({
             // For February 2025 from January 2025, we want to estimate 2 months
             if (selectedYear === entryYearNum) {
               // Same year - simple calculation + 1 for inclusive
-              monthsToEstimate = selectedMonth - entryMonth + 1;
+              monthsToEstimate = Number(selectedMonth) - Number(entryMonth) + 1;
             } else if (selectedYear > entryYearNum) {
               // Different years
               monthsToEstimate =
-                (selectedYear - entryYearNum) * 12 +
-                (selectedMonth - entryMonth) +
+                (Number(selectedYear) - Number(entryYearNum)) * 12 +
+                (Number(selectedMonth) - Number(entryMonth)) +
                 1;
             }
 
@@ -668,7 +662,7 @@ function MeterScreen({
     setNavigationType(type);
 
     // If there's a reading but it's not confirmed, show dialog
-    if (inputValue && !isConfirmed) {
+    if (inputValue && !localIsConfirmed) {
       setIsNavigationDialogOpen(true);
       setNavigationHandledByChild(true);
       setPendingNavigation(() => navigationAction);
@@ -680,7 +674,7 @@ function MeterScreen({
 
   const handleConfirmAndNavigate = async () => {
     // First update the local state
-    setIsConfirmed(true);
+    setLocalIsConfirmed(true);
 
     // Close the dialog
     setIsNavigationDialogOpen(false);
@@ -811,7 +805,7 @@ function MeterScreen({
 
     // Close dialog and confirm the reading
     setShowLowConsumptionDialog(false);
-    setIsConfirmed(true);
+    setLocalIsConfirmed(true);
     localStorage.setItem(confirmedKey, "true");
     onConfirmationChange(meter.ID, true);
   };
@@ -829,18 +823,18 @@ function MeterScreen({
 
         // Determine if we need to restore any validation state
         if (parsedData.type === "highConsumption" && !parsedData.resolved) {
-          setIsConfirmed(true);
+          setLocalIsConfirmed(true);
         }
 
         if (parsedData.type === "lowConsumption" && !parsedData.resolved) {
           // Restore the low consumption verification dialog state
           if (parsedData.details) {
-            setIsConfirmed(true);
+            setLocalIsConfirmed(true);
           }
         }
 
         if (parsedData.type === "negativeConsumption" && !parsedData.resolved) {
-          setIsConfirmed(true);
+          setLocalIsConfirmed(true);
         }
       } catch (e) {
         console.error("Error restoring verification data:", e);
@@ -899,7 +893,7 @@ function MeterScreen({
 
       if (storedVerification) {
         // If we already verified this meter, just confirm normally
-        setIsConfirmed(true);
+        setLocalIsConfirmed(true);
         localStorage.setItem(confirmedKey, "true");
         onConfirmationChange(meter.ID, true);
       } else {
@@ -910,7 +904,7 @@ function MeterScreen({
       }
     } else {
       // Normal confirmation without validation needed
-      setIsConfirmed(true);
+      setLocalIsConfirmed(true);
       localStorage.setItem(confirmedKey, "true");
       onConfirmationChange(meter.ID, true);
     }
@@ -932,7 +926,7 @@ function MeterScreen({
   // Update the handleUnconfirmClick function to clear verification data
   const handleUnconfirmClick = () => {
     // Update local state
-    setIsConfirmed(false);
+    setLocalIsConfirmed(false);
 
     // Update parent state
     onConfirmationChange(meter.ID, false);
@@ -959,7 +953,7 @@ function MeterScreen({
     setShowUnconfirmDialog(false);
 
     // Proceed with unconfirming
-    setIsConfirmed(false);
+    setLocalIsConfirmed(false);
 
     // Update parent state
     onConfirmationChange(meter.ID, false);
@@ -1324,38 +1318,40 @@ function MeterScreen({
                   onChange={handleInputChange}
                   onKeyDown={(e) => {
                     // Handle Enter key press
-                    if (e.key === "Enter" && inputValue && !isConfirmed) {
+                    if (e.key === "Enter" && inputValue && !localIsConfirmed) {
                       e.preventDefault(); // Prevent form submission if inside a form
                       handleConfirmClick();
                     }
                   }}
-                  disabled={isConfirmed}
+                  disabled={localIsConfirmed}
                   InputProps={{
                     endAdornment: <span style={{ marginLeft: "4px" }}>m³</span>,
                     sx: {
                       fontSize: "1.1rem",
                       fontWeight: 500,
-                      backgroundColor: isConfirmed
+                      backgroundColor: localIsConfirmed
                         ? alpha("#f5f5f5", 0.8)
                         : "white",
-                      opacity: isConfirmed ? 0.8 : 1,
+                      opacity: localIsConfirmed ? 0.8 : 1,
                       "& input": {
                         color: "text.primary",
-                        WebkitTextFillColor: isConfirmed
+                        WebkitTextFillColor: localIsConfirmed
                           ? "rgba(0, 0, 0, 0.7) !important"
                           : undefined,
-                        fontWeight: isConfirmed ? 600 : 500,
+                        fontWeight: localIsConfirmed ? 600 : 500,
                       },
                     },
                   }}
                   sx={{
                     mb: 2,
                     "& .MuiOutlinedInput-root": {
-                      bgcolor: isConfirmed ? alpha("#f5f5f5", 0.8) : "white",
+                      bgcolor: localIsConfirmed
+                        ? alpha("#f5f5f5", 0.8)
+                        : "white",
                       borderRadius: 1,
                     },
                     "& .MuiInputLabel-root": {
-                      color: isConfirmed ? "text.secondary" : undefined,
+                      color: localIsConfirmed ? "text.secondary" : undefined,
                     },
                     "& .Mui-disabled": {
                       opacity: "0.9 !important",
@@ -1451,10 +1447,10 @@ function MeterScreen({
 
                 <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
                   <Button
-                    variant={isConfirmed ? "outlined" : "contained"}
-                    color={isConfirmed ? "error" : "primary"}
+                    variant={localIsConfirmed ? "outlined" : "contained"}
+                    color={localIsConfirmed ? "error" : "primary"}
                     onClick={() => {
-                      if (isConfirmed) {
+                      if (localIsConfirmed) {
                         // Show confirmation dialog instead of immediately unconfirming
                         handleUnconfirmButtonClick();
                       } else {
@@ -1464,11 +1460,15 @@ function MeterScreen({
                     }}
                     disabled={inputValue.trim() === ""}
                     startIcon={
-                      isConfirmed ? <WarningIcon /> : <CheckCircleOutlineIcon />
+                      localIsConfirmed ? (
+                        <WarningIcon />
+                      ) : (
+                        <CheckCircleOutlineIcon />
+                      )
                     }
                     sx={{ minWidth: 120 }}
                   >
-                    {isConfirmed ? "Desconfirmar" : "Confirmar"}
+                    {localIsConfirmed ? "Desconfirmar" : "Confirmar"}
                   </Button>
                 </Box>
               </Box>

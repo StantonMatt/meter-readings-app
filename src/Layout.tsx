@@ -565,11 +565,10 @@ const Layout: React.FC<LayoutProps> = ({
               "& .MuiDrawer-paper": {
                 boxSizing: "border-box",
                 width: drawerWidth,
-                borderRight: "1px solid rgba(255, 255, 255, 0.05)",
-                marginTop: "64px", // Same as AppBar height
+                marginTop: "64px",
                 height: "calc(100% - 64px)",
-                background: "primary.main", // Darkish blue/grey
-                backgroundImage: `linear-gradient(to bottom, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                background: "primary.main",
+                borderRadius: 0,
               },
             }}
             open

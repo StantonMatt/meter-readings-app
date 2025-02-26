@@ -162,11 +162,11 @@ function App(): JSX.Element {
   const [readingsState, setReadingsState] = useState<ReadingsState>(() => {
     const initialState: ReadingsState = {};
     routeData.forEach((meter) => {
-      const reading = localStorage.getItem(`meter_${meter.ID}_reading`);
+      const reading = localStorage.getItem(`meter_${String(meter.ID)}_reading`);
       const isConfirmed =
-        localStorage.getItem(`meter_${meter.ID}_confirmed`) === "true";
+        localStorage.getItem(`meter_${String(meter.ID)}_confirmed`) === "true";
       if (reading || isConfirmed) {
-        initialState[meter.ID] = {
+        initialState[String(meter.ID)] = {
           reading: reading || "",
           isConfirmed: isConfirmed,
         };
@@ -516,8 +516,8 @@ function App(): JSX.Element {
         return {
           ADDRESS: meter.ADDRESS,
           ...meter.readings,
-          currentReading: readingsState[meter.ID]?.reading || "---",
-          ID: meter.ID,
+          currentReading: readingsState[String(meter.ID)]?.reading || "---",
+          ID: String(meter.ID),
         };
       });
 
@@ -529,9 +529,9 @@ function App(): JSX.Element {
 
       // Clear all readings from localStorage
       combinedMeters.forEach((meter) => {
-        const readingKey = "meter_" + meter.ID + "_reading";
-        const confirmedKey = "meter_" + meter.ID + "_confirmed";
-        const verificationKey = "meter_" + meter.ID + "_verification";
+        const readingKey = `meter_${String(meter.ID)}_reading`;
+        const confirmedKey = `meter_${String(meter.ID)}_confirmed`;
+        const verificationKey = `meter_${String(meter.ID)}_verification`;
 
         localStorage.removeItem(readingKey);
         localStorage.removeItem(confirmedKey);
@@ -551,7 +551,7 @@ function App(): JSX.Element {
   };
 
   // Handler for reading changes
-  const handleReadingChange = (meterId: string | number, reading: string) => {
+  const handleReadingChange = (meterId: string, reading: string) => {
     // Update the readingsState
     setReadingsState((prev) => {
       const newState = {
@@ -570,14 +570,11 @@ function App(): JSX.Element {
   };
 
   // Handler for confirmation changes
-  const handleConfirmationChange = (
-    meterId: string | number,
-    isConfirmed: boolean
-  ): void => {
+  const handleConfirmationChange = (meterId: string, isConfirmed: boolean) => {
     setReadingsState((prev) => ({
       ...prev,
-      [String(meterId)]: {
-        ...prev[String(meterId)],
+      [meterId]: {
+        ...prev[meterId],
         isConfirmed,
       },
     }));
@@ -596,11 +593,11 @@ function App(): JSX.Element {
     // Check localStorage for existing readings for this route
     const existingReadings: ReadingsState = {};
     combinedMeters.forEach((meter) => {
-      const reading = localStorage.getItem(`meter_${meter.ID}_reading`);
+      const reading = localStorage.getItem(`meter_${String(meter.ID)}_reading`);
       const isConfirmed =
-        localStorage.getItem(`meter_${meter.ID}_confirmed`) === "true";
+        localStorage.getItem(`meter_${String(meter.ID)}_confirmed`) === "true";
       if (reading || isConfirmed) {
-        existingReadings[meter.ID] = {
+        existingReadings[String(meter.ID)] = {
           reading: reading || "",
           isConfirmed: isConfirmed,
         };
@@ -616,10 +613,10 @@ function App(): JSX.Element {
   // Handler for viewing summary
   const onViewSummary = useCallback((): void => {
     const readingsToUpload = combinedMeters.map((meter) => ({
-      ID: meter.ID,
+      ID: String(meter.ID),
       ADDRESS: meter.ADDRESS,
       ...meter.readings,
-      currentReading: readingsState[meter.ID]?.reading || "---",
+      currentReading: readingsState[String(meter.ID)]?.reading || "---",
     }));
 
     // Generate email content
@@ -659,7 +656,7 @@ function App(): JSX.Element {
           const isCurrentMeter =
             currentIndex !== null &&
             currentIndex < combinedMeters.length &&
-            combinedMeters[currentIndex].ID.toString() === meterId;
+            String(combinedMeters[currentIndex].ID) === meterId;
 
           return isCurrentMeter && state?.reading && !state?.isConfirmed;
         }
@@ -686,6 +683,15 @@ function App(): JSX.Element {
       setPendingNavigation(null);
     };
   }, []);
+
+  // Add these handler functions
+  const handleContinue = () => {
+    setCurrentIndex(findFirstPendingMeter(combinedMeters, readingsState));
+  };
+
+  const handleFinish = () => {
+    setCurrentIndex(combinedMeters.length + 1);
+  };
 
   // Now completely replace the render logic
   if (appState === "loading") {
@@ -762,14 +768,21 @@ function App(): JSX.Element {
                     isLoading={isLoading}
                     error={error}
                     selectedRoute={selectedRoute}
-                    onInitialize={initializeFirebaseData}
+                    onInitialize={async () => {
+                      const result = await initializeFirebaseData(
+                        auth,
+                        db,
+                        appCheckInitialized
+                      );
+                      return result.success;
+                    }}
                     selectedMonth={selectedMonth}
                     selectedYear={selectedYear}
                     onDateChange={(month, year) => {
                       setSelectedMonth(month);
                       setSelectedYear(year);
                     }}
-                    onMeterSelect={(index) => setCurrentIndex(index)}
+                    onMeterSelect={(index: number) => setCurrentIndex(index)}
                     combinedMeters={combinedMeters}
                   />
                 }
@@ -788,7 +801,7 @@ function App(): JSX.Element {
               showSidebar={true}
               meters={combinedMeters}
               currentIndex={currentIndex}
-              onSelectMeter={(i: number) => setCurrentIndex(i)}
+              onSelectMeter={(index: number) => setCurrentIndex(index)}
               onHomeClick={handleHomeClick}
               onFinishClick={() => setCurrentIndex(combinedMeters.length)}
               readingsState={readingsState}
@@ -802,25 +815,24 @@ function App(): JSX.Element {
                 onPrev={handlePreviousMeter}
                 onNext={handleNextMeter}
                 onFinish={() => setCurrentIndex(combinedMeters.length)}
-                onReadingChange={(reading) =>
-                  handleReadingChange(currentMeter.ID, reading)
+                onReadingChange={(meterId, reading) =>
+                  handleReadingChange(String(currentMeter.ID), reading)
                 }
-                onConfirmationChange={(isConfirmed) =>
-                  handleConfirmationChange(currentMeter.ID, isConfirmed)
+                onConfirmationChange={(meterId, isConfirmed) =>
+                  handleConfirmationChange(String(currentMeter.ID), isConfirmed)
                 }
                 pendingNavigation={pendingNavigation}
                 setPendingNavigation={setPendingNavigation}
                 setNavigationHandledByChild={setNavigationHandledByChild}
-                reading={readingsState[currentMeter.ID]?.reading || ""}
+                reading={readingsState[String(currentMeter.ID)]?.reading || ""}
                 isConfirmed={
-                  readingsState[currentMeter.ID]?.isConfirmed || false
+                  readingsState[String(currentMeter.ID)]?.isConfirmed || false
                 }
                 selectedMonth={selectedMonth}
                 selectedYear={selectedYear}
                 routeId={selectedRoute?.id || ""}
-                onUpdateReadings={(meterId, data) => {
-                  // This will be implemented in a later version
-                  console.log("Updating readings for", meterId, data);
+                onUpdateReadings={(updatedReadings) => {
+                  console.log("Updated readings:", updatedReadings);
                 }}
               />
             </Layout>
@@ -833,7 +845,7 @@ function App(): JSX.Element {
               showSidebar={true}
               meters={combinedMeters}
               currentIndex={currentIndex}
-              onSelectMeter={(i: number) => setCurrentIndex(i)}
+              onSelectMeter={(index: number) => setCurrentIndex(index)}
               onHomeClick={handleHomeClick}
               onFinishClick={() => setCurrentIndex(combinedMeters.length + 1)}
               readingsState={readingsState}
@@ -844,7 +856,10 @@ function App(): JSX.Element {
                 readingsState={readingsState}
                 onBack={() => setCurrentIndex(combinedMeters.length - 1)}
                 onGoToSummary={() => setCurrentIndex(combinedMeters.length + 1)}
-                onSelectMeter={(index) => setCurrentIndex(index)}
+                onSelectMeter={(index: number) => setCurrentIndex(index)}
+                onContinue={handleContinue}
+                onViewSummary={onViewSummary}
+                onFinish={handleFinish}
               />
             </Layout>
           );
@@ -856,7 +871,7 @@ function App(): JSX.Element {
               showSidebar={false}
               meters={combinedMeters}
               currentIndex={currentIndex}
-              onSelectMeter={(i: number) => setCurrentIndex(i)}
+              onSelectMeter={(index: number) => setCurrentIndex(index)}
               onHomeClick={handleHomeClick}
               onFinishClick={handleUploadReadings}
               readingsState={readingsState}
@@ -867,7 +882,7 @@ function App(): JSX.Element {
                 readingsState={readingsState}
                 onFinalize={handleUploadReadings}
                 onBack={() => setCurrentIndex(combinedMeters.length - 1)}
-                onSelectMeter={(i: number) => setCurrentIndex(i)}
+                onSelectMeter={(index: number) => setCurrentIndex(index)}
               />
             </Layout>
           );

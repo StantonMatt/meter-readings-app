@@ -19,6 +19,9 @@ import { MeterData, ReadingsState } from "./utils/readingUtils";
 interface FinalCheckScreenProps {
   readingsState: ReadingsState;
   meters: MeterData[];
+  onBack: () => void;
+  onGoToSummary: () => void;
+  onSelectMeter: (index: number) => void;
   onContinue: () => void;
   onViewSummary: () => void;
   onFinish: () => void;
@@ -27,6 +30,9 @@ interface FinalCheckScreenProps {
 function FinalCheckScreen({
   readingsState,
   meters,
+  onBack,
+  onGoToSummary,
+  onSelectMeter,
   onContinue,
   onViewSummary,
   onFinish,

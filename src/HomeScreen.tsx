@@ -21,10 +21,12 @@ import {
   Checkbox,
   Alert,
   CircularProgress,
+  Paper,
 } from "@mui/material";
 import { MeterData } from "./utils/readingUtils";
 import { initializeFirebaseData } from "./services/firebaseService";
 import { auth, db, appCheckInitialized } from "./firebase-config";
+import TopBar from "./TopBar";
 
 interface RouteData {
   id: string;
@@ -244,292 +246,326 @@ function HomeScreen({
     }
   }, [routes]);
 
+  // Add this handler for the home button
+  const handleHomeClick = () => {
+    // Reload the app to reset state
+    window.location.reload();
+  };
+
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
-        <Card sx={{ flex: "1 1 200px" }}>
-          <CardContent>
-            <Typography variant="overline" color="textSecondary">
-              Rutas Disponibles
-            </Typography>
-            <FormControl fullWidth margin="normal">
-              <InputLabel id="route-select-label">Ruta</InputLabel>
-              <Select
-                labelId="route-select-label"
-                id="route-select"
-                value={selectedRoute?.id || ""}
-                onChange={(e: SelectChangeEvent<string>) => {
-                  const routeId = e.target.value;
-                  const foundRoute = routes.find(
-                    (route) => route.id === routeId
-                  );
-                  console.log(
-                    "Route selected:",
-                    routeId,
-                    "Found route:",
-                    foundRoute
-                  );
-                  onRouteSelect(foundRoute || null);
-                }}
-                disabled={isLoading || routes.length === 0}
-                label="Ruta"
-              >
-                {routes.length === 0 ? (
-                  <MenuItem value="" disabled>
-                    {isLoading
-                      ? "Cargando rutas..."
-                      : "No hay rutas disponibles"}
-                  </MenuItem>
-                ) : (
-                  routes.map((route) => (
-                    <MenuItem key={route.id} value={route.id}>
-                      {route.name} ({route.totalMeters} medidores)
-                    </MenuItem>
-                  ))
-                )}
-              </Select>
-            </FormControl>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <TopBar
+        onHomeClick={handleHomeClick}
+        showButtons={true}
+        showMenuButton={false}
+      />
 
-            {selectedRoute && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="body2" color="textSecondary">
-                  Última actualización: {formatDate(selectedRoute.lastUpdated)}
+      <Container maxWidth="md" sx={{ mt: 8, flex: 1 }}>
+        <Paper
+          elevation={3}
+          sx={{
+            p: 4,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
+          <Typography variant="h4" gutterBottom>
+            COAB Lecturas
+          </Typography>
+
+          <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
+            <Card sx={{ flex: "1 1 200px" }}>
+              <CardContent>
+                <Typography variant="overline" color="textSecondary">
+                  Rutas Disponibles
                 </Typography>
-              </Box>
-            )}
+                <FormControl fullWidth margin="normal">
+                  <InputLabel id="route-select-label">Ruta</InputLabel>
+                  <Select
+                    labelId="route-select-label"
+                    id="route-select"
+                    value={selectedRoute?.id || ""}
+                    onChange={(e: SelectChangeEvent<string>) => {
+                      const routeId = e.target.value;
+                      const foundRoute = routes.find(
+                        (route) => route.id === routeId
+                      );
+                      console.log(
+                        "Route selected:",
+                        routeId,
+                        "Found route:",
+                        foundRoute
+                      );
+                      onRouteSelect(foundRoute || null);
+                    }}
+                    disabled={isLoading || routes.length === 0}
+                    label="Ruta"
+                  >
+                    {routes.length === 0 ? (
+                      <MenuItem value="" disabled>
+                        {isLoading
+                          ? "Cargando rutas..."
+                          : "No hay rutas disponibles"}
+                      </MenuItem>
+                    ) : (
+                      routes.map((route) => (
+                        <MenuItem key={route.id} value={route.id}>
+                          {route.name} ({route.totalMeters} medidores)
+                        </MenuItem>
+                      ))
+                    )}
+                  </Select>
+                </FormControl>
 
-            {error && (
-              <Typography
-                variant="body2"
-                color="error"
-                sx={{ mt: 2, fontWeight: "bold" }}
-              >
-                {error}
-              </Typography>
-            )}
-
-            <Box
-              sx={{
-                mt: 3,
-                display: "flex",
-                flexDirection: "column",
-                gap: 1,
-              }}
-            >
-              <Button
-                variant="contained"
-                onClick={handleInitializeData}
-                disabled={isLoading}
-                startIcon={
-                  initializationLoading ? <CircularProgress size={20} /> : null
-                }
-              >
-                {initializationLoading ? "Initializing..." : "Initialize Data"}
-              </Button>
-            </Box>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ flex: "1 1 200px" }}>
-          <CardContent>
-            <Typography variant="overline" color="textSecondary">
-              Fecha de Lecturas
-            </Typography>
-            <Box sx={{ mt: 2, display: "flex", gap: 2 }}>
-              <FormControl fullWidth variant="outlined">
-                <InputLabel id="month-select-label">Mes</InputLabel>
-                <Select
-                  labelId="month-select-label"
-                  id="month-select"
-                  value={selectedMonth}
-                  onChange={(e: SelectChangeEvent<number>) => {
-                    const monthIndex = e.target.value as number;
-                    onDateChange(monthIndex, selectedYear);
-                  }}
-                  label="Mes"
-                  disabled={isLoading}
-                >
-                  {months.map((month, index) => (
-                    <MenuItem key={month} value={index}>
-                      {month}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth variant="outlined">
-                <InputLabel id="year-select-label">Año</InputLabel>
-                <Select
-                  labelId="year-select-label"
-                  id="year-select"
-                  value={selectedYear}
-                  onChange={(e: SelectChangeEvent<number>) => {
-                    const year = e.target.value as number;
-                    onDateChange(selectedMonth, year);
-                  }}
-                  label="Año"
-                  disabled={isLoading}
-                >
-                  {years.map((year) => (
-                    <MenuItem key={year} value={year}>
-                      {year}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
-
-            <Typography variant="body2" sx={{ mt: 2, fontSize: "0.9rem" }}>
-              Seleccione el mes y año para las lecturas.
-            </Typography>
-          </CardContent>
-        </Card>
-      </Box>
-
-      {/* If there are search results show them */}
-      {searchResults && searchResults.length > 0 && (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="overline" color="textSecondary">
-              Resultados de búsqueda ({searchResults.length})
-            </Typography>
-            <Box
-              sx={{
-                mt: 2,
-                display: "flex",
-                flexDirection: "column",
-                gap: 1,
-              }}
-            >
-              {searchResults.map((meter) => (
-                <Button
-                  key={meter.ID}
-                  variant="outlined"
-                  onClick={() => handleMeterClick(meter)}
-                  sx={{ justifyContent: "flex-start", textAlign: "left" }}
-                >
-                  <Box sx={{ display: "flex", flexDirection: "column" }}>
-                    <Typography variant="subtitle1">{meter.ID}</Typography>
-                    <Typography
-                      variant="body2"
-                      color="textSecondary"
-                      sx={{ fontSize: "0.85rem" }}
-                    >
-                      {meter.ADDRESS}
+                {selectedRoute && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="body2" color="textSecondary">
+                      Última actualización:{" "}
+                      {formatDate(selectedRoute.lastUpdated)}
                     </Typography>
                   </Box>
-                </Button>
-              ))}
-            </Box>
-          </CardContent>
-        </Card>
-      )}
+                )}
 
-      <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Lecturas de Medidores
-          </Typography>
+                {error && (
+                  <Typography
+                    variant="body2"
+                    color="error"
+                    sx={{ mt: 2, fontWeight: "bold" }}
+                  >
+                    {error}
+                  </Typography>
+                )}
 
-          {/* Context: 80 character in order to determine line wrapping
-          1234567890123456789012345678901234567890123456789012345678901234567890123456789 */}
-          <Typography variant="body1" paragraph>
-            Esta aplicación le permite registrar y gestionar lecturas de
-            medidores de agua.
-          </Typography>
-
-          <Box sx={{ mt: 3, display: "flex", gap: 2, flexWrap: "wrap" }}>
-            {hasReadings ? (
-              <>
-                <Button
-                  variant="outlined"
-                  onClick={handleOpenResetDialog}
-                  disabled={isLoading}
+                <Box
+                  sx={{
+                    mt: 3,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1,
+                  }}
                 >
-                  Reiniciar Lecturas
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={onContinue}
-                  disabled={isLoading}
-                >
-                  Continuar Lecturas
-                </Button>
-              </>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={onStart}
-                disabled={isLoading}
-              >
-                {isLoading ? "Cargando..." : "Iniciar Lecturas"}
-              </Button>
-            )}
-          </Box>
-        </CardContent>
-      </Card>
+                  <Button
+                    variant="contained"
+                    onClick={handleInitializeData}
+                    disabled={isLoading}
+                    startIcon={
+                      initializationLoading ? (
+                        <CircularProgress size={20} />
+                      ) : null
+                    }
+                  >
+                    {initializationLoading
+                      ? "Initializing..."
+                      : "Initialize Data"}
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
 
-      {/* Reset Confirmation Dialog */}
-      <Dialog
-        open={isResetDialogOpen}
-        onClose={handleCloseResetDialog}
-        aria-labelledby="reset-dialog-title"
-        aria-describedby="reset-dialog-description"
-      >
-        <DialogTitle id="reset-dialog-title">
-          ¿Reiniciar todas las lecturas?
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText id="reset-dialog-description">
-            Esta acción eliminará todas las lecturas actuales y no se podrán
-            recuperar. Todos los datos no enviados se perderán permanentemente.
-          </DialogContentText>
-          <Box sx={{ mt: 2 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={resetConfirmChecked}
-                  onChange={handleResetCheckboxChange}
-                  color="primary"
-                />
-              }
-              label="Entiendo que esta acción no se puede deshacer"
-            />
+            <Card sx={{ flex: "1 1 200px" }}>
+              <CardContent>
+                <Typography variant="overline" color="textSecondary">
+                  Fecha de Lecturas
+                </Typography>
+                <Box sx={{ mt: 2, display: "flex", gap: 2 }}>
+                  <FormControl fullWidth variant="outlined">
+                    <InputLabel id="month-select-label">Mes</InputLabel>
+                    <Select
+                      labelId="month-select-label"
+                      id="month-select"
+                      value={selectedMonth}
+                      onChange={(e: SelectChangeEvent<number>) => {
+                        const monthIndex = e.target.value as number;
+                        onDateChange(monthIndex, selectedYear);
+                      }}
+                      label="Mes"
+                      disabled={isLoading}
+                    >
+                      {months.map((month, index) => (
+                        <MenuItem key={month} value={index}>
+                          {month}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  <FormControl fullWidth variant="outlined">
+                    <InputLabel id="year-select-label">Año</InputLabel>
+                    <Select
+                      labelId="year-select-label"
+                      id="year-select"
+                      value={selectedYear}
+                      onChange={(e: SelectChangeEvent<number>) => {
+                        const year = e.target.value as number;
+                        onDateChange(selectedMonth, year);
+                      }}
+                      label="Año"
+                      disabled={isLoading}
+                    >
+                      {years.map((year) => (
+                        <MenuItem key={year} value={year}>
+                          {year}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+
+                <Typography variant="body2" sx={{ mt: 2, fontSize: "0.9rem" }}>
+                  Seleccione el mes y año para las lecturas.
+                </Typography>
+              </CardContent>
+            </Card>
           </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseResetDialog} color="primary">
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleResetConfirm}
-            color="error"
-            disabled={!resetConfirmChecked}
-            variant="contained"
+
+          {/* If there are search results show them */}
+          {searchResults && searchResults.length > 0 && (
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant="overline" color="textSecondary">
+                  Resultados de búsqueda ({searchResults.length})
+                </Typography>
+                <Box
+                  sx={{
+                    mt: 2,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1,
+                  }}
+                >
+                  {searchResults.map((meter) => (
+                    <Button
+                      key={meter.ID}
+                      variant="outlined"
+                      onClick={() => handleMeterClick(meter)}
+                      sx={{ justifyContent: "flex-start", textAlign: "left" }}
+                    >
+                      <Box sx={{ display: "flex", flexDirection: "column" }}>
+                        <Typography variant="subtitle1">{meter.ID}</Typography>
+                        <Typography
+                          variant="body2"
+                          color="textSecondary"
+                          sx={{ fontSize: "0.85rem" }}
+                        >
+                          {meter.ADDRESS}
+                        </Typography>
+                      </Box>
+                    </Button>
+                  ))}
+                </Box>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Lecturas de Medidores
+              </Typography>
+
+              {/* Context: 80 character in order to determine line wrapping
+              1234567890123456789012345678901234567890123456789012345678901234567890123456789 */}
+              <Typography variant="body1" paragraph>
+                Esta aplicación le permite registrar y gestionar lecturas de
+                medidores de agua.
+              </Typography>
+
+              <Box sx={{ mt: 3, display: "flex", gap: 2, flexWrap: "wrap" }}>
+                {hasReadings ? (
+                  <>
+                    <Button
+                      variant="outlined"
+                      onClick={handleOpenResetDialog}
+                      disabled={isLoading}
+                    >
+                      Reiniciar Lecturas
+                    </Button>
+                    <Button
+                      variant="contained"
+                      onClick={onContinue}
+                      disabled={isLoading}
+                    >
+                      Continuar Lecturas
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="contained"
+                    onClick={onStart}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? "Cargando..." : "Iniciar Lecturas"}
+                  </Button>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+
+          {/* Reset Confirmation Dialog */}
+          <Dialog
+            open={isResetDialogOpen}
+            onClose={handleCloseResetDialog}
+            aria-labelledby="reset-dialog-title"
+            aria-describedby="reset-dialog-description"
           >
-            Reiniciar
-          </Button>
-        </DialogActions>
-      </Dialog>
+            <DialogTitle id="reset-dialog-title">
+              ¿Reiniciar todas las lecturas?
+            </DialogTitle>
+            <DialogContent>
+              <DialogContentText id="reset-dialog-description">
+                Esta acción eliminará todas las lecturas actuales y no se podrán
+                recuperar. Todos los datos no enviados se perderán
+                permanentemente.
+              </DialogContentText>
+              <Box sx={{ mt: 2 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={resetConfirmChecked}
+                      onChange={handleResetCheckboxChange}
+                      color="primary"
+                    />
+                  }
+                  label="Entiendo que esta acción no se puede deshacer"
+                />
+              </Box>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleCloseResetDialog} color="primary">
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleResetConfirm}
+                color="error"
+                disabled={!resetConfirmChecked}
+                variant="contained"
+              >
+                Reiniciar
+              </Button>
+            </DialogActions>
+          </Dialog>
 
-      {/* Success snackbar or alert */}
-      {resetSuccess && (
-        <Box sx={{ mt: 2 }}>
-          <Alert severity="success" onClose={() => setResetSuccess(false)}>
-            Todas las lecturas han sido reiniciadas correctamente.
-          </Alert>
-        </Box>
-      )}
+          {/* Success snackbar or alert */}
+          {resetSuccess && (
+            <Box sx={{ mt: 2 }}>
+              <Alert severity="success" onClose={() => setResetSuccess(false)}>
+                Todas las lecturas han sido reiniciadas correctamente.
+              </Alert>
+            </Box>
+          )}
 
-      {/* Show success message if present */}
-      {successMessage && (
-        <Box sx={{ mt: 2, mb: 2 }}>
-          <Alert severity="success" onClose={() => setSuccessMessage(null)}>
-            {successMessage}
-          </Alert>
-        </Box>
-      )}
-    </Container>
+          {/* Show success message if present */}
+          {successMessage && (
+            <Box sx={{ mt: 2, mb: 2 }}>
+              <Alert severity="success" onClose={() => setSuccessMessage(null)}>
+                {successMessage}
+              </Alert>
+            </Box>
+          )}
+        </Paper>
+      </Container>
+    </Box>
   );
 }
 

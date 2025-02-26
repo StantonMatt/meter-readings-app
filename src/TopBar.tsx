@@ -51,7 +51,7 @@ const TopBar: React.FC<TopBarProps> = ({
       sx={{
         zIndex: theme.zIndex.drawer + 1,
         backgroundColor: theme.palette.primary.main,
-        backgroundImage: `linear-gradient(to right, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+        borderRadius: 0,
       }}
     >
       <Toolbar
