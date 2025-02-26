@@ -18,6 +18,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
+import { Box, CircularProgress, Typography } from "@mui/material";
 
 // Components
 import Layout from "./Layout";
@@ -114,6 +115,12 @@ function App(): JSX.Element {
       return saved ? parseInt(saved, 10) : 0;
     }
   );
+
+  // First, update the state definitions with a more explicit loading state
+  const [appState, setAppState] = useState<
+    "loading" | "ready" | "auth-required"
+  >("loading");
+  const [isRestoringSession, setIsRestoringSession] = useState<boolean>(true);
 
   // Calculate combined meters data
   const combinedMeters = useMemo(() => {
@@ -239,7 +246,105 @@ function App(): JSX.Element {
     [createNavigationHandlersInternal]
   );
 
-  // Authentication effect
+  // First, add a sessionKey to make stored data specific to the current user
+  const getSessionKey = () => {
+    return user?.uid ? `appState_${user.uid}` : "appState";
+  };
+
+  // Add this near where other useEffect hooks are defined
+  useEffect(() => {
+    // This effect handles restoring the session from localStorage
+    const restoreSession = async () => {
+      // Only attempt restoration when user is logged in
+      if (!user) return;
+
+      try {
+        console.log("Checking for saved session data...");
+        const sessionKey = getSessionKey();
+        const savedData = localStorage.getItem(sessionKey);
+
+        if (!savedData) {
+          console.log("No saved session data found");
+          setAppState("ready");
+          return;
+        }
+
+        const session = JSON.parse(savedData);
+        console.log("Found saved session:", session);
+
+        // We need to wait for routes to be available before restoring
+        if (availableRoutes.length === 0) {
+          console.log("Waiting for routes to load before restoring session...");
+          return; // Exit and wait for routes to load - this effect will run again
+        }
+
+        // Find matching route
+        if (session.selectedRoute) {
+          const matchingRoute = availableRoutes.find(
+            (route) => route.id === session.selectedRoute.id
+          );
+
+          if (matchingRoute) {
+            console.log("Found matching route, selecting:", matchingRoute.id);
+
+            // First select the route - this is async
+            await handleRouteSelect(matchingRoute);
+
+            // After route is selected, restore the meter index
+            if (
+              session.currentIndex !== null &&
+              session.currentIndex !== undefined
+            ) {
+              console.log(`Restoring meter index: ${session.currentIndex}`);
+              setCurrentIndex(session.currentIndex);
+            }
+          }
+        }
+
+        // Mark restoration as complete
+        setAppState("ready");
+        console.log("Session restoration complete");
+      } catch (error) {
+        console.error("Error restoring session:", error);
+        setAppState("ready");
+      }
+    };
+
+    // Only run this when app is in loading state
+    if (appState === "loading" && availableRoutes.length > 0) {
+      restoreSession();
+    }
+
+    // Add a safety timeout to prevent getting stuck in loading
+    const safetyTimeout = setTimeout(() => {
+      if (appState === "loading") {
+        console.log("Safety timeout triggered - moving to ready state");
+        setAppState("ready");
+      }
+    }, 3000);
+
+    return () => clearTimeout(safetyTimeout);
+  }, [user, appState, availableRoutes]);
+
+  // Update the saveSession logic
+  useEffect(() => {
+    // Only save state if user is logged in and app is ready
+    if (user && appState === "ready") {
+      const stateToSave = {
+        currentIndex,
+        selectedRoute,
+        timestamp: new Date().getTime(),
+      };
+
+      const sessionKey = getSessionKey();
+      localStorage.setItem(sessionKey, JSON.stringify(stateToSave));
+      console.log(
+        `Saved session state: route=${selectedRoute?.id}, index=${currentIndex}`
+      );
+    }
+  }, [currentIndex, selectedRoute, user, appState]);
+
+  // Update auth effect to set loading state when user logs in
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setIsAuthStateReady(true);
@@ -247,81 +352,18 @@ function App(): JSX.Element {
       if (user) {
         // User is logged in
         setUser(user);
-
-        // Store the saved state in a variable but don't apply it immediately
-        let savedStateToRestore = null;
-
-        try {
-          const savedState = localStorage.getItem("appState");
-          if (savedState) {
-            savedStateToRestore = JSON.parse(savedState);
-            console.log(
-              "Found saved session state, will restore after routes load"
-            );
-          }
-        } catch (error) {
-          console.error("Error parsing saved session:", error);
-        }
-
-        // Load routes first - don't try to restore state here
-        // The routes will be loaded by the useEffect for routes
-
-        // Store the saved state in a ref or state so it can be used after routes load
-        if (savedStateToRestore) {
-          setSavedStateToRestore(savedStateToRestore);
-        }
+        // Start in loading state to allow restoration
+        setAppState("loading");
       } else {
         // User is logged out
         setUser(null);
-        setCurrentIndex(0);
-        setSavedStateToRestore(null);
+        setCurrentIndex(null);
+        setAppState("auth-required");
       }
     });
 
     return () => unsubscribe();
   }, []);
-
-  // Add this new state
-  const [savedStateToRestore, setSavedStateToRestore] = useState(null);
-
-  // Add a new effect that handles restoration AFTER routes are loaded
-  useEffect(() => {
-    const restoreSavedState = async () => {
-      // Only proceed if we have saved state AND routes are available
-      if (
-        savedStateToRestore &&
-        availableRoutes.length > 0 &&
-        savedStateToRestore.selectedRoute
-      ) {
-        console.log("Routes are loaded, now restoring saved session state");
-
-        // Find the matching route object from available routes
-        const matchingRoute = availableRoutes.find(
-          (route) => route.id === savedStateToRestore.selectedRoute.id
-        );
-
-        if (matchingRoute) {
-          // Now it's safe to select the route
-          await handleRouteSelect(matchingRoute);
-
-          // After a short delay to let route data load, restore the meter index
-          setTimeout(() => {
-            if (savedStateToRestore.currentIndex !== undefined) {
-              setCurrentIndex(savedStateToRestore.currentIndex);
-              console.log(
-                `Restored to meter index: ${savedStateToRestore.currentIndex}`
-              );
-            }
-
-            // Clear the saved state to restore since we've handled it
-            setSavedStateToRestore(null);
-          }, 500);
-        }
-      }
-    };
-
-    restoreSavedState();
-  }, [availableRoutes, savedStateToRestore]);
 
   // Load routes effect
   useEffect(() => {
@@ -601,24 +643,6 @@ function App(): JSX.Element {
     // Other reset logic...
   };
 
-  // Keep this separate useEffect for SAVING state
-  useEffect(() => {
-    // Only save state if user is logged in and we have meters
-    if (user && selectedRoute && combinedMeters.length > 0) {
-      const stateToSave = {
-        currentIndex,
-        selectedRoute,
-        combinedMeters: combinedMeters.map((meter) => ({
-          ID: meter.ID,
-          ADDRESS: meter.ADDRESS,
-        })),
-      };
-
-      localStorage.setItem("appState", JSON.stringify(stateToSave));
-      console.log(`Saved app state: meter index ${currentIndex}`);
-    }
-  }, [currentIndex, selectedRoute, combinedMeters, user]);
-
   // Update the handleNavigationAttempt function in App.tsx
   const handleNavigationAttempt = useCallback(
     (navigationCallback: () => void) => {
@@ -663,200 +687,198 @@ function App(): JSX.Element {
     };
   }, []);
 
-  // If authentication is still being checked, show nothing
-  if (!isAuthStateReady) {
-    return <div>Loading...</div>;
+  // Now completely replace the render logic
+  if (appState === "loading") {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100vh",
+        }}
+      >
+        <CircularProgress />
+        <Typography sx={{ mt: 2 }}>
+          {!isAuthStateReady
+            ? "Verificando sesión..."
+            : "Restaurando estado anterior..."}
+        </Typography>
+      </Box>
+    );
   }
 
-  // If no user is logged in, show login screen
-  if (!user) {
+  if (appState === "auth-required") {
     return <LoginScreen />;
   }
 
-  // Home screen (when currentIndex is null)
-  if (currentIndex === null) {
-    // Check for any readings or confirmed readings in readingsState
-    const hasReadings = Object.values(readingsState).some(
-      (state) => state?.reading || state?.isConfirmed
-    );
+  // Only render the app content when we're absolutely sure the state is ready
+  return (
+    <BrowserRouter>
+      {(() => {
+        // Home screen (when currentIndex is null and we're NOT restoring)
+        if (currentIndex === null) {
+          // Check for any readings or confirmed readings in readingsState
+          const hasReadings = Object.values(readingsState).some(
+            (state) => state?.reading || state?.isConfirmed
+          );
 
-    return (
-      <BrowserRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={
-              <Layout
-                showSidebar={false}
-                meters={combinedMeters}
-                currentIndex={-1}
-                onSelectMeter={() => {}}
-                onHomeClick={handleHomeClick}
-                onFinishClick={handleUploadReadings}
-                readingsState={readingsState}
-                onNavigationAttempt={handleNavigationAttempt}
-              >
-                <HomeScreen
-                  hasReadings={hasReadings}
-                  onStart={handleStartClick}
-                  onContinue={() => setCurrentIndex(lastViewedMeterIndex)}
-                  onRestart={handleRestart}
-                  routes={availableRoutes}
-                  onRouteSelect={handleRouteSelect}
-                  isLoading={isLoading}
-                  error={error}
-                  selectedRoute={selectedRoute}
-                  onInitialize={() =>
-                    initializeFirebaseData(auth, db, appCheckInitialized).then(
-                      (result) => result.success
-                    )
-                  }
-                  selectedMonth={selectedMonth}
-                  selectedYear={selectedYear}
-                  onDateChange={handleDateChange}
-                  searchResults={[]}
-                  combinedMeters={combinedMeters}
-                  onMeterSelect={(index: number) => setCurrentIndex(index)}
-                />
-              </Layout>
-            }
-          />
-          {/* Remove routes to non-existent components 
-          <Route path="/email-preview" element={<EmailPreview />} />
-          <Route path="/email-preview-table" element={<EmailPreviewTable />} />
-          */}
-        </Routes>
-      </BrowserRouter>
-    );
-  }
-  // Meter screens
-  else if (currentIndex !== null && currentIndex < combinedMeters.length) {
-    return (
-      <Layout
-        showSidebar={true}
-        meters={combinedMeters}
-        currentIndex={currentIndex}
-        onSelectMeter={(i: number) =>
-          handleNavigationAttempt(() => setCurrentIndex(i))
+          return (
+            <Routes>
+              <Route
+                path="/"
+                element={
+                  <HomeScreen
+                    hasReadings={hasReadings}
+                    onStart={async () => {
+                      if (selectedRoute) {
+                        // Find the first meter that doesn't have a confirmed reading
+                        const firstPendingIndex = findFirstPendingMeter(
+                          combinedMeters,
+                          readingsState
+                        );
+                        setCurrentIndex(
+                          firstPendingIndex !== -1 ? firstPendingIndex : 0
+                        );
+                      }
+                    }}
+                    onContinue={() => {
+                      // If there are some readings, find the first pending one
+                      const firstPendingIndex = findFirstPendingMeter(
+                        combinedMeters,
+                        readingsState
+                      );
+                      if (firstPendingIndex !== -1) {
+                        setCurrentIndex(firstPendingIndex);
+                      } else {
+                        // If all confirmed, go to summary
+                        setCurrentIndex(combinedMeters.length);
+                      }
+                    }}
+                    routes={availableRoutes}
+                    onRouteSelect={handleRouteSelect}
+                    onRestart={handleRestart}
+                    isLoading={isLoading}
+                    error={error}
+                    selectedRoute={selectedRoute}
+                    onInitialize={initializeFirebaseData}
+                    selectedMonth={selectedMonth}
+                    selectedYear={selectedYear}
+                    onDateChange={(month, year) => {
+                      setSelectedMonth(month);
+                      setSelectedYear(year);
+                    }}
+                    onMeterSelect={(index) => setCurrentIndex(index)}
+                    combinedMeters={combinedMeters}
+                  />
+                }
+              />
+            </Routes>
+          );
         }
-        onHomeClick={() => handleNavigationAttempt(handleHomeClick)}
-        onFinishClick={() => handleNavigationAttempt(handleGoToSummary)}
-        readingsState={readingsState}
-        onNavigationAttempt={handleNavigationAttempt}
-      >
-        <MeterScreen
-          meter={combinedMeters[currentIndex]}
-          currentIndex={currentIndex}
-          totalMeters={combinedMeters.length}
-          onHome={handleHomeClick}
-          onPrev={handlePreviousMeter}
-          onNext={handleNextMeter}
-          onFinish={handleGoToSummary}
-          onReadingChange={handleReadingChange}
-          onConfirmationChange={handleConfirmationChange}
-          pendingNavigation={pendingNavigation}
-          setPendingNavigation={setPendingNavigation}
-          setNavigationHandledByChild={setNavigationHandledByChild}
-          selectedMonth={selectedMonth}
-          selectedYear={selectedYear}
-          routeId={selectedRoute?.id || null}
-          onUpdateReadings={() => {}}
-        />
-      </Layout>
-    );
-  }
-  // Final check screen after readings are submitted
-  else if (currentIndex === combinedMeters.length) {
-    if (submittedReadings.length > 0) {
-      return (
-        <Layout
-          showSidebar={false}
-          meters={combinedMeters}
-          currentIndex={currentIndex}
-          onSelectMeter={(i: number) =>
-            handleNavigationAttempt(() => setCurrentIndex(i))
-          }
-          onHomeClick={() => handleNavigationAttempt(handleHomeClick)}
-          onFinishClick={handleGoToSummary}
-          readingsState={readingsState}
-          onNavigationAttempt={handleNavigationAttempt}
-        >
-          <FinalCheckScreen
-            readingsState={readingsState}
-            meters={combinedMeters}
-            onContinue={() => {
-              // Find first pending meter
-              const nextIndex = findFirstPendingMeter(
-                combinedMeters,
-                readingsState
-              );
-              setCurrentIndex(nextIndex);
-            }}
-            onViewSummary={onViewSummary}
-            onFinish={() => {
-              // Clear all state and go home
-              setReadingsState({});
-              setCurrentIndex(null);
-              setSubmittedReadings([]);
-              localStorage.clear(); // Clear all stored readings
-            }}
-          />
-        </Layout>
-      );
-    }
-
-    // Summary screen if readings haven't been submitted
-    return (
-      <Layout
-        meters={combinedMeters}
-        currentIndex={currentIndex}
-        onSelectMeter={(i: number) => setCurrentIndex(i)}
-        onHomeClick={handleHomeClick}
-        onFinishClick={handleUploadReadings}
-        showSidebar={false}
-        readingsState={readingsState}
-        onNavigationAttempt={handleNavigationAttempt}
-      >
-        <SummaryScreen
-          meters={combinedMeters}
-          readingsState={readingsState}
-          setReadingsState={setReadingsState}
-          onBack={() => setCurrentIndex(currentIndex - 1)}
-          onFinalize={handleUploadReadings}
-          selectedMonth={selectedMonth}
-          selectedYear={selectedYear}
-          onSelectMeter={(index: number) => setCurrentIndex(index)}
-        />
-      </Layout>
-    );
-  }
-  // Summary screen
-  else if (currentIndex === combinedMeters.length + 1) {
-    return (
-      <Layout
-        showSidebar={false}
-        meters={combinedMeters}
-        currentIndex={currentIndex}
-        onSelectMeter={(i: number) => setCurrentIndex(i)}
-        onHomeClick={handleHomeClick}
-        onFinishClick={handleUploadReadings}
-        readingsState={readingsState}
-        onNavigationAttempt={handleNavigationAttempt}
-      >
-        <SummaryScreen
-          meters={combinedMeters}
-          readingsState={readingsState}
-          onFinalize={handleUploadReadings}
-          onBack={() => setCurrentIndex(combinedMeters.length - 1)}
-          onSelectMeter={(i: number) => setCurrentIndex(i)}
-        />
-      </Layout>
-    );
-  }
-  // Invalid state
-  else {
-    return <div>Estado Inválido</div>;
-  }
+        // Show MeterScreen (when currentIndex is not null and within range)
+        else if (
+          currentIndex !== null &&
+          currentIndex < combinedMeters.length
+        ) {
+          const currentMeter = combinedMeters[currentIndex];
+          return (
+            <Layout
+              showSidebar={true}
+              meters={combinedMeters}
+              currentIndex={currentIndex}
+              onSelectMeter={(i: number) => setCurrentIndex(i)}
+              onHomeClick={handleHomeClick}
+              onFinishClick={() => setCurrentIndex(combinedMeters.length)}
+              readingsState={readingsState}
+              onNavigationAttempt={handleNavigationAttempt}
+            >
+              <MeterScreen
+                meter={currentMeter}
+                currentIndex={currentIndex}
+                totalMeters={combinedMeters.length}
+                onHome={handleHomeClick}
+                onPrev={handlePreviousMeter}
+                onNext={handleNextMeter}
+                onFinish={() => setCurrentIndex(combinedMeters.length)}
+                onReadingChange={(reading) =>
+                  handleReadingChange(currentMeter.ID, reading)
+                }
+                onConfirmationChange={(isConfirmed) =>
+                  handleConfirmationChange(currentMeter.ID, isConfirmed)
+                }
+                pendingNavigation={pendingNavigation}
+                setPendingNavigation={setPendingNavigation}
+                setNavigationHandledByChild={setNavigationHandledByChild}
+                reading={readingsState[currentMeter.ID]?.reading || ""}
+                isConfirmed={
+                  readingsState[currentMeter.ID]?.isConfirmed || false
+                }
+                selectedMonth={selectedMonth}
+                selectedYear={selectedYear}
+                routeId={selectedRoute?.id || ""}
+                onUpdateReadings={(meterId, data) => {
+                  // This will be implemented in a later version
+                  console.log("Updating readings for", meterId, data);
+                }}
+              />
+            </Layout>
+          );
+        }
+        // Final check screen
+        else if (currentIndex === combinedMeters.length) {
+          return (
+            <Layout
+              showSidebar={true}
+              meters={combinedMeters}
+              currentIndex={currentIndex}
+              onSelectMeter={(i: number) => setCurrentIndex(i)}
+              onHomeClick={handleHomeClick}
+              onFinishClick={() => setCurrentIndex(combinedMeters.length + 1)}
+              readingsState={readingsState}
+              onNavigationAttempt={handleNavigationAttempt}
+            >
+              <FinalCheckScreen
+                meters={combinedMeters}
+                readingsState={readingsState}
+                onBack={() => setCurrentIndex(combinedMeters.length - 1)}
+                onGoToSummary={() => setCurrentIndex(combinedMeters.length + 1)}
+                onSelectMeter={(index) => setCurrentIndex(index)}
+              />
+            </Layout>
+          );
+        }
+        // Summary screen
+        else if (currentIndex === combinedMeters.length + 1) {
+          return (
+            <Layout
+              showSidebar={false}
+              meters={combinedMeters}
+              currentIndex={currentIndex}
+              onSelectMeter={(i: number) => setCurrentIndex(i)}
+              onHomeClick={handleHomeClick}
+              onFinishClick={handleUploadReadings}
+              readingsState={readingsState}
+              onNavigationAttempt={handleNavigationAttempt}
+            >
+              <SummaryScreen
+                meters={combinedMeters}
+                readingsState={readingsState}
+                onFinalize={handleUploadReadings}
+                onBack={() => setCurrentIndex(combinedMeters.length - 1)}
+                onSelectMeter={(i: number) => setCurrentIndex(i)}
+              />
+            </Layout>
+          );
+        }
+        // Invalid state
+        else {
+          return <div>Estado Inválido</div>;
+        }
+      })()}
+    </BrowserRouter>
+  );
 }
 
 // Also add a function to clear the saved state when logging out
