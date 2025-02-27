@@ -58,8 +58,9 @@ const TopBar: React.FC<TopBarProps> = ({
         sx={{
           display: "flex",
           alignItems: "center",
-          padding: theme.spacing(0, 2),
+          padding: theme.spacing(0, 3),
           minHeight: 64,
+          gap: 1.5,
         }}
       >
         {showMenuButton && (
@@ -102,7 +103,7 @@ const TopBar: React.FC<TopBarProps> = ({
             color: "#fff",
           }}
         >
-          Water Meter App
+          Lecturas COAB
         </Typography>
 
         {showButtons && (
@@ -115,7 +116,8 @@ const TopBar: React.FC<TopBarProps> = ({
               borderRadius: "8px",
               px: 2,
               py: 1,
-              mr: 1,
+              ml: "auto",
+              mr: 3,
               display: { xs: "none", sm: "flex" },
               backgroundColor: alpha("#fff", 0.08),
               "&:hover": {
@@ -127,8 +129,6 @@ const TopBar: React.FC<TopBarProps> = ({
             Inicio
           </Button>
         )}
-
-        <Box sx={{ flexGrow: 1 }} />
 
         <Tooltip title="Cerrar Sesión">
           <Button

@@ -349,8 +349,8 @@ function MeterList({
             position: "sticky",
             top: 0,
             zIndex: 1,
-            backgroundColor: "rgba(255, 255, 255, 0.05)",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+            backgroundColor: "transparent",
+            borderBottom: "none",
           }}
         >
           <TextField
@@ -362,30 +362,36 @@ function MeterList({
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon sx={{ color: "rgba(255,255,255,0.7)" }} />
+                  <SearchIcon sx={{ color: "rgba(0, 0, 0, 0.8)" }} />
                 </InputAdornment>
               ),
               sx: {
-                color: "#fff",
+                color: "rgba(0, 0, 0, 0.95)",
+                fontWeight: 700,
                 "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(255, 255, 255, 0.2)",
+                  borderColor: "rgba(0, 0, 0, 0.3)",
                 },
                 "&:hover .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(255, 255, 255, 0.3)",
+                  borderColor: "rgba(0, 0, 0, 0.5)",
                 },
                 "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(255, 255, 255, 0.5)",
+                  borderColor: "rgba(0, 0, 0, 0.7)",
                 },
                 "& .MuiInputBase-input::placeholder": {
-                  color: "rgba(255, 255, 255, 0.7)",
-                  opacity: 1,
+                  color: "rgba(0, 0, 0, 0.8)",
+                  fontWeight: 600,
+                  fontStyle: "italic",
                 },
               },
             }}
             sx={{
               "& .MuiInputBase-root": {
-                backgroundColor: "rgba(255, 255, 255, 0.05)",
+                backgroundColor: "rgba(255, 255, 255, 0.4)",
                 borderRadius: 2,
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  backgroundColor: "rgba(255, 255, 255, 0.5)",
+                },
               },
             }}
           />
