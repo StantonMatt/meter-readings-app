@@ -1571,7 +1571,10 @@ function MeterScreen({
               >
                 #{meter.ID}
               </Typography>
-              <Typography variant="body1" sx={{ mt: 1, opacity: 0.9 }}>
+              <Typography
+                variant="h4"
+                sx={{ color: "white", mt: 1, opacity: 0.9 }}
+              >
                 {meter.ADDRESS}
               </Typography>
             </Box>
@@ -2050,51 +2053,49 @@ function MeterScreen({
 
               {/* Action Buttons */}
               <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
+                {/* Move "No puedo leer" button to the left and style it with purple */}
                 <Button
-                  variant={localIsConfirmed ? "outlined" : "contained"}
-                  color={localIsConfirmed ? "error" : "primary"}
+                  variant="outlined"
+                  onClick={handleCantReadMeter}
+                  startIcon={<ErrorOutlineIcon />}
+                  sx={{
+                    ml: 1,
+                    borderRadius: 2,
+                    borderColor: "rgba(79, 70, 229, 0.5)",
+                    color: "rgba(79, 70, 229, 0.9)",
+                    "&:hover": {
+                      backgroundColor: "rgba(79, 70, 229, 0.05)",
+                      borderColor: "rgba(79, 70, 229, 0.8)",
+                    },
+                  }}
+                >
+                  No puedo leer el medidor
+                </Button>
+
+                {/* Move Confirm button to the right */}
+                <Button
+                  variant="contained"
+                  color={localIsConfirmed ? "error" : "success"}
                   onClick={() => {
                     if (localIsConfirmed) {
+                      // Handle unconfirm action
                       handleUnconfirmButtonClick();
                     } else {
+                      // Handle confirm action
                       handleConfirmClick();
                     }
                   }}
-                  disabled={inputValue.trim() === ""}
                   startIcon={
-                    localIsConfirmed ? (
-                      <WarningIcon />
-                    ) : (
-                      <CheckCircleOutlineIcon />
-                    )
+                    localIsConfirmed ? <WarningIcon /> : <CheckCircleIcon />
                   }
                   sx={{
-                    minWidth: 120,
-                    py: 1.2,
-                    px: 3,
                     borderRadius: 2,
-                    boxShadow: localIsConfirmed ? "none" : 2,
+                    ml: "auto",
+                    mr: 1,
                   }}
                 >
-                  {localIsConfirmed ? "Desconfirmar" : "Confirmar"}
+                  {localIsConfirmed ? "Desconfirmar" : "Confirmar Lectura"}
                 </Button>
-
-                {!localIsConfirmed && (
-                  <Button
-                    variant="outlined"
-                    color="secondary"
-                    onClick={handleCantReadMeter}
-                    startIcon={<ErrorOutlineIcon />}
-                    sx={{
-                      minWidth: 160,
-                      py: 1.2,
-                      px: 3,
-                      borderRadius: 2,
-                    }}
-                  >
-                    No puedo leer el medidor
-                  </Button>
-                )}
               </Box>
             </Grid>
           </Grid>
@@ -2121,7 +2122,7 @@ function MeterScreen({
               sx={{
                 width: "100%",
                 py: 1.2,
-                borderRadius: 2,
+                borderRadius: 3,
                 borderWidth: "1.5px",
               }}
             >
@@ -2163,13 +2164,15 @@ function MeterScreen({
             ) : (
               <Button
                 variant="contained"
-                color="success"
                 onClick={() => handleNavigation("finish", onFinish)}
                 sx={{
                   width: "100%",
                   py: 1.2,
-                  borderRadius: 2,
-                  boxShadow: 2,
+                  borderRadius: 3,
+                  backgroundColor: alpha(theme.palette.warning.main, 0.9), // Fix the alpha function call
+                  "&:hover": {
+                    backgroundColor: "#d97706", // Amber-600 (darker yellowish gold)
+                  },
                 }}
               >
                 Finalizar
@@ -3265,73 +3268,60 @@ function MeterScreen({
       <Dialog
         open={showCantReadDialog}
         onClose={handleCancelCantRead}
-        aria-labelledby="cant-read-dialog-title"
         maxWidth="sm"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            overflow: "hidden",
+          },
+        }}
       >
         <DialogTitle
-          id="cant-read-dialog-title"
           sx={{
-            borderBottom: 1,
-            borderColor: "divider",
-            backgroundColor: alpha(theme.palette.info.light, 0.1),
-            px: 3,
+            backgroundColor: "rgba(79, 70, 229, 0.1)",
+            color: "rgba(79, 70, 229, 0.9)",
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            fontSize: "1.25rem",
             py: 2.5,
-            "& .MuiTypography-root": {
-              fontSize: "1.25rem",
-              fontWeight: 600,
-            },
+            px: 3,
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <ErrorOutlineIcon color="info" />
+            <ErrorOutlineIcon sx={{ color: "rgba(79, 70, 229, 0.9)" }} />
             <Typography>No se puede leer el medidor</Typography>
           </Box>
         </DialogTitle>
-        <DialogContent sx={{ px: 3, py: 3 }}>
+
+        <DialogContent sx={{ p: 3, pt: 3 }}>
           <Box sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-              Información del Medidor:
-            </Typography>
             <Paper
               elevation={0}
               sx={{
                 p: 2,
-                backgroundColor: alpha(theme.palette.background.default, 0.7),
-                border: 1,
-                borderColor: "divider",
+                backgroundColor: "rgba(79, 70, 229, 0.05)",
+                border: "1px solid rgba(79, 70, 229, 0.2)",
                 borderRadius: 1,
               }}
             >
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    ID del Medidor:
-                  </Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    {meter.ID}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                     Lectura Estimada:
                   </Typography>
                   <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 600,
-                      color: theme.palette.warning.dark,
-                    }}
+                    variant="h4"
+                    sx={{ color: "rgba(79, 70, 229, 0.9)", fontWeight: 700 }}
                   >
-                    {estimatedReading} m³
+                    {estimatedReading}
                   </Typography>
                 </Grid>
-                <Grid item xs={12}>
+                <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    Dirección:
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {meter.ADDRESS}
+                    Basado en el consumo promedio
                   </Typography>
                 </Grid>
               </Grid>
@@ -3343,6 +3333,11 @@ function MeterScreen({
             variant="outlined"
             sx={{
               mb: 3,
+              borderColor: "rgba(79, 70, 229, 0.5)",
+              backgroundColor: "rgba(79, 70, 229, 0.05)",
+              "& .MuiAlert-icon": {
+                color: "rgba(79, 70, 229, 0.9)",
+              },
               "& .MuiAlert-message": {
                 fontWeight: 500,
               },
@@ -3455,14 +3450,19 @@ function MeterScreen({
           <Box sx={{ flex: 1 }} />
           <Button
             onClick={handleConfirmEstimatedReading}
-            color="primary"
-            variant="contained"
+            sx={{
+              minWidth: 140,
+              backgroundColor: "rgba(79, 70, 229, 0.9)",
+              color: "white",
+              "&:hover": {
+                backgroundColor: "rgba(79, 70, 229, 1)",
+              },
+            }}
             disabled={
               cantReadReason === "" ||
               (cantReadReason === "other" && otherReasonText.trim() === "")
             }
             startIcon={<CheckCircleIcon />}
-            sx={{ minWidth: 140 }}
           >
             Confirmar Estimación
           </Button>

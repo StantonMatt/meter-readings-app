@@ -358,7 +358,7 @@ function SummaryScreen({
                     <Chip
                       label={
                         row.status === "confirmed"
-                          ? "Confirmada"
+                          ? "Confirmado"
                           : row.status === "pending"
                           ? "Pendiente"
                           : "Omitida"
