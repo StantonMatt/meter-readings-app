@@ -43,6 +43,7 @@ import HomeOutlinedIcon from "@mui/icons-material/HomeOutlined";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningIcon from "@mui/icons-material/Warning";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
 import { findPreviousMonthReading } from "./utils/dateUtils";
 import { getPreviousReadings } from "./services/firebaseService";
@@ -170,6 +171,10 @@ function MeterScreen({
 
   // Add state for unconfirm dialog
   const [showUnconfirmDialog, setShowUnconfirmDialog] =
+    useState<boolean>(false);
+
+  // Add a new state for negative consumption dialog
+  const [showNegativeConsumptionDialog, setShowNegativeConsumptionDialog] =
     useState<boolean>(false);
 
   // Initialize input value and confirmation status when meter changes
@@ -884,6 +889,13 @@ function MeterScreen({
     // Store the value for later use
     currentConsumptionRef.current = consumption;
 
+    // Check if this is a negative consumption case
+    if (consumption !== null && consumption < 0) {
+      // Show negative consumption verification dialog
+      setShowNegativeConsumptionDialog(true);
+      return;
+    }
+
     // Check if this is a low consumption case (>= 0 and < 4)
     if (consumption !== null && consumption >= 0 && consumption < 4) {
       // Check if we already have verification data
@@ -1131,6 +1143,22 @@ function MeterScreen({
       setEstimatedReading(manualEstimate);
     }
   }, [previousReadingEntries, averageConsumption, estimatedReading]);
+
+  // Add these handlers for negative consumption dialog
+  const handleCancelNegativeConsumptionDialog = () => {
+    setShowNegativeConsumptionDialog(false);
+  };
+
+  // Handle confirming the negative reading is correct
+  const handleConfirmNegativeReading = () => {
+    // Close the dialog
+    setShowNegativeConsumptionDialog(false);
+
+    // Proceed with confirming the reading
+    setLocalIsConfirmed(true);
+    localStorage.setItem(confirmedKey, "true");
+    onConfirmationChange(meter.ID, true);
+  };
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
@@ -2060,6 +2088,167 @@ function MeterScreen({
               startIcon={<WarningIcon />}
             >
               Desconfirmar
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Negative Consumption Verification Dialog */}
+        <Dialog
+          open={showNegativeConsumptionDialog}
+          onClose={handleCancelNegativeConsumptionDialog}
+          aria-labelledby="negative-consumption-dialog-title"
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            id="negative-consumption-dialog-title"
+            sx={{
+              borderBottom: 1,
+              borderColor: "divider",
+              backgroundColor: alpha(theme.palette.error.light, 0.05),
+              px: 3,
+              py: 2.5,
+              "& .MuiTypography-root": {
+                fontSize: "1.25rem",
+                fontWeight: 600,
+              },
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <ErrorOutlineIcon color="error" />
+              <Typography>Consumo Negativo Detectado</Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent sx={{ px: 3, py: 3 }}>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                Resumen de la Lectura:
+              </Typography>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  backgroundColor: alpha(theme.palette.background.default, 0.7),
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 1,
+                }}
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Lectura Anterior:
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {previousReadingEntries.length > 0
+                        ? previousReadingEntries[0]?.value
+                        : "---"}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Lectura Actual:
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {inputValue}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Divider sx={{ my: 1 }} />
+                    <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mr: 1 }}
+                      >
+                        Consumo Calculado:
+                      </Typography>
+                      <Chip
+                        label={`${
+                          currentConsumptionRef.current !== null
+                            ? currentConsumptionRef.current
+                            : "?"
+                        } m³`}
+                        color="error"
+                        size="small"
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: "0.9rem",
+                          height: 28,
+                          "& .MuiChip-label": {
+                            px: 1.5,
+                          },
+                        }}
+                      />
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Box>
+
+            <Alert
+              severity="warning"
+              variant="outlined"
+              sx={{
+                mb: 3,
+                "& .MuiAlert-message": {
+                  fontWeight: 500,
+                },
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                ¿Por qué ocurre esto?
+              </Typography>
+              <Typography variant="body2">
+                Un consumo negativo puede ocurrir por:
+              </Typography>
+              <List dense disablePadding sx={{ mt: 0.5 }}>
+                <ListItem sx={{ py: 0.5 }}>
+                  <ListItemText primary="• Error al ingresar la lectura actual" />
+                </ListItem>
+                <ListItem sx={{ py: 0.5 }}>
+                  <ListItemText primary="• Lectura anterior fue una estimación alta" />
+                </ListItem>
+                <ListItem sx={{ py: 0.5 }}>
+                  <ListItemText primary="• Reemplazo o reinicio del medidor" />
+                </ListItem>
+              </List>
+            </Alert>
+
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+              ¿Desea continuar?
+            </Typography>
+            <Typography variant="body2">
+              Si está seguro que la lectura actual ({inputValue}) es correcta,
+              puede confirmarla. De lo contrario, regrese para corregir el
+              valor.
+            </Typography>
+          </DialogContent>
+          <DialogActions
+            sx={{
+              px: 3,
+              py: 2.5,
+              gap: 1,
+              borderTop: 1,
+              borderColor: "divider",
+            }}
+          >
+            <Button
+              onClick={handleCancelNegativeConsumptionDialog}
+              color="inherit"
+              variant="outlined"
+              sx={{ minWidth: 140 }}
+            >
+              Cancelar y Editar
+            </Button>
+            <Button
+              onClick={handleConfirmNegativeReading}
+              color="error"
+              variant="contained"
+              sx={{ minWidth: 140 }}
+              startIcon={<CheckCircleIcon />}
+            >
+              Confirmar Lectura
             </Button>
           </DialogActions>
         </Dialog>
