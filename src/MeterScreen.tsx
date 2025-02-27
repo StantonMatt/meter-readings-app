@@ -735,13 +735,11 @@ function MeterScreen({
   };
 
   // Handle customer interaction response
-  const handleAnsweredDoorChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const answeredDoor = event.target.value === "yes";
+  const handleAnsweredDoorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
     setVerificationData({
       ...verificationData,
-      answeredDoor,
+      answeredDoor: value === "yes",
     });
   };
 
@@ -1798,9 +1796,16 @@ function MeterScreen({
                   </Typography>
                   <Typography variant="body2">
                     Debido al bajo consumo detectado, necesitamos verificar la
-                    situación de esta propiedad. Por favor complete la siguiente
-                    información.
+                    situación de esta propiedad. Por favor siga estos pasos:
                   </Typography>
+                  <List dense disablePadding sx={{ mt: 0.5 }}>
+                    <ListItem sx={{ py: 0.5 }}>
+                      <ListItemText primary="1. Toque a la puerta de la propiedad" />
+                    </ListItem>
+                    <ListItem sx={{ py: 0.5 }}>
+                      <ListItemText primary="2. Complete el siguiente cuestionario" />
+                    </ListItem>
+                  </List>
                 </Alert>
 
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
@@ -1818,7 +1823,13 @@ function MeterScreen({
                 >
                   <FormControl component="fieldset" sx={{ width: "100%" }}>
                     <RadioGroup
-                      value={verificationData.answeredDoor ? "yes" : "no"}
+                      value={
+                        verificationData.answeredDoor === undefined
+                          ? ""
+                          : verificationData.answeredDoor
+                          ? "yes"
+                          : "no"
+                      }
                       onChange={handleAnsweredDoorChange}
                       sx={{ flexDirection: "row", gap: 4 }}
                     >
@@ -1879,14 +1890,14 @@ function MeterScreen({
             </>
           )}
 
-          {verificationStep === 2 && (
+          {verificationStep === 2 && verificationData.answeredDoor === true && (
             <>
               <DialogTitle
-                id="verification-dialog-title"
+                id="low-consumption-dialog-title-step2"
                 sx={{
                   borderBottom: 1,
                   borderColor: "divider",
-                  backgroundColor: alpha(theme.palette.info.light, 0.05),
+                  backgroundColor: alpha(theme.palette.info.light, 0.1),
                   px: 3,
                   py: 2.5,
                   "& .MuiTypography-root": {
@@ -1897,223 +1908,110 @@ function MeterScreen({
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                   <InfoOutlinedIcon color="info" />
-                  <Typography>Verificación de Bajo Consumo</Typography>
+                  <Typography>Verificación - Cliente Presente</Typography>
                 </Box>
               </DialogTitle>
-
               <DialogContent sx={{ px: 3, py: 3 }}>
-                <Alert
-                  severity="info"
-                  sx={{
-                    mb: 3,
-                    "& .MuiAlert-message": {
-                      fontWeight: 500,
-                    },
-                  }}
-                >
-                  Por favor verifique la situación en la residencia
-                </Alert>
+                <Typography variant="body1" paragraph>
+                  Por favor complete la siguiente información con los datos
+                  proporcionados por el cliente:
+                </Typography>
 
-                <Box
-                  sx={{
-                    p: 2.5,
-                    mb: 3,
-                    border: 1,
-                    borderColor: alpha(theme.palette.primary.main, 0.2),
-                    borderRadius: 1,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.02),
-                  }}
-                >
-                  <FormControl component="fieldset" sx={{ width: "100%" }}>
-                    <FormLabel
-                      component="legend"
-                      sx={{
-                        fontWeight: 600,
-                        color: "primary.main",
-                        mb: 1.5,
-                        fontSize: "0.95rem",
-                      }}
-                    >
-                      ¿Han tenido problemas con el agua?
-                    </FormLabel>
-                    <RadioGroup
-                      value={verificationData.hadIssues ? "yes" : "no"}
-                      onChange={handleWaterIssuesChange}
-                      sx={{ flexDirection: "row", gap: 4 }}
-                    >
-                      <FormControlLabel
-                        value="yes"
-                        control={<Radio color="primary" />}
-                        label="Sí"
-                        sx={{
-                          "& .MuiFormControlLabel-label": {
-                            fontWeight: 500,
-                          },
-                        }}
-                      />
-                      <FormControlLabel
-                        value="no"
-                        control={<Radio color="primary" />}
-                        label="No"
-                        sx={{
-                          "& .MuiFormControlLabel-label": {
-                            fontWeight: 500,
-                          },
-                        }}
-                      />
-                    </RadioGroup>
-                  </FormControl>
-                </Box>
-
-                {verificationData.answeredDoor && (
-                  <Box sx={{ mb: 1 }}>
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p: 2.5,
-                        mb: 3,
-                        border: 1,
-                        borderColor: alpha(theme.palette.primary.main, 0.2),
-                        borderRadius: 1,
-                        backgroundColor: alpha(
-                          theme.palette.primary.main,
-                          0.02
-                        ),
-                      }}
-                    >
-                      <FormControl
-                        component="fieldset"
-                        sx={{ width: "100%", mb: 3 }}
+                <Box sx={{ mb: 3 }}>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: 600, mb: 2 }}
+                  >
+                    ¿Ha tenido problemas con el suministro de agua?
+                  </Typography>
+                  <Box
+                    sx={{
+                      p: 2,
+                      border: 1,
+                      borderColor: alpha(theme.palette.primary.main, 0.2),
+                      borderRadius: 1,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                      mb: 3,
+                    }}
+                  >
+                    <FormControl component="fieldset" sx={{ width: "100%" }}>
+                      <RadioGroup
+                        value={
+                          verificationData.hadIssues === undefined
+                            ? ""
+                            : verificationData.hadIssues
+                            ? "yes"
+                            : "no"
+                        }
+                        onChange={handleWaterIssuesChange}
+                        sx={{ flexDirection: "row", gap: 4 }}
                       >
-                        <FormLabel
-                          component="legend"
+                        <FormControlLabel
+                          value="yes"
+                          control={<Radio color="primary" />}
+                          label="Sí"
                           sx={{
-                            fontWeight: 600,
-                            color: "primary.main",
-                            mb: 1.5,
-                            fontSize: "0.95rem",
+                            "& .MuiFormControlLabel-label": {
+                              fontWeight: 500,
+                            },
                           }}
-                        >
-                          ¿Han tenido problemas con el agua?
-                        </FormLabel>
-                        <RadioGroup
-                          value={verificationData.hadIssues ? "yes" : "no"}
-                          onChange={handleWaterIssuesChange}
-                          sx={{ flexDirection: "row", gap: 4 }}
-                        >
-                          <FormControlLabel
-                            value="yes"
-                            control={<Radio color="primary" />}
-                            label="Sí"
-                            sx={{
-                              "& .MuiFormControlLabel-label": {
-                                fontWeight: 500,
-                              },
-                            }}
-                          />
-                          <FormControlLabel
-                            value="no"
-                            control={<Radio color="primary" />}
-                            label="No"
-                            sx={{
-                              "& .MuiFormControlLabel-label": {
-                                fontWeight: 500,
-                              },
-                            }}
-                          />
-                        </RadioGroup>
-                      </FormControl>
-
-                      {verificationData.hadIssues && (
-                        <TextField
-                          fullWidth
-                          variant="outlined"
-                          margin="normal"
-                          label="Descripción breve del problema"
-                          value={verificationData.issueDescription || ""}
-                          onChange={handleIssueDescriptionChange}
-                          sx={{ mb: 3 }}
                         />
-                      )}
+                        <FormControlLabel
+                          value="no"
+                          control={<Radio color="primary" />}
+                          label="No"
+                          sx={{
+                            "& .MuiFormControlLabel-label": {
+                              fontWeight: 500,
+                            },
+                          }}
+                        />
+                      </RadioGroup>
+                    </FormControl>
+                  </Box>
 
+                  {verificationData.hadIssues && (
+                    <Box sx={{ mb: 3 }}>
+                      <Typography
+                        variant="subtitle1"
+                        sx={{ fontWeight: 500, mb: 1 }}
+                      >
+                        Describa brevemente el problema:
+                      </Typography>
                       <TextField
                         fullWidth
+                        multiline
+                        rows={2}
+                        placeholder="Describa el problema reportado por el cliente"
+                        value={verificationData.issueDescription || ""}
+                        onChange={handleIssueDescriptionChange}
                         variant="outlined"
-                        margin="normal"
-                        label="¿Cuántos meses llevan viviendo aquí?"
-                        type="number"
-                        value={verificationData.residenceMonths || ""}
-                        onChange={handleResidenceMonthsChange}
-                        InputProps={{
-                          inputProps: { min: 0 },
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <AccessTimeIcon color="action" />
-                            </InputAdornment>
-                          ),
-                        }}
+                        sx={{ backgroundColor: "white" }}
                       />
-                    </Paper>
-                  </Box>
-                )}
+                    </Box>
+                  )}
 
-                {verificationData.answeredDoor === false && (
-                  <Box sx={{ mb: 1 }}>
-                    <Paper
-                      elevation={0}
-                      sx={{
-                        p: 2.5,
-                        border: 1,
-                        borderColor: alpha(theme.palette.primary.main, 0.2),
-                        borderRadius: 1,
-                        backgroundColor: alpha(
-                          theme.palette.primary.main,
-                          0.02
-                        ),
-                      }}
-                    >
-                      <FormControl component="fieldset" sx={{ width: "100%" }}>
-                        <FormLabel
-                          component="legend"
-                          sx={{
-                            fontWeight: 600,
-                            color: "primary.main",
-                            mb: 1.5,
-                            fontSize: "0.95rem",
-                          }}
-                        >
-                          ¿La casa parece habitada?
-                        </FormLabel>
-                        <RadioGroup
-                          value={verificationData.looksLivedIn ? "yes" : "no"}
-                          onChange={handleHouseInhabitedChange}
-                          sx={{ flexDirection: "row", gap: 4 }}
-                        >
-                          <FormControlLabel
-                            value="yes"
-                            control={<Radio color="primary" />}
-                            label="Sí"
-                            sx={{
-                              "& .MuiFormControlLabel-label": {
-                                fontWeight: 500,
-                              },
-                            }}
-                          />
-                          <FormControlLabel
-                            value="no"
-                            control={<Radio color="primary" />}
-                            label="No"
-                            sx={{
-                              "& .MuiFormControlLabel-label": {
-                                fontWeight: 500,
-                              },
-                            }}
-                          />
-                        </RadioGroup>
-                      </FormControl>
-                    </Paper>
-                  </Box>
-                )}
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: 600, mb: 2 }}
+                  >
+                    ¿Cuántos meses lleva viviendo en esta propiedad?
+                  </Typography>
+                  <TextField
+                    fullWidth
+                    type="number"
+                    placeholder="Ingrese el número de meses"
+                    value={verificationData.residenceMonths || ""}
+                    onChange={handleResidenceMonthsChange}
+                    variant="outlined"
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">meses</InputAdornment>
+                      ),
+                    }}
+                    sx={{ backgroundColor: "white" }}
+                  />
+                </Box>
               </DialogContent>
 
               <DialogActions
@@ -2140,22 +2038,159 @@ function MeterScreen({
                   color="primary"
                   variant="contained"
                   disabled={
-                    verificationData.answeredDoor === undefined ||
-                    (verificationData.answeredDoor === true &&
-                      verificationData.hadIssues === undefined) ||
-                    (verificationData.answeredDoor === true &&
-                      !verificationData.residenceMonths) ||
-                    (verificationData.answeredDoor === false &&
-                      verificationData.looksLivedIn === undefined)
+                    verificationData.hadIssues === undefined ||
+                    (verificationData.hadIssues === true &&
+                      !verificationData.issueDescription) ||
+                    !verificationData.residenceMonths
                   }
                   startIcon={<CheckCircleIcon />}
-                  sx={{ minWidth: 200 }}
+                  sx={{ minWidth: 140 }}
                 >
                   Guardar y Confirmar
                 </Button>
               </DialogActions>
             </>
           )}
+
+          {verificationStep === 2 &&
+            verificationData.answeredDoor === false && (
+              <>
+                <DialogTitle
+                  id="low-consumption-dialog-title-step2"
+                  sx={{
+                    borderBottom: 1,
+                    borderColor: "divider",
+                    backgroundColor: alpha(theme.palette.info.light, 0.1),
+                    px: 3,
+                    py: 2.5,
+                    "& .MuiTypography-root": {
+                      fontSize: "1.25rem",
+                      fontWeight: 600,
+                    },
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                    <InfoOutlinedIcon color="info" />
+                    <Typography>Verificación - Sin Respuesta</Typography>
+                  </Box>
+                </DialogTitle>
+                <DialogContent sx={{ px: 3, py: 3 }}>
+                  <Typography variant="body1" paragraph>
+                    Ya que no hubo respuesta en la propiedad, por favor observe
+                    y responda:
+                  </Typography>
+
+                  <Box sx={{ mb: 3 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ fontWeight: 600, mb: 2 }}
+                    >
+                      ¿La propiedad parece habitada?
+                    </Typography>
+                    <Box
+                      sx={{
+                        p: 2,
+                        border: 1,
+                        borderColor: alpha(theme.palette.primary.main, 0.2),
+                        borderRadius: 1,
+                        backgroundColor: alpha(
+                          theme.palette.primary.main,
+                          0.02
+                        ),
+                      }}
+                    >
+                      <FormControl component="fieldset" sx={{ width: "100%" }}>
+                        <RadioGroup
+                          value={
+                            verificationData.looksLivedIn === undefined
+                              ? ""
+                              : verificationData.looksLivedIn
+                              ? "yes"
+                              : "no"
+                          }
+                          onChange={handleHouseInhabitedChange}
+                          sx={{ flexDirection: "row", gap: 4 }}
+                        >
+                          <FormControlLabel
+                            value="yes"
+                            control={<Radio color="primary" />}
+                            label="Sí"
+                            sx={{
+                              "& .MuiFormControlLabel-label": {
+                                fontWeight: 500,
+                              },
+                            }}
+                          />
+                          <FormControlLabel
+                            value="no"
+                            control={<Radio color="primary" />}
+                            label="No"
+                            sx={{
+                              "& .MuiFormControlLabel-label": {
+                                fontWeight: 500,
+                              },
+                            }}
+                          />
+                        </RadioGroup>
+                      </FormControl>
+                    </Box>
+
+                    <Box sx={{ mt: 3 }}>
+                      <Alert severity="info">
+                        <Typography variant="body2">
+                          Señales de que una propiedad está habitada incluyen:
+                        </Typography>
+                        <List dense disablePadding>
+                          <ListItem sx={{ py: 0.5 }}>
+                            <ListItemText primary="• Luces encendidas" />
+                          </ListItem>
+                          <ListItem sx={{ py: 0.5 }}>
+                            <ListItemText primary="• Vehículos estacionados" />
+                          </ListItem>
+                          <ListItem sx={{ py: 0.5 }}>
+                            <ListItemText primary="• Jardín mantenido" />
+                          </ListItem>
+                          <ListItem sx={{ py: 0.5 }}>
+                            <ListItemText primary="• Cortinas/persianas abiertas" />
+                          </ListItem>
+                        </List>
+                      </Alert>
+                    </Box>
+                  </Box>
+                </DialogContent>
+
+                <DialogActions
+                  sx={{
+                    px: 3,
+                    py: 2.5,
+                    gap: 1,
+                    borderTop: 1,
+                    borderColor: "divider",
+                  }}
+                >
+                  <Button
+                    onClick={() => setVerificationStep(1)}
+                    color="inherit"
+                    variant="outlined"
+                    startIcon={<ArrowBackIcon />}
+                    sx={{ minWidth: 100 }}
+                  >
+                    Atrás
+                  </Button>
+                  <Box sx={{ flex: 1 }} />
+                  <Button
+                    onClick={handleCompleteVerification}
+                    color="primary"
+                    variant="contained"
+                    disabled={verificationData.looksLivedIn === undefined}
+                    startIcon={<CheckCircleIcon />}
+                    sx={{ minWidth: 140 }}
+                  >
+                    Guardar y Confirmar
+                  </Button>
+                </DialogActions>
+              </>
+            )}
         </Dialog>
 
         {/* Unconfirm Confirmation Dialog */}
