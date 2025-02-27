@@ -85,6 +85,7 @@ interface MeterScreenProps {
   onUpdateReadings: (updatedReadings: ReadingsState) => void;
   reading: string;
   isConfirmed: boolean;
+  onPreviousReadingsUpdate?: (meterId: string, readings: any) => void;
 }
 
 // Format month helpers
@@ -140,6 +141,7 @@ function MeterScreen({
   onUpdateReadings,
   reading,
   isConfirmed: propIsConfirmed,
+  onPreviousReadingsUpdate,
 }: MeterScreenProps): JSX.Element {
   const theme = useTheme();
 
@@ -227,27 +229,11 @@ function MeterScreen({
   useEffect(() => {
     let isMounted = true;
 
-    // Reset states when meter changes to prevent showing stale data
-    if (!isDataLoaded) {
-      setPreviousReadingEntries([]);
-      setHistoricalReadings([]);
-      setHasPreviousReadings(false);
-      setPreviousReading(null);
-      setAverageConsumption(0);
-      setEstimatedReading(0);
-    }
-
-    // Create a unique request ID for this meter/route combination
+    // Add a ref to track if we've already fetched for this meter in this session
     const requestId = `meter_${meter.ID}_route_${routeId}_request`;
 
     const fetchPreviousReadings = async () => {
-      // Clear the fetched flag for this meter when we're explicitly fetching
-      delete hasFetchedRef.current[meter.ID];
-
-      // Reset data loaded flag
-      setIsDataLoaded(false);
-
-      // Check if this exact API call is already in progress
+      // Skip if this exact API call is already in progress
       if ((window as any)[requestId]) {
         console.log(`Request already in progress for meter ${meter.ID}`);
         return;
@@ -432,6 +418,12 @@ function MeterScreen({
           } else {
             setHasPreviousReadings(false);
           }
+
+          // Call the new handler to update the parent component
+          // Only call this once when data is successfully loaded
+          if (onPreviousReadingsUpdate && response) {
+            onPreviousReadingsUpdate(meter.ID.toString(), response);
+          }
         } else {
           setHasPreviousReadings(false);
         }
@@ -451,7 +443,8 @@ function MeterScreen({
       }
     };
 
-    // Always fetch when the meter changes
+    // Only fetch when the component mounts or when the meter ID changes
+    // Don't include onPreviousReadingsUpdate in the dependencies
     fetchPreviousReadings();
 
     return () => {
@@ -459,7 +452,7 @@ function MeterScreen({
       // Clean up the request flag when component unmounts
       delete (window as any)[requestId];
     };
-  }, [meter.ID, routeId, selectedMonth, selectedYear]);
+  }, [meter.ID, routeId, selectedMonth, selectedYear]); // Remove onPreviousReadingsUpdate from dependencies
 
   // Helper function to get previous months
   const getPreviousMonths = (month: number, year: number, count: number) => {

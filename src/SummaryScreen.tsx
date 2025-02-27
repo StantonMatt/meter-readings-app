@@ -75,37 +75,16 @@ function SummaryScreen({
 
   // Generate data rows for the table
   const rows = useMemo(() => {
+    console.log("Creating rows with meters:", meters);
+
     return meters.map((meter) => {
       const reading = readingsState[meter.ID];
-      const readingValue = reading?.reading || "---";
-      const isConfirmed = reading?.isConfirmed || false;
+      const readingValue = reading?.reading || meter.currentReading || "---";
+      const isConfirmed = reading?.isConfirmed || meter.isConfirmed || false;
 
-      // Get the last reading from meter.readings
-      const previousReadings = Object.entries(meter.readings || {})
-        .filter(([key]) => key !== "ID" && key !== "ADDRESS")
-        .sort((a, b) => b[0].localeCompare(a[0])); // Sort by date desc
-
-      const previousReading =
-        previousReadings.length > 0 ? previousReadings[0][1] : "---";
-
-      // Calculate consumption
-      let consumption = "---";
-      if (
-        readingValue !== "---" &&
-        previousReading !== "---" &&
-        previousReading !== "NO DATA"
-      ) {
-        try {
-          const current = parseFloat(readingValue);
-          const previous = parseFloat(String(previousReading));
-          if (!isNaN(current) && !isNaN(previous)) {
-            const diff = current - previous;
-            consumption = diff.toFixed(1);
-          }
-        } catch (e) {
-          console.error("Error calculating consumption:", e);
-        }
-      }
+      // Use the previousReading and consumption directly from the meter object if available
+      const previousReading = meter.previousReading || "---";
+      const consumption = meter.consumption || "---";
 
       return {
         id: meter.ID,
@@ -113,18 +92,18 @@ function SummaryScreen({
         previousReading,
         currentReading: readingValue,
         consumption,
-        status: reading?.reading
-          ? isConfirmed
-            ? "confirmed"
-            : "pending"
-          : "skipped",
+        status:
+          readingValue !== "---"
+            ? isConfirmed
+              ? "confirmed"
+              : "pending"
+            : "skipped",
       };
     });
   }, [meters, readingsState]);
 
-  // Add this right after the rows useMemo hook
+  // Add debugging to see what data we're working with
   useEffect(() => {
-    // Debug logging to see what data we're working with
     console.log("Summary Screen Data:");
     console.log("Meters:", meters);
     console.log("ReadingsState:", readingsState);

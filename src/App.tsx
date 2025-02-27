@@ -56,6 +56,7 @@ import { generateEmailContent } from "./utils/emailUtils";
 import {
   loadPreviousReadings,
   initializeFirebaseData,
+  getPreviousReadings,
 } from "./services/firebaseService";
 
 interface RouteData {
@@ -121,6 +122,11 @@ function App(): JSX.Element {
     "loading" | "ready" | "auth-required"
   >("loading");
   const [isRestoringSession, setIsRestoringSession] = useState<boolean>(true);
+
+  // Add this new state to store previous readings data
+  const [previousReadingsData, setPreviousReadingsData] = useState<{
+    [meterId: string]: any;
+  }>({});
 
   // Calculate combined meters data
   const combinedMeters = useMemo(() => {
@@ -610,21 +616,76 @@ function App(): JSX.Element {
     }
   };
 
-  // Handler for viewing summary
-  const onViewSummary = useCallback((): void => {
-    const readingsToUpload = combinedMeters.map((meter) => ({
-      ID: String(meter.ID),
-      ADDRESS: meter.ADDRESS,
-      ...meter.readings,
-      currentReading: readingsState[String(meter.ID)]?.reading || "---",
+  // Add this handler to be called from MeterScreen when readings are fetched
+  const handlePreviousReadingsUpdate = (meterId: string, readings: any) => {
+    setPreviousReadingsData((prev) => ({
+      ...prev,
+      [meterId]: readings,
     }));
+    console.log(`Updated previous readings for meter ${meterId}:`, readings);
+  };
 
-    // Generate email content
-    const emailContent = generateEmailContent(combinedMeters, readingsState);
+  // Then update the onViewSummary function to use this data
+  const onViewSummary = useCallback((): void => {
+    // Use the previousReadingsData state to get previous readings
+    const readingsToUpload = combinedMeters.map((meter) => {
+      const meterId = String(meter.ID);
+      const currentReading = readingsState[meterId]?.reading || "---";
+      const isConfirmed = readingsState[meterId]?.isConfirmed || false;
 
+      // Get the previous reading from our stored data
+      const meterReadings = previousReadingsData[meterId];
+      let previousReading = "---";
+      let consumption = "---";
+
+      if (
+        meterReadings &&
+        meterReadings.entries &&
+        meterReadings.entries.length > 0
+      ) {
+        // Use the first entry (most recent) as the previous reading
+        previousReading = meterReadings.entries[0].value;
+
+        // Calculate consumption
+        if (currentReading !== "---" && previousReading !== "---") {
+          try {
+            const current = parseFloat(currentReading);
+            const previous = parseFloat(String(previousReading));
+            if (!isNaN(current) && !isNaN(previous)) {
+              consumption = (current - previous).toFixed(1);
+            }
+          } catch (e) {
+            console.error("Error calculating consumption:", e);
+          }
+        }
+      }
+
+      console.log(`Meter ${meter.ID} summary data:`, {
+        ID: meter.ID,
+        ADDRESS: meter.ADDRESS,
+        previousReading,
+        currentReading,
+        consumption,
+        isConfirmed,
+      });
+
+      return {
+        ...meter,
+        previousReading,
+        currentReading,
+        consumption,
+        isConfirmed,
+      };
+    });
+
+    console.log("Prepared data for summary:", readingsToUpload);
+
+    // Set the data for the summary screen
     setSubmittedReadings(readingsToUpload);
-    setCurrentIndex(combinedMeters.length);
-  }, [combinedMeters, readingsState]);
+
+    // Navigate to the summary screen
+    setCurrentIndex(combinedMeters.length + 1);
+  }, [combinedMeters, readingsState, previousReadingsData]);
 
   // Handler for restarting the process
   const handleRestart = (): void => {
@@ -842,6 +903,7 @@ function App(): JSX.Element {
                 onUpdateReadings={(updatedReadings) => {
                   console.log("Updated readings:", updatedReadings);
                 }}
+                onPreviousReadingsUpdate={handlePreviousReadingsUpdate}
               />
             </Layout>
           );
@@ -886,7 +948,7 @@ function App(): JSX.Element {
               onNavigationAttempt={handleNavigationAttempt}
             >
               <SummaryScreen
-                meters={combinedMeters}
+                meters={submittedReadings}
                 readingsState={readingsState}
                 onFinalize={handleUploadReadings}
                 onBack={() => setCurrentIndex(combinedMeters.length - 1)}
