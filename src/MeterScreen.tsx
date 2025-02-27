@@ -183,6 +183,11 @@ function MeterScreen({
   const [showHighConsumptionDialog, setShowHighConsumptionDialog] =
     useState<boolean>(false);
 
+  // Add these new state variables near your other dialog state variables
+  const [showCantReadDialog, setShowCantReadDialog] = useState<boolean>(false);
+  const [cantReadReason, setCantReadReason] = useState<string>("");
+  const [otherReasonText, setOtherReasonText] = useState<string>("");
+
   // Initialize input value and confirmation status when meter changes
   useEffect(() => {
     // Retrieve stored reading from localStorage
@@ -1281,6 +1286,66 @@ function MeterScreen({
     confirmAndNavigate();
   };
 
+  // Add this handler function for the "Can't Read Meter" button
+  const handleCantReadMeter = () => {
+    // Reset the form state
+    setCantReadReason("");
+    setOtherReasonText("");
+    // Open the dialog
+    setShowCantReadDialog(true);
+  };
+
+  // Handler for reason selection
+  const handleReasonChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setCantReadReason(event.target.value);
+  };
+
+  // Handler for "other" reason text input
+  const handleOtherReasonChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setOtherReasonText(event.target.value);
+  };
+
+  // Handler for confirming the estimated reading
+  const handleConfirmEstimatedReading = () => {
+    // Create verification data
+    const verificationInfo = {
+      type: "cantRead",
+      details: {
+        reason: cantReadReason,
+        otherReason: cantReadReason === "other" ? otherReasonText : "",
+        estimatedReading: estimatedReading,
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    // Save to localStorage
+    localStorage.setItem(
+      `meter_${meter.ID}_verification`,
+      JSON.stringify(verificationInfo)
+    );
+
+    // Set the input value to the estimated reading
+    const estimatedValue = estimatedReading.toString();
+    setInputValue(estimatedValue);
+    onReadingChange(meter.ID, estimatedValue);
+    localStorage.setItem(readingKey, estimatedValue);
+
+    // Close dialog and confirm the reading
+    setShowCantReadDialog(false);
+
+    // Confirm the reading
+    setLocalIsConfirmed(true);
+    localStorage.setItem(confirmedKey, "true");
+    onConfirmationChange(meter.ID, true);
+  };
+
+  // Handler for canceling
+  const handleCancelCantRead = () => {
+    setShowCantReadDialog(false);
+  };
+
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       {/* Navigation Pills */}
@@ -1619,6 +1684,18 @@ function MeterScreen({
                   >
                     {localIsConfirmed ? "Desconfirmar" : "Confirmar"}
                   </Button>
+
+                  {!localIsConfirmed && (
+                    <Button
+                      variant="outlined"
+                      color="secondary"
+                      onClick={handleCantReadMeter}
+                      startIcon={<ErrorOutlineIcon />}
+                      sx={{ minWidth: 160 }}
+                    >
+                      No Puedo Leer
+                    </Button>
+                  )}
                 </Box>
               </Box>
             </Box>
@@ -2360,15 +2437,15 @@ function MeterScreen({
           <DialogContent sx={{ p: 3, pt: 3 }}>
             <DialogContentText
               sx={{
+                pt: 2,
                 mb: 2,
                 color: "text.primary",
                 fontSize: "1rem",
               }}
               component="div"
             >
-              Si desconfirma esta lectura, se perderán los datos de verificación
-              y necesitará completar nuevamente la información de verificación
-              si vuelve a confirmar la lectura.
+              Si desconfirma esta lectura y continua sin confirmar, no se
+              agregará al archivo de lecturas.
             </DialogContentText>
             <Alert severity="warning" sx={{ mb: 1 }}>
               ¿Está seguro que desea desconfirmar la lectura?
@@ -2765,6 +2842,214 @@ function MeterScreen({
               startIcon={<CheckCircleIcon />}
             >
               Confirmar Lectura
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Can't Read Meter Dialog */}
+        <Dialog
+          open={showCantReadDialog}
+          onClose={handleCancelCantRead}
+          aria-labelledby="cant-read-dialog-title"
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            id="cant-read-dialog-title"
+            sx={{
+              borderBottom: 1,
+              borderColor: "divider",
+              backgroundColor: alpha(theme.palette.info.light, 0.1),
+              px: 3,
+              py: 2.5,
+              "& .MuiTypography-root": {
+                fontSize: "1.25rem",
+                fontWeight: 600,
+              },
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <ErrorOutlineIcon color="info" />
+              <Typography>No Se Puede Leer el Medidor</Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent sx={{ px: 3, py: 3 }}>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                Información del Medidor:
+              </Typography>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  backgroundColor: alpha(theme.palette.background.default, 0.7),
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 1,
+                }}
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      ID del Medidor:
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {meter.ID}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Lectura Estimada:
+                    </Typography>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 600,
+                        color: theme.palette.warning.dark,
+                      }}
+                    >
+                      {estimatedReading} m³
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary">
+                      Dirección:
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                      {meter.ADDRESS}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Box>
+
+            <Alert
+              severity="info"
+              variant="outlined"
+              sx={{
+                mb: 3,
+                "& .MuiAlert-message": {
+                  fontWeight: 500,
+                },
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                Se utilizará la lectura estimada
+              </Typography>
+              <Typography variant="body2">
+                Por favor indique el motivo por el cual no puede realizar la
+                lectura del medidor. Esta información es importante para mejorar
+                el servicio.
+              </Typography>
+            </Alert>
+
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+              Motivo:
+            </Typography>
+
+            <Box
+              sx={{
+                p: 2,
+                border: 1,
+                borderColor: alpha(theme.palette.primary.main, 0.2),
+                borderRadius: 1,
+                backgroundColor: alpha(theme.palette.primary.main, 0.02),
+              }}
+            >
+              <FormControl component="fieldset" sx={{ width: "100%" }}>
+                <RadioGroup
+                  value={cantReadReason}
+                  onChange={handleReasonChange}
+                  sx={{ flexDirection: "column", gap: 1 }}
+                >
+                  <FormControlLabel
+                    value="damaged_meter"
+                    control={<Radio color="primary" />}
+                    label="Medidor dañado o ilegible"
+                    sx={{
+                      "& .MuiFormControlLabel-label": {
+                        fontWeight: 500,
+                      },
+                    }}
+                  />
+                  <FormControlLabel
+                    value="access_blocked"
+                    control={<Radio color="primary" />}
+                    label="Acceso bloqueado (reja, cerca, etc.)"
+                    sx={{
+                      "& .MuiFormControlLabel-label": {
+                        fontWeight: 500,
+                      },
+                    }}
+                  />
+                  <FormControlLabel
+                    value="animals"
+                    control={<Radio color="primary" />}
+                    label="Animales impiden acceso (perros, etc.)"
+                    sx={{
+                      "& .MuiFormControlLabel-label": {
+                        fontWeight: 500,
+                      },
+                    }}
+                  />
+                  <FormControlLabel
+                    value="other"
+                    control={<Radio color="primary" />}
+                    label="Otro motivo"
+                    sx={{
+                      "& .MuiFormControlLabel-label": {
+                        fontWeight: 500,
+                      },
+                    }}
+                  />
+                </RadioGroup>
+              </FormControl>
+
+              {cantReadReason === "other" && (
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={2}
+                  placeholder="Describa el motivo por el cual no puede leer el medidor"
+                  value={otherReasonText}
+                  onChange={handleOtherReasonChange}
+                  variant="outlined"
+                  sx={{ mt: 2, backgroundColor: "white" }}
+                />
+              )}
+            </Box>
+          </DialogContent>
+
+          <DialogActions
+            sx={{
+              px: 3,
+              py: 2.5,
+              gap: 1,
+              borderTop: 1,
+              borderColor: "divider",
+            }}
+          >
+            <Button
+              onClick={handleCancelCantRead}
+              color="inherit"
+              variant="outlined"
+              sx={{ minWidth: 100 }}
+            >
+              Cancelar
+            </Button>
+            <Box sx={{ flex: 1 }} />
+            <Button
+              onClick={handleConfirmEstimatedReading}
+              color="primary"
+              variant="contained"
+              disabled={
+                cantReadReason === "" ||
+                (cantReadReason === "other" && otherReasonText.trim() === "")
+              }
+              startIcon={<CheckCircleIcon />}
+              sx={{ minWidth: 140 }}
+            >
+              Confirmar Estimación
             </Button>
           </DialogActions>
         </Dialog>
