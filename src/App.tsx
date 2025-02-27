@@ -803,7 +803,11 @@ function App(): JSX.Element {
               currentIndex={currentIndex}
               onSelectMeter={(index: number) => setCurrentIndex(index)}
               onHomeClick={handleHomeClick}
-              onFinishClick={() => setCurrentIndex(combinedMeters.length)}
+              onFinishClick={() => {
+                // First go to the summary screen
+                onViewSummary(); // This prepares the data for the summary
+                setCurrentIndex(combinedMeters.length + 1); // This navigates to the SummaryScreen
+              }}
               readingsState={readingsState}
               onNavigationAttempt={handleNavigationAttempt}
             >
@@ -814,7 +818,11 @@ function App(): JSX.Element {
                 onHome={handleHomeClick}
                 onPrev={handlePreviousMeter}
                 onNext={handleNextMeter}
-                onFinish={() => setCurrentIndex(combinedMeters.length)}
+                onFinish={() => {
+                  // First go to the summary screen
+                  onViewSummary(); // This prepares the data for the summary
+                  setCurrentIndex(combinedMeters.length + 1); // This navigates to the SummaryScreen
+                }}
                 onReadingChange={(meterId, reading) =>
                   handleReadingChange(String(currentMeter.ID), reading)
                 }
@@ -838,7 +846,7 @@ function App(): JSX.Element {
             </Layout>
           );
         }
-        // Final check screen
+        // Final check screen (after summary)
         else if (currentIndex === combinedMeters.length) {
           return (
             <Layout
@@ -854,7 +862,7 @@ function App(): JSX.Element {
               <FinalCheckScreen
                 meters={combinedMeters}
                 readingsState={readingsState}
-                onBack={() => setCurrentIndex(combinedMeters.length - 1)}
+                onBack={() => setCurrentIndex(combinedMeters.length + 1)}
                 onGoToSummary={() => setCurrentIndex(combinedMeters.length + 1)}
                 onSelectMeter={(index: number) => setCurrentIndex(index)}
                 onContinue={handleContinue}

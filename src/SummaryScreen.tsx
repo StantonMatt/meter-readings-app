@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Container,
   Typography,
@@ -97,8 +97,11 @@ function SummaryScreen({
       ) {
         try {
           const current = parseFloat(readingValue);
-          const previous = parseFloat(String(previousReading || "0"));
-          consumption = (current - previous).toString();
+          const previous = parseFloat(String(previousReading));
+          if (!isNaN(current) && !isNaN(previous)) {
+            const diff = current - previous;
+            consumption = diff.toFixed(1);
+          }
         } catch (e) {
           console.error("Error calculating consumption:", e);
         }
@@ -118,6 +121,15 @@ function SummaryScreen({
       };
     });
   }, [meters, readingsState]);
+
+  // Add this right after the rows useMemo hook
+  useEffect(() => {
+    // Debug logging to see what data we're working with
+    console.log("Summary Screen Data:");
+    console.log("Meters:", meters);
+    console.log("ReadingsState:", readingsState);
+    console.log("Generated Rows:", rows);
+  }, [meters, readingsState, rows]);
 
   // Simplify the reset function to act immediately without confirmation
   const handleResetReading = (meterId: string | number) => {
