@@ -71,7 +71,7 @@ type MeterRowData = {
   onSelect: (index: number) => void;
   readingsState: ReadingsState;
   meters: MeterData[];
-  onNavigationAttempt?: () => boolean;
+  onNavigationAttempt: (callback: () => void) => void;
 };
 
 interface MeterListProps {
@@ -82,7 +82,7 @@ interface MeterListProps {
   searchTerm: string;
   onSearchChange: (term: string) => void;
   isMobile: boolean;
-  onNavigationAttempt?: () => boolean;
+  onNavigationAttempt: (callback: () => void) => void;
   meters: MeterData[];
   isMeterScreen: boolean;
 }
@@ -128,8 +128,8 @@ const MeterRow = React.memo(
     const handleClick = () => {
       if (isSelected) return;
 
-      // Direct navigation without dialog check
-      onSelect(originalIndex);
+      // Use navigation attempt handler to navigate to the selected meter
+      onNavigationAttempt(() => onSelect(originalIndex));
     };
 
     return (
@@ -507,10 +507,7 @@ const Layout: React.FC<LayoutProps> = ({
         onSearchChange={setSearchTerm}
         isMobile={isSmallScreen}
         meters={meters}
-        onNavigationAttempt={() => {
-          handleNavigationAttempt(() => true);
-          return true;
-        }}
+        onNavigationAttempt={handleNavigationAttempt}
         isMeterScreen={isMeterScreen}
       />
     ),
@@ -534,7 +531,9 @@ const Layout: React.FC<LayoutProps> = ({
       {/* App Bar */}
       <TopBar
         onMenuClick={handleDrawerToggle}
-        onHomeClick={onHomeClick}
+        onHomeClick={() => {
+          handleNavigationAttempt(() => onHomeClick());
+        }}
         showMenuButton={true}
         showButtons={true}
         isMobile={isSmallScreen}

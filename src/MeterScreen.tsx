@@ -155,7 +155,9 @@ function MeterScreen({
   // Add state for navigation dialog
   const [isNavigationDialogOpen, setIsNavigationDialogOpen] =
     useState<boolean>(false);
-  const [navigationType, setNavigationType] = useState<string>("none");
+  const [navigationType, setNavigationType] = useState<
+    "prev" | "next" | "home" | "other" | "none"
+  >("none");
 
   // Add new state variables for verification dialogs
   const [showLowConsumptionDialog, setShowLowConsumptionDialog] =
@@ -667,7 +669,7 @@ function MeterScreen({
 
   // Simplify navigation handling
   const handleNavigation = (type: string, navigationAction: () => void) => {
-    setNavigationType(type);
+    setNavigationType(type as "prev" | "next" | "home" | "other" | "none");
 
     // If there's a reading but it's not confirmed, show dialog
     if (inputValue && !localIsConfirmed) {
@@ -1575,27 +1577,20 @@ function MeterScreen({
           )}
         </Box>
 
-        {/* Navigation Warning Dialog */}
+        {/* Enhanced Navigation Confirmation Dialog */}
         <Dialog
           open={isNavigationDialogOpen}
-          onClose={handleCancelNavigation}
+          onClose={() => setIsNavigationDialogOpen(false)}
           aria-labelledby="navigation-dialog-title"
-          aria-describedby="navigation-dialog-description"
-          PaperProps={{
-            sx: {
-              borderRadius: 2,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-              overflow: "hidden",
-              maxWidth: 500,
-            },
-          }}
+          maxWidth="sm"
+          fullWidth
         >
           <DialogTitle
             id="navigation-dialog-title"
             sx={{
               borderBottom: 1,
               borderColor: "divider",
-              backgroundColor: alpha(theme.palette.warning.light, 0.05),
+              backgroundColor: alpha(theme.palette.warning.light, 0.1),
               px: 3,
               py: 2.5,
               "& .MuiTypography-root": {
@@ -1606,21 +1601,66 @@ function MeterScreen({
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <WarningAmberIcon color="warning" />
-              <Typography>Lectura sin confirmar</Typography>
+              <Typography>Lectura Sin Confirmar</Typography>
             </Box>
           </DialogTitle>
-          <DialogContent sx={{ p: 3, pt: 3 }}>
-            <DialogContentText
-              id="navigation-dialog-description"
+          <DialogContent sx={{ px: 3, py: 3 }}>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                Resumen de la Lectura:
+              </Typography>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  backgroundColor: alpha(theme.palette.background.default, 0.7),
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 1,
+                }}
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Medidor:
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {meter.ID}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Lectura Ingresada:
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {inputValue}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Box>
+
+            <Alert
+              severity="warning"
+              variant="outlined"
               sx={{
-                mb: 2,
-                color: "text.primary",
-                fontSize: "1rem",
+                mb: 3,
+                "& .MuiAlert-message": {
+                  fontWeight: 500,
+                },
               }}
             >
-              Ha ingresado una lectura pero no la ha confirmado. ¿Qué desea
-              hacer?
-            </DialogContentText>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                Ha ingresado una lectura pero no la ha confirmado.
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Si continúa sin confirmar, la lectura no será ingresada.
+              </Typography>
+            </Alert>
+
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+              ¿Qué desea hacer?
+            </Typography>
           </DialogContent>
           <DialogActions
             sx={{
@@ -1632,10 +1672,10 @@ function MeterScreen({
             }}
           >
             <Button
-              onClick={handleCancelNavigation}
+              onClick={() => setIsNavigationDialogOpen(false)}
               color="inherit"
               variant="outlined"
-              sx={{ minWidth: 100 }}
+              sx={{ minWidth: 120 }}
             >
               Cancelar
             </Button>
@@ -1643,17 +1683,18 @@ function MeterScreen({
               onClick={handleLeaveUnconfirmed}
               color="warning"
               variant="outlined"
-              sx={{ minWidth: 140 }}
+              sx={{ minWidth: 120 }}
             >
-              Dejar sin confirmar
+              Continuar Sin Confirmar
             </Button>
             <Button
               onClick={handleConfirmAndNavigate}
               color="success"
               variant="contained"
-              sx={{ minWidth: 160 }}
+              sx={{ minWidth: 120 }}
+              startIcon={<CheckCircleIcon />}
             >
-              Confirmar y continuar
+              Confirmar y Continuar
             </Button>
           </DialogActions>
         </Dialog>
