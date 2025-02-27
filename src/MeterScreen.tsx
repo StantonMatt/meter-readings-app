@@ -683,11 +683,97 @@ function MeterScreen({
   };
 
   const handleConfirmAndNavigate = async () => {
-    // First update the local state
-    setLocalIsConfirmed(true);
+    // Instead of directly confirming, we'll use the same validation logic from handleConfirmClick
+    // to check if we need to show any validation dialogs first
 
-    // Close the dialog
+    // Calculate consumption here instead of using the ref
+    let consumption = null;
+
+    try {
+      if (inputValue && meter.readings) {
+        const currentReading = parseFloat(inputValue);
+        if (!isNaN(currentReading)) {
+          // Use our utility to find the previous month's reading
+          const { key, reading } = findPreviousMonthReading(
+            meter.readings,
+            selectedMonth,
+            selectedYear
+          );
+
+          if (reading !== null) {
+            const previousReading = parseFloat(String(reading || "0"));
+            consumption = parseFloat(
+              (currentReading - previousReading).toFixed(1)
+            );
+          } else {
+            // Fallback to using the most recent reading in previousEntries
+            if (previousReadingEntries.length > 0) {
+              const lastReadingEntry = previousReadingEntries[0];
+              const fallbackReading = parseFloat(
+                String(lastReadingEntry.value || "0")
+              );
+              consumption = parseFloat(
+                (currentReading - fallbackReading).toFixed(1)
+              );
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Silent catch
+    }
+
+    // Store the value for later use
+    currentConsumptionRef.current = consumption;
+
+    // Close the navigation dialog first
     setIsNavigationDialogOpen(false);
+
+    // Check if this is a negative consumption case
+    if (consumption !== null && consumption < 0) {
+      // Show negative consumption verification dialog
+      setShowNegativeConsumptionDialog(true);
+      // Store the pending navigation to execute after validation
+      return;
+    }
+
+    // Check if this is a high consumption case (> 1.6 * averageConsumption)
+    if (
+      consumption !== null &&
+      averageConsumption > 0 &&
+      consumption > averageConsumption * 1.6
+    ) {
+      // Show high consumption verification dialog
+      setShowHighConsumptionDialog(true);
+      return;
+    }
+
+    // Check if this is a low consumption case (>= 0 and < 4)
+    if (consumption !== null && consumption >= 0 && consumption < 4) {
+      // Check if we already have verification data
+      const storedVerification = localStorage.getItem(
+        `meter_${meter.ID}_verification`
+      );
+
+      if (storedVerification) {
+        // If we already verified this meter, just confirm normally
+        confirmAndNavigate();
+      } else {
+        // Show low consumption verification dialog
+        setVerificationStep(1);
+        setVerificationData({});
+        setShowLowConsumptionDialog(true);
+      }
+    } else {
+      // Normal confirmation without validation needed
+      confirmAndNavigate();
+    }
+  };
+
+  // Add this helper function to handle the actual confirmation and navigation
+  const confirmAndNavigate = () => {
+    // Update the local state
+    setLocalIsConfirmed(true);
 
     // Update the parent state directly
     if (onConfirmationChange) {
@@ -813,9 +899,9 @@ function MeterScreen({
 
     // Close dialog and confirm the reading
     setShowLowConsumptionDialog(false);
-    setLocalIsConfirmed(true);
-    localStorage.setItem(confirmedKey, "true");
-    onConfirmationChange(meter.ID, true);
+
+    // Use the confirmAndNavigate helper
+    confirmAndNavigate();
   };
 
   // Add this to the beginning of the component to restore verification state
@@ -941,6 +1027,9 @@ function MeterScreen({
     setShowLowConsumptionDialog(false);
     setVerificationStep(1);
     setVerificationData({});
+    // Reset pending navigation since we're canceling
+    setPendingNavigation(null);
+    setNavigationHandledByChild(false);
   };
 
   // Handle confirming the low reading is correct
@@ -1161,6 +1250,9 @@ function MeterScreen({
   // Add these handlers for negative consumption dialog
   const handleCancelNegativeConsumptionDialog = () => {
     setShowNegativeConsumptionDialog(false);
+    // Reset pending navigation since we're canceling
+    setPendingNavigation(null);
+    setNavigationHandledByChild(false);
   };
 
   // Handle confirming the negative reading is correct
@@ -1169,14 +1261,15 @@ function MeterScreen({
     setShowNegativeConsumptionDialog(false);
 
     // Proceed with confirming the reading
-    setLocalIsConfirmed(true);
-    localStorage.setItem(confirmedKey, "true");
-    onConfirmationChange(meter.ID, true);
+    confirmAndNavigate();
   };
 
   // Add these handlers for high consumption dialog
   const handleCancelHighConsumptionDialog = () => {
     setShowHighConsumptionDialog(false);
+    // Reset pending navigation since we're canceling
+    setPendingNavigation(null);
+    setNavigationHandledByChild(false);
   };
 
   // Handle confirming the high consumption reading is correct
@@ -1185,9 +1278,7 @@ function MeterScreen({
     setShowHighConsumptionDialog(false);
 
     // Proceed with confirming the reading
-    setLocalIsConfirmed(true);
-    localStorage.setItem(confirmedKey, "true");
-    onConfirmationChange(meter.ID, true);
+    confirmAndNavigate();
   };
 
   return (
