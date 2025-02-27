@@ -177,6 +177,10 @@ function MeterScreen({
   const [showNegativeConsumptionDialog, setShowNegativeConsumptionDialog] =
     useState<boolean>(false);
 
+  // Add this new state variable with the other dialog states
+  const [showHighConsumptionDialog, setShowHighConsumptionDialog] =
+    useState<boolean>(false);
+
   // Initialize input value and confirmation status when meter changes
   useEffect(() => {
     // Retrieve stored reading from localStorage
@@ -847,7 +851,7 @@ function MeterScreen({
     }
   }, [meter.ID]);
 
-  // Update the handleConfirmClick function
+  // Update the handleConfirmClick function to check for high consumption
   const handleConfirmClick = () => {
     // Calculate consumption here instead of using the ref
     let consumption = null;
@@ -893,6 +897,17 @@ function MeterScreen({
     if (consumption !== null && consumption < 0) {
       // Show negative consumption verification dialog
       setShowNegativeConsumptionDialog(true);
+      return;
+    }
+
+    // Check if this is a high consumption case (> 1.6 * averageConsumption)
+    if (
+      consumption !== null &&
+      averageConsumption > 0 &&
+      consumption > averageConsumption * 1.6
+    ) {
+      // Show high consumption verification dialog
+      setShowHighConsumptionDialog(true);
       return;
     }
 
@@ -1153,6 +1168,22 @@ function MeterScreen({
   const handleConfirmNegativeReading = () => {
     // Close the dialog
     setShowNegativeConsumptionDialog(false);
+
+    // Proceed with confirming the reading
+    setLocalIsConfirmed(true);
+    localStorage.setItem(confirmedKey, "true");
+    onConfirmationChange(meter.ID, true);
+  };
+
+  // Add these handlers for high consumption dialog
+  const handleCancelHighConsumptionDialog = () => {
+    setShowHighConsumptionDialog(false);
+  };
+
+  // Handle confirming the high consumption reading is correct
+  const handleConfirmHighConsumption = () => {
+    // Close the dialog
+    setShowHighConsumptionDialog(false);
 
     // Proceed with confirming the reading
     setLocalIsConfirmed(true);
@@ -1635,14 +1666,8 @@ function MeterScreen({
           open={showLowConsumptionDialog}
           onClose={handleCancelLowConsumptionDialog}
           aria-labelledby="low-consumption-dialog-title"
-          PaperProps={{
-            sx: {
-              borderRadius: 2,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-              overflow: "hidden",
-              maxWidth: 550,
-            },
-          }}
+          maxWidth="sm"
+          fullWidth
         >
           {verificationStep === 1 && (
             <>
@@ -1651,7 +1676,7 @@ function MeterScreen({
                 sx={{
                   borderBottom: 1,
                   borderColor: "divider",
-                  backgroundColor: alpha(theme.palette.info.light, 0.05),
+                  backgroundColor: alpha(theme.palette.info.light, 0.1),
                   px: 3,
                   py: 2.5,
                   "& .MuiTypography-root": {
@@ -1662,52 +1687,166 @@ function MeterScreen({
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                   <InfoOutlinedIcon color="info" />
-                  <Typography>Consumo Inusualmente Bajo</Typography>
+                  <Typography>Consumo Bajo Detectado</Typography>
                 </Box>
               </DialogTitle>
               <DialogContent sx={{ px: 3, py: 3 }}>
-                <DialogContentText
-                  sx={{ color: "text.primary", mb: 2, fontSize: "1rem" }}
-                  component="div"
-                >
-                  El consumo calculado{" "}
-                  <Chip
-                    label={`${
-                      currentConsumptionRef.current !== null
-                        ? currentConsumptionRef.current
-                        : "?"
-                    } m³`}
-                    color="primary"
-                    size="small"
+                <Box sx={{ mb: 3 }}>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: 600, mb: 1 }}
+                  >
+                    Resumen de la Lectura:
+                  </Typography>
+                  <Paper
+                    elevation={0}
                     sx={{
-                      fontWeight: 600,
-                      ml: 0.5,
-                      mr: 0.5,
-                      fontSize: "0.85rem",
-                      height: 24,
-                      "& .MuiChip-label": {
-                        px: 1.2,
-                      },
+                      p: 2,
+                      backgroundColor: alpha(
+                        theme.palette.background.default,
+                        0.7
+                      ),
+                      border: 1,
+                      borderColor: "divider",
+                      borderRadius: 1,
                     }}
-                  />{" "}
-                  es inusualmente bajo.
-                </DialogContentText>
+                  >
+                    <Grid container spacing={2}>
+                      <Grid item xs={6}>
+                        <Typography variant="body2" color="text.secondary">
+                          Lectura Anterior:
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                          {previousReadingEntries.length > 0
+                            ? previousReadingEntries[0]?.value
+                            : "---"}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="body2" color="text.secondary">
+                          Lectura Actual:
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                          {inputValue}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="body2" color="text.secondary">
+                          Consumo Promedio:
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                          {averageConsumption.toFixed(1)} m³
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Typography variant="body2" color="text.secondary">
+                          Consumo Calculado:
+                        </Typography>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            fontWeight: 600,
+                            color: theme.palette.info.dark,
+                          }}
+                        >
+                          {currentConsumptionRef.current !== null
+                            ? currentConsumptionRef.current
+                            : "?"}{" "}
+                          m³
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12}>
+                        <Divider sx={{ my: 1 }} />
+                        <Box
+                          sx={{ display: "flex", alignItems: "center", mt: 1 }}
+                        >
+                          <Typography variant="body2" sx={{ mr: 1 }}>
+                            El consumo actual es{" "}
+                            <Box component="span" sx={{ fontWeight: 600 }}>
+                              muy bajo
+                            </Box>
+                          </Typography>
+                          <Chip
+                            label="Bajo"
+                            color="info"
+                            size="small"
+                            sx={{
+                              fontWeight: 600,
+                              fontSize: "0.75rem",
+                              height: 24,
+                              ml: 1,
+                            }}
+                          />
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Box>
+
                 <Alert
-                  severity="warning"
+                  severity="info"
+                  variant="outlined"
                   sx={{
-                    mb: 2,
+                    mb: 3,
                     "& .MuiAlert-message": {
                       fontWeight: 500,
                     },
                   }}
                 >
-                  ¿Está seguro que la lectura{" "}
-                  <Box component="span" fontWeight="bold">
-                    {inputValue}
-                  </Box>{" "}
-                  es correcta?
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                    Se requiere verificación
+                  </Typography>
+                  <Typography variant="body2">
+                    Debido al bajo consumo detectado, necesitamos verificar la
+                    situación de esta propiedad. Por favor complete la siguiente
+                    información.
+                  </Typography>
                 </Alert>
+
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                  ¿Alguien atendió en la propiedad?
+                </Typography>
+
+                <Box
+                  sx={{
+                    p: 2,
+                    border: 1,
+                    borderColor: alpha(theme.palette.primary.main, 0.2),
+                    borderRadius: 1,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                  }}
+                >
+                  <FormControl component="fieldset" sx={{ width: "100%" }}>
+                    <RadioGroup
+                      value={verificationData.answeredDoor ? "yes" : "no"}
+                      onChange={handleAnsweredDoorChange}
+                      sx={{ flexDirection: "row", gap: 4 }}
+                    >
+                      <FormControlLabel
+                        value="yes"
+                        control={<Radio color="primary" />}
+                        label="Sí"
+                        sx={{
+                          "& .MuiFormControlLabel-label": {
+                            fontWeight: 500,
+                          },
+                        }}
+                      />
+                      <FormControlLabel
+                        value="no"
+                        control={<Radio color="primary" />}
+                        label="No"
+                        sx={{
+                          "& .MuiFormControlLabel-label": {
+                            fontWeight: 500,
+                          },
+                        }}
+                      />
+                    </RadioGroup>
+                  </FormControl>
+                </Box>
               </DialogContent>
+
               <DialogActions
                 sx={{
                   px: 3,
@@ -1721,18 +1860,20 @@ function MeterScreen({
                   onClick={handleCancelLowConsumptionDialog}
                   color="inherit"
                   variant="outlined"
-                  sx={{ minWidth: 140 }}
+                  sx={{ minWidth: 100 }}
                 >
-                  Cancelar y Editar
+                  Cancelar
                 </Button>
+                <Box sx={{ flex: 1 }} />
                 <Button
-                  onClick={handleConfirmLowReading}
-                  color="warning"
+                  onClick={() => setVerificationStep(2)}
+                  color="primary"
                   variant="contained"
+                  disabled={verificationData.answeredDoor === undefined}
+                  startIcon={<ArrowForwardIcon />}
                   sx={{ minWidth: 140 }}
-                  startIcon={<CheckCircleIcon />}
                 >
-                  Confirmar Lectura
+                  Siguiente
                 </Button>
               </DialogActions>
             </>
@@ -1793,11 +1934,11 @@ function MeterScreen({
                         fontSize: "0.95rem",
                       }}
                     >
-                      ¿Alguien atendió la puerta?
+                      ¿Han tenido problemas con el agua?
                     </FormLabel>
                     <RadioGroup
-                      value={verificationData.answeredDoor ? "yes" : "no"}
-                      onChange={handleAnsweredDoorChange}
+                      value={verificationData.hadIssues ? "yes" : "no"}
+                      onChange={handleWaterIssuesChange}
                       sx={{ flexDirection: "row", gap: 4 }}
                     >
                       <FormControlLabel
@@ -1805,7 +1946,9 @@ function MeterScreen({
                         control={<Radio color="primary" />}
                         label="Sí"
                         sx={{
-                          "& .MuiFormControlLabel-label": { fontWeight: 500 },
+                          "& .MuiFormControlLabel-label": {
+                            fontWeight: 500,
+                          },
                         }}
                       />
                       <FormControlLabel
@@ -1813,7 +1956,9 @@ function MeterScreen({
                         control={<Radio color="primary" />}
                         label="No"
                         sx={{
-                          "& .MuiFormControlLabel-label": { fontWeight: 500 },
+                          "& .MuiFormControlLabel-label": {
+                            fontWeight: 500,
+                          },
                         }}
                       />
                     </RadioGroup>
@@ -2105,7 +2250,7 @@ function MeterScreen({
             sx={{
               borderBottom: 1,
               borderColor: "divider",
-              backgroundColor: alpha(theme.palette.error.light, 0.05),
+              backgroundColor: alpha(theme.palette.error.light, 0.1),
               px: 3,
               py: 2.5,
               "& .MuiTypography-root": {
@@ -2153,31 +2298,52 @@ function MeterScreen({
                       {inputValue}
                     </Typography>
                   </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Consumo Promedio:
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {averageConsumption.toFixed(1)} m³
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Consumo Calculado:
+                    </Typography>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontWeight: 600, color: theme.palette.error.dark }}
+                    >
+                      {currentConsumptionRef.current !== null
+                        ? currentConsumptionRef.current
+                        : "?"}{" "}
+                      m³
+                    </Typography>
+                  </Grid>
                   <Grid item xs={12}>
                     <Divider sx={{ my: 1 }} />
                     <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mr: 1 }}
-                      >
-                        Consumo Calculado:
+                      <Typography variant="body2" sx={{ mr: 1 }}>
+                        El consumo actual es{" "}
+                        <Box
+                          component="span"
+                          sx={{
+                            fontWeight: 600,
+                            color: theme.palette.error.main,
+                          }}
+                        >
+                          negativo
+                        </Box>
                       </Typography>
                       <Chip
-                        label={`${
-                          currentConsumptionRef.current !== null
-                            ? currentConsumptionRef.current
-                            : "?"
-                        } m³`}
+                        label="Negativo"
                         color="error"
                         size="small"
                         sx={{
                           fontWeight: 600,
-                          fontSize: "0.9rem",
-                          height: 28,
-                          "& .MuiChip-label": {
-                            px: 1.5,
-                          },
+                          fontSize: "0.75rem",
+                          height: 24,
+                          ml: 1,
                         }}
                       />
                     </Box>
@@ -2187,7 +2353,7 @@ function MeterScreen({
             </Box>
 
             <Alert
-              severity="warning"
+              severity="error"
               variant="outlined"
               sx={{
                 mb: 3,
@@ -2197,10 +2363,7 @@ function MeterScreen({
               }}
             >
               <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                ¿Por qué ocurre esto?
-              </Typography>
-              <Typography variant="body2">
-                Un consumo negativo puede ocurrir por:
+                Posibles causas de consumo negativo:
               </Typography>
               <List dense disablePadding sx={{ mt: 0.5 }}>
                 <ListItem sx={{ py: 0.5 }}>
@@ -2244,6 +2407,184 @@ function MeterScreen({
             <Button
               onClick={handleConfirmNegativeReading}
               color="error"
+              variant="contained"
+              sx={{ minWidth: 140 }}
+              startIcon={<CheckCircleIcon />}
+            >
+              Confirmar Lectura
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* High Consumption Verification Dialog */}
+        <Dialog
+          open={showHighConsumptionDialog}
+          onClose={handleCancelHighConsumptionDialog}
+          aria-labelledby="high-consumption-dialog-title"
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle
+            id="high-consumption-dialog-title"
+            sx={{
+              borderBottom: 1,
+              borderColor: "divider",
+              backgroundColor: alpha(theme.palette.warning.light, 0.1),
+              px: 3,
+              py: 2.5,
+              "& .MuiTypography-root": {
+                fontSize: "1.25rem",
+                fontWeight: 600,
+              },
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+              <WarningAmberIcon color="warning" />
+              <Typography>Consumo Elevado Detectado</Typography>
+            </Box>
+          </DialogTitle>
+          <DialogContent sx={{ px: 3, py: 3 }}>
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                Resumen de la Lectura:
+              </Typography>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  backgroundColor: alpha(theme.palette.background.default, 0.7),
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 1,
+                }}
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Lectura Anterior:
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {previousReadingEntries.length > 0
+                        ? previousReadingEntries[0]?.value
+                        : "---"}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Lectura Actual:
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {inputValue}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Consumo Promedio:
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      {averageConsumption.toFixed(1)} m³
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Consumo Calculado:
+                    </Typography>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 600,
+                        color: theme.palette.warning.dark,
+                      }}
+                    >
+                      {currentConsumptionRef.current !== null
+                        ? currentConsumptionRef.current
+                        : "?"}{" "}
+                      m³
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Divider sx={{ my: 1 }} />
+                    <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+                      <Typography variant="body2" sx={{ mr: 1 }}>
+                        El consumo actual es{" "}
+                        <Box component="span" sx={{ fontWeight: 600 }}>
+                          {currentConsumptionRef.current !== null &&
+                          averageConsumption > 0
+                            ? (
+                                currentConsumptionRef.current /
+                                averageConsumption
+                              ).toFixed(1)
+                            : "?"}{" "}
+                          veces
+                        </Box>{" "}
+                        mayor que el promedio
+                      </Typography>
+                      <Chip
+                        label="Alto"
+                        color="warning"
+                        size="small"
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: "0.75rem",
+                          height: 24,
+                          ml: 1,
+                        }}
+                      />
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Box>
+
+            <Alert
+              severity="warning"
+              variant="outlined"
+              sx={{
+                mb: 3,
+                "& .MuiAlert-message": {
+                  fontWeight: 500,
+                },
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                Posibles causas de consumo elevado:
+              </Typography>
+              <Typography variant="body2">
+                Si está seguro que la lectura actual ({inputValue}) es correcta,
+                puede confirmarla. De lo contrario, regrese para corregir el
+                valor.
+              </Typography>
+            </Alert>
+
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+              ¿Desea continuar?
+            </Typography>
+            <Typography variant="body2">
+              Si está seguro que la lectura actual ({inputValue}) es correcta,
+              puede confirmarla. De lo contrario, regrese para corregir el
+              valor.
+            </Typography>
+          </DialogContent>
+          <DialogActions
+            sx={{
+              px: 3,
+              py: 2.5,
+              gap: 1,
+              borderTop: 1,
+              borderColor: "divider",
+            }}
+          >
+            <Button
+              onClick={handleCancelHighConsumptionDialog}
+              color="inherit"
+              variant="outlined"
+              sx={{ minWidth: 140 }}
+            >
+              Cancelar y Editar
+            </Button>
+            <Button
+              onClick={handleConfirmHighConsumption}
+              color="warning"
               variant="contained"
               sx={{ minWidth: 140 }}
               startIcon={<CheckCircleIcon />}
