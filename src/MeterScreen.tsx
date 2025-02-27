@@ -1339,6 +1339,10 @@ function MeterScreen({
     setLocalIsConfirmed(true);
     localStorage.setItem(confirmedKey, "true");
     onConfirmationChange(meter.ID, true);
+
+    // Reset navigation state to prevent the navigation dialog from appearing
+    setPendingNavigation(null);
+    setNavigationHandledByChild(false);
   };
 
   // Handler for canceling
