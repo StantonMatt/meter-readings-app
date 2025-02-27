@@ -212,13 +212,34 @@ function MeterScreen({
     meter.estimatedReading || 0
   );
 
+  // Add this near the top of your component, with other state variables
+  const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
+
+  // Then modify your useEffect for fetching data:
+
   useEffect(() => {
     let isMounted = true;
+
+    // Reset states when meter changes to prevent showing stale data
+    if (!isDataLoaded) {
+      setPreviousReadingEntries([]);
+      setHistoricalReadings([]);
+      setHasPreviousReadings(false);
+      setPreviousReading(null);
+      setAverageConsumption(0);
+      setEstimatedReading(0);
+    }
 
     // Create a unique request ID for this meter/route combination
     const requestId = `meter_${meter.ID}_route_${routeId}_request`;
 
     const fetchPreviousReadings = async () => {
+      // Clear the fetched flag for this meter when we're explicitly fetching
+      delete hasFetchedRef.current[meter.ID];
+
+      // Reset data loaded flag
+      setIsDataLoaded(false);
+
       // Check if this exact API call is already in progress
       if ((window as any)[requestId]) {
         console.log(`Request already in progress for meter ${meter.ID}`);
@@ -240,7 +261,12 @@ function MeterScreen({
 
         if (!isMounted) return;
 
-        if (response && response.readings) {
+        // Make sure we're only processing readings for THIS meter
+        if (
+          response &&
+          response.readings &&
+          response.ID.toString() === meter.ID.toString()
+        ) {
           // Extract reading entries for display
           const entries = Object.entries(response.readings)
             .map(([key, value]) => ({
@@ -257,7 +283,10 @@ function MeterScreen({
             selectedMonth,
             selectedYear
           );
-          console.log("Filtered entries for selected date:", filteredEntries);
+          console.log(
+            `Filtered entries for meter ${meter.ID}:`,
+            filteredEntries
+          );
 
           // Calculate average consumption from available readings
           const validEntries = entries.filter(
@@ -266,7 +295,7 @@ function MeterScreen({
 
           // Log all entries with their dates for debugging
           console.log(
-            "All valid entries before sorting:",
+            `All valid entries for meter ${meter.ID} before sorting:`,
             validEntries.map((e) => `${e.date}: ${e.value}`)
           );
 
@@ -304,7 +333,7 @@ function MeterScreen({
 
           // Log sorted entries to confirm order
           console.log(
-            "Sorted entries (oldest to newest):",
+            `Sorted entries for meter ${meter.ID} (oldest to newest):`,
             validEntries.map((e) => `${e.date}: ${e.value}`)
           );
 
@@ -318,14 +347,14 @@ function MeterScreen({
             // Only include positive consumption values
             if (diff > 0) {
               console.log(
-                `Consumption ${validEntries[i].date} to ${
+                `Consumption for meter ${meter.ID} ${validEntries[i].date} to ${
                   validEntries[i + 1].date
                 }: ${diff}`
               );
               consumptionValues.push(diff);
             } else {
               console.log(
-                `Skipping negative/zero consumption ${
+                `Skipping negative/zero consumption for meter ${meter.ID} ${
                   validEntries[i].date
                 } to ${validEntries[i + 1].date}: ${diff}`
               );
@@ -334,81 +363,48 @@ function MeterScreen({
 
           // Calculate average consumption
           console.log(
-            "Consumption values used for average:",
+            `Consumption values used for average for meter ${meter.ID}:`,
             consumptionValues
           );
           let avgConsumption = 0;
           if (consumptionValues.length > 0) {
             const sum = consumptionValues.reduce((acc, val) => acc + val, 0);
-            console.log("Sum of consumption values:", sum);
             console.log(
-              "Number of consumption values:",
+              `Sum of consumption values for meter ${meter.ID}:`,
+              sum
+            );
+            console.log(
+              `Number of consumption values for meter ${meter.ID}:`,
               consumptionValues.length
             );
 
             avgConsumption = sum / consumptionValues.length;
             avgConsumption = Math.round(avgConsumption * 10) / 10;
-            console.log("Final average consumption:", avgConsumption);
+            console.log(
+              `Final average consumption for meter ${meter.ID}:`,
+              avgConsumption
+            );
           }
 
           // Calculate the estimated reading with correct business logic
           let estimatedValue: number | string = "---";
           if (validEntries.length > 0 && avgConsumption > 0) {
-            // Get the most recent reading
+            // Get the most recent reading (last month's reading)
             const mostRecentEntry = validEntries[validEntries.length - 1];
-            const [entryYear, entryMonthName] = mostRecentEntry.date.split("-");
 
-            const entryMonth =
-              months[entryMonthName.toLowerCase() as keyof typeof months] ?? 0;
-            const entryYearNum = parseInt(entryYear);
-
-            // Get current month/year for comparison
-            console.log(
-              "Current month/year in the app:",
-              selectedMonth,
-              selectedYear
-            );
-            console.log(
-              "Entry month/year from reading:",
-              entryMonth,
-              entryYearNum
-            );
-
-            // IMPORTANT: Calculate inclusive months to estimate - count current month too
-            let monthsToEstimate = 0;
-
-            // For February 2025 from January 2025, we want to estimate 2 months
-            if (selectedYear === entryYearNum) {
-              // Same year - simple calculation + 1 for inclusive
-              monthsToEstimate = Number(selectedMonth) - Number(entryMonth) + 1;
-            } else if (selectedYear > entryYearNum) {
-              // Different years
-              monthsToEstimate =
-                (Number(selectedYear) - Number(entryYearNum)) * 12 +
-                (Number(selectedMonth) - Number(entryMonth)) +
-                1;
-            }
-
-            // Make sure we always estimate at least 1 month
-            monthsToEstimate = Math.max(1, monthsToEstimate);
-
-            console.log(
-              "FIXED CALCULATION - Months to estimate:",
-              monthsToEstimate
-            );
-
-            // Now calculate the estimated reading
+            // Now calculate the estimated reading - simply last reading + average consumption
             const baseReading = mostRecentEntry.value;
-            const estimatedNumber = Math.round(
-              baseReading + avgConsumption * monthsToEstimate
-            );
+            const estimatedNumber = Math.round(baseReading + avgConsumption);
             estimatedValue = estimatedNumber;
 
-            console.log("Base reading:", baseReading);
-            console.log("Average consumption:", avgConsumption);
+            console.log(`Base reading for meter ${meter.ID}:`, baseReading);
             console.log(
-              "FORMULA:",
-              `${baseReading} + (${avgConsumption} × ${monthsToEstimate}) = ${estimatedNumber}`
+              `Average consumption for meter ${meter.ID}:`,
+              avgConsumption
+            );
+            console.log(
+              `FORMULA for meter ${meter.ID}:`,
+              `${baseReading} + ${avgConsumption} = ${estimatedNumber}`
             );
           }
 
@@ -420,7 +416,7 @@ function MeterScreen({
 
             // Store the most recent reading for consumption calculations
             if (validEntries.length > 0) {
-              setPreviousReading(validEntries[0].value);
+              setPreviousReading(validEntries[validEntries.length - 1].value);
             }
 
             // Store average consumption and estimated reading
@@ -432,28 +428,31 @@ function MeterScreen({
         } else {
           setHasPreviousReadings(false);
         }
+
+        // Mark data as loaded
+        setIsDataLoaded(true);
       } catch (error) {
-        console.error("Error fetching previous readings:", error);
+        console.error(
+          `Error fetching previous readings for meter ${meter.ID}:`,
+          error
+        );
         setHasPreviousReadings(false);
+        setIsDataLoaded(true);
       } finally {
-        // Clear the in-progress flag when done
-        if (isMounted) {
-          (window as any)[requestId] = false;
-        }
+        // Clean up the request flag when done
+        delete (window as any)[requestId];
       }
     };
 
-    // Only run if we don't already have readings data
-    if (!historicalReadings || historicalReadings.length === 0) {
-      fetchPreviousReadings();
-    }
+    // Always fetch when the meter changes
+    fetchPreviousReadings();
 
     return () => {
       isMounted = false;
-      // Also clear the request flag when component unmounts
-      (window as any)[requestId] = false;
+      // Clean up the request flag when component unmounts
+      delete (window as any)[requestId];
     };
-  }, [meter.ID, routeId, selectedMonth, selectedYear, historicalReadings]);
+  }, [meter.ID, routeId, selectedMonth, selectedYear]);
 
   // Helper function to get previous months
   const getPreviousMonths = (month: number, year: number, count: number) => {
@@ -2584,11 +2583,20 @@ function MeterScreen({
               <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
                 Posibles causas de consumo elevado:
               </Typography>
-              <Typography variant="body2">
-                Si está seguro que la lectura actual ({inputValue}) es correcta,
-                puede confirmarla. De lo contrario, regrese para corregir el
-                valor.
-              </Typography>
+              <List dense disablePadding sx={{ mt: 0.5 }}>
+                <ListItem sx={{ py: 0.5 }}>
+                  <ListItemText primary="• Fuga de agua en la propiedad" />
+                </ListItem>
+                <ListItem sx={{ py: 0.5 }}>
+                  <ListItemText primary="• Uso excesivo de agua en el período" />
+                </ListItem>
+                <ListItem sx={{ py: 0.5 }}>
+                  <ListItemText primary="• Error en la lectura anterior (subestimada)" />
+                </ListItem>
+                <ListItem sx={{ py: 0.5 }}>
+                  <ListItemText primary="• Error al ingresar la lectura actual" />
+                </ListItem>
+              </List>
             </Alert>
 
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>

@@ -380,11 +380,8 @@ export const getPreviousReadings = async (
   // Create a cache key
   const cacheKey = `${routeId}_${meterId}`;
 
-  // Check if we already have this data in cache
-  if (readingsCache[cacheKey]) {
-    console.log(`Using cached data for meter ${meterId} in route ${routeId}`);
-    return readingsCache[cacheKey];
-  }
+  // Clear the cache for this meter to ensure fresh data
+  delete readingsCache[cacheKey];
 
   try {
     console.log(
@@ -442,7 +439,10 @@ export const getPreviousReadings = async (
 
     return result;
   } catch (error) {
-    console.error("Error getting previous readings:", error);
+    console.error(
+      `Error getting previous readings for meter ${meterId}:`,
+      error
+    );
     return null;
   }
 };
