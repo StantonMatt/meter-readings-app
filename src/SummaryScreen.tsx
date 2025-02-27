@@ -146,6 +146,25 @@ function SummaryScreen({
     return months[monthIndex];
   };
 
+  // Calculate average consumption from the data
+  const averageConsumption = useMemo(() => {
+    // Get all valid consumption values
+    const consumptionValues = rows
+      .map((row) =>
+        row.consumption !== "---" ? parseFloat(row.consumption) : null
+      )
+      .filter((value) => value !== null && value > 0);
+
+    // Calculate average if we have values
+    if (consumptionValues.length > 0) {
+      const sum = consumptionValues.reduce((acc, val) => acc + (val || 0), 0);
+      return sum / consumptionValues.length;
+    }
+
+    // Default value if no data
+    return 15;
+  }, [rows]);
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ mb: 4 }}>
@@ -250,68 +269,132 @@ function SummaryScreen({
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map((row, index) => (
-              <TableRow
-                key={row.id}
-                sx={{
-                  "&:last-child td, &:last-child th": { border: 0 },
-                  bgcolor:
-                    row.status === "pending"
-                      ? "rgba(255, 152, 0, 0.08)"
-                      : undefined,
-                }}
-              >
-                <TableCell component="th" scope="row">
-                  {row.id}
-                </TableCell>
-                <TableCell>{row.address}</TableCell>
-                <TableCell align="right">{row.previousReading}</TableCell>
-                <TableCell align="right">{row.currentReading}</TableCell>
-                <TableCell align="right">{row.consumption}</TableCell>
-                <TableCell align="center">
-                  <Chip
-                    label={
-                      row.status === "confirmed"
-                        ? "Confirmada"
-                        : row.status === "pending"
-                        ? "Pendiente"
-                        : "Omitida"
-                    }
-                    color={
-                      row.status === "confirmed"
-                        ? "success"
-                        : row.status === "pending"
-                        ? "warning"
-                        : "default"
-                    }
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell align="center">
-                  <Box
-                    sx={{ display: "flex", gap: 1, justifyContent: "center" }}
+            {rows.map((row, index) => {
+              // Determine consumption status for styling
+              let consumptionStatus = "normal";
+              let consumptionLabel = "";
+
+              // Check if this was an estimated reading
+              const isEstimated = localStorage.getItem(
+                `meter_${row.id}_verification`
+              )
+                ? JSON.parse(
+                    localStorage.getItem(`meter_${row.id}_verification`) || "{}"
+                  ).type === "cantRead"
+                : false;
+
+              if (row.consumption !== "---") {
+                const consumptionValue = parseFloat(row.consumption);
+
+                // Only apply consumption status labels for non-estimated readings
+                if (!isEstimated) {
+                  if (consumptionValue < 0) {
+                    consumptionStatus = "negative";
+                    consumptionLabel = "Negativo";
+                  } else if (consumptionValue < 4) {
+                    consumptionStatus = "low";
+                    consumptionLabel = "Bajo";
+                  } else if (consumptionValue > 20) {
+                    consumptionStatus = "high";
+                    consumptionLabel = "Elevado";
+                  }
+                }
+              }
+
+              return (
+                <TableRow
+                  key={row.id}
+                  sx={{
+                    "&:last-child td, &:last-child th": { border: 0 },
+                    bgcolor: isEstimated
+                      ? "rgba(79, 70, 229, 0.2)" // Purple for estimated
+                      : row.status === "pending"
+                      ? "rgba(255, 152, 0, 0.2)" // Orange/yellow for pending
+                      : consumptionStatus === "negative"
+                      ? "rgba(185, 28, 28, 0.2)" // Clearer red for negative consumption
+                      : consumptionStatus === "low"
+                      ? "rgba(59, 130, 246, 0.2)" // Blue for low consumption
+                      : consumptionStatus === "high"
+                      ? "rgba(75, 85, 99, 0.2)" // Dark gray for high consumption
+                      : undefined, // White for normal confirmed readings
+                  }}
+                >
+                  <TableCell component="th" scope="row">
+                    {row.id}
+                  </TableCell>
+                  <TableCell>{row.address}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 500 }}>
+                    {row.previousReading}
+                  </TableCell>
+                  <TableCell
+                    align="right"
+                    sx={{
+                      fontWeight: 600,
+                      color: isEstimated
+                        ? "rgba(79, 70, 229, 0.9)" // Darker purple for estimated text
+                        : "text.primary", // Default text color for normal readings
+                    }}
                   >
+                    {row.currentReading}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography
+                      sx={{
+                        fontWeight: 600,
+                        color:
+                          consumptionStatus === "negative"
+                            ? "rgba(185, 28, 28, 0.9)" // Clearer red for negative text
+                            : consumptionStatus === "low"
+                            ? "rgba(37, 99, 235, 0.9)" // Darker blue for low
+                            : consumptionStatus === "high"
+                            ? "rgba(55, 65, 81, 0.9)" // Darker gray for high
+                            : "text.primary", // Default text color for normal
+                      }}
+                    >
+                      {row.consumption}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Chip
+                      label={
+                        row.status === "confirmed"
+                          ? "Confirmada"
+                          : row.status === "pending"
+                          ? "Pendiente"
+                          : "Omitida"
+                      }
+                      color={
+                        row.status === "confirmed"
+                          ? "success"
+                          : row.status === "pending"
+                          ? "warning"
+                          : "default"
+                      }
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell align="center">
                     <Button
                       size="small"
                       onClick={() => onSelectMeter(index)}
                       color="primary"
+                      variant="contained"
+                      sx={{
+                        minWidth: "80px",
+                        boxShadow: 1,
+                        "&:hover": {
+                          boxShadow: 2,
+                          transform: "translateY(-1px)",
+                        },
+                        transition: "all 0.2s",
+                      }}
                     >
                       Editar
                     </Button>
-                    {(row.status === "confirmed" ||
-                      row.status === "pending") && (
-                      <Button
-                        size="small"
-                        onClick={() => handleResetReading(row.id)}
-                        color="error"
-                      >
-                        Resetear
-                      </Button>
-                    )}
-                  </Box>
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
@@ -333,6 +416,80 @@ function SummaryScreen({
         >
           Finalizar y Enviar
         </Button>
+      </Box>
+
+      {/* Color Legend with more distinguishable colors */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle1" gutterBottom>
+          Leyenda de Colores:
+        </Typography>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 16,
+                height: 16,
+                backgroundColor: "rgba(255, 152, 0, 0.2)", // Orange for pending
+                border: "1px solid rgba(255, 152, 0, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="body2">Pendiente</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 16,
+                height: 16,
+                backgroundColor: "rgba(79, 70, 229, 0.2)", // Purple for estimated
+                border: "1px solid rgba(79, 70, 229, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="body2">Estimada</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 16,
+                height: 16,
+                backgroundColor: "rgba(185, 28, 28, 0.2)", // Clearer red for negative consumption
+                border: "1px solid rgba(185, 28, 28, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="body2">Consumo Negativo</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 16,
+                height: 16,
+                backgroundColor: "rgba(59, 130, 246, 0.2)", // Blue for low consumption
+                border: "1px solid rgba(59, 130, 246, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="body2">Consumo Bajo</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 16,
+                height: 16,
+                backgroundColor: "rgba(75, 85, 99, 0.2)", // Dark gray for high consumption
+                border: "1px solid rgba(75, 85, 99, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="body2">Consumo Elevado</Typography>
+          </Box>
+        </Box>
       </Box>
     </Container>
   );
