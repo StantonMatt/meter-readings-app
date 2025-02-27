@@ -19,6 +19,8 @@ import {
   Divider,
 } from "@mui/material";
 import { MeterData, ReadingsState } from "./utils/readingUtils";
+import { alpha } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 
 interface SummaryScreenProps {
   meters: MeterData[];
@@ -49,6 +51,8 @@ function SummaryScreen({
   selectedMonth,
   selectedYear,
 }: SummaryScreenProps): JSX.Element {
+  const theme = useTheme();
+
   // Calculate reading statistics
   const stats: SummaryStats = useMemo(() => {
     const confirmed = meters.filter(
@@ -166,7 +170,7 @@ function SummaryScreen({
   }, [rows]);
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4, position: "relative" }}>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom>
           Resumen de Lecturas
@@ -254,9 +258,219 @@ function SummaryScreen({
         </Alert>
       )}
 
-      {/* Table of all readings */}
-      <TableContainer component={Paper} sx={{ mb: 4 }}>
-        <Table sx={{ minWidth: 650 }} aria-label="tabla de lecturas">
+      {/* Fixed position buttons */}
+      <Box
+        sx={{
+          position: "fixed",
+          bottom: 20,
+          left: 0,
+          right: 0,
+          zIndex: 10,
+          display: "flex",
+          justifyContent: "space-between",
+          px: 4,
+        }}
+      >
+        <Button
+          variant="outlined"
+          onClick={onBack}
+          sx={{
+            backgroundColor: "white",
+            boxShadow: 2,
+            "&:hover": {
+              backgroundColor: "white",
+              boxShadow: 3,
+            },
+          }}
+        >
+          Volver
+        </Button>
+        <Button
+          variant="contained"
+          color="success"
+          onClick={() => {
+            if (stats.confirmed > 0) {
+              onFinalize();
+            }
+          }}
+          disabled={stats.confirmed === 0}
+          sx={{
+            boxShadow: 2,
+            "&:hover": {
+              boxShadow: 3,
+            },
+          }}
+        >
+          Finalizar y Enviar
+        </Button>
+      </Box>
+
+      {/* Fixed position color legend */}
+      <Box
+        sx={{
+          position: "fixed",
+          top: 120,
+          right: 20,
+          zIndex: 10,
+          width: 200,
+          backgroundColor: "white",
+          p: 2,
+          borderRadius: 2,
+          boxShadow: 2,
+          display: { xs: "none", md: "block" }, // Hide on small screens
+        }}
+      >
+        <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+          Leyenda de Colores:
+        </Typography>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 12,
+                height: 12,
+                backgroundColor: "rgba(255, 152, 0, 0.2)",
+                border: "1px solid rgba(255, 152, 0, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="caption">Pendiente</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 12,
+                height: 12,
+                backgroundColor: "rgba(79, 70, 229, 0.2)",
+                border: "1px solid rgba(79, 70, 229, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="caption">Estimada</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 12,
+                height: 12,
+                backgroundColor: "rgba(185, 28, 28, 0.2)",
+                border: "1px solid rgba(185, 28, 28, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="caption">Consumo Negativo</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 12,
+                height: 12,
+                backgroundColor: "rgba(59, 130, 246, 0.2)",
+                border: "1px solid rgba(59, 130, 246, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="caption">Consumo Bajo</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 12,
+                height: 12,
+                backgroundColor: "rgba(75, 85, 99, 0.2)",
+                border: "1px solid rgba(75, 85, 99, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="caption">Consumo Elevado</Typography>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Mobile-only color legend (visible at top on small screens) */}
+      <Box sx={{ mb: 3, display: { xs: "block", md: "none" } }}>
+        <Typography variant="subtitle1" gutterBottom>
+          Leyenda de Colores:
+        </Typography>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 16,
+                height: 16,
+                backgroundColor: "rgba(255, 152, 0, 0.2)", // Orange for pending
+                border: "1px solid rgba(255, 152, 0, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="body2">Pendiente</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 16,
+                height: 16,
+                backgroundColor: "rgba(79, 70, 229, 0.2)", // Purple for estimated
+                border: "1px solid rgba(79, 70, 229, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="body2">Estimada</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 16,
+                height: 16,
+                backgroundColor: "rgba(185, 28, 28, 0.2)", // Clearer red for negative consumption
+                border: "1px solid rgba(185, 28, 28, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="body2">Consumo Negativo</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 16,
+                height: 16,
+                backgroundColor: "rgba(59, 130, 246, 0.2)", // Blue for low consumption
+                border: "1px solid rgba(59, 130, 246, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="body2">Consumo Bajo</Typography>
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Box
+              sx={{
+                width: 16,
+                height: 16,
+                backgroundColor: "rgba(75, 85, 99, 0.2)", // Dark gray for high consumption
+                border: "1px solid rgba(75, 85, 99, 0.5)",
+                borderRadius: 1,
+                mr: 1,
+              }}
+            />
+            <Typography variant="body2">Consumo Elevado</Typography>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Table Container */}
+      <TableContainer component={Paper} sx={{ mb: 10 }}>
+        {" "}
+        {/* Add bottom margin for fixed buttons */}
+        <Table sx={{ minWidth: 650 }} aria-label="simple table">
           <TableHead>
             <TableRow>
               <TableCell>Medidor</TableCell>
@@ -361,7 +575,7 @@ function SummaryScreen({
                           ? "Confirmado"
                           : row.status === "pending"
                           ? "Pendiente"
-                          : "Omitida"
+                          : "Omitido"
                       }
                       color={
                         row.status === "confirmed"
@@ -378,13 +592,14 @@ function SummaryScreen({
                       size="small"
                       onClick={() => onSelectMeter(index)}
                       color="primary"
-                      variant="contained"
+                      variant="outlined" // Changed to outlined
                       sx={{
                         minWidth: "80px",
-                        boxShadow: 1,
                         "&:hover": {
-                          boxShadow: 2,
-                          transform: "translateY(-1px)",
+                          backgroundColor: alpha(
+                            theme.palette.primary.main,
+                            0.05
+                          ),
                         },
                         transition: "all 0.2s",
                       }}
@@ -398,99 +613,6 @@ function SummaryScreen({
           </TableBody>
         </Table>
       </TableContainer>
-
-      {/* Action buttons */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 4 }}>
-        <Button variant="outlined" onClick={onBack}>
-          Volver
-        </Button>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={() => {
-            if (stats.confirmed > 0) {
-              onFinalize();
-            }
-          }}
-          disabled={stats.confirmed === 0}
-        >
-          Finalizar y Enviar
-        </Button>
-      </Box>
-
-      {/* Color Legend with more distinguishable colors */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="subtitle1" gutterBottom>
-          Leyenda de Colores:
-        </Typography>
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Box
-              sx={{
-                width: 16,
-                height: 16,
-                backgroundColor: "rgba(255, 152, 0, 0.2)", // Orange for pending
-                border: "1px solid rgba(255, 152, 0, 0.5)",
-                borderRadius: 1,
-                mr: 1,
-              }}
-            />
-            <Typography variant="body2">Pendiente</Typography>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Box
-              sx={{
-                width: 16,
-                height: 16,
-                backgroundColor: "rgba(79, 70, 229, 0.2)", // Purple for estimated
-                border: "1px solid rgba(79, 70, 229, 0.5)",
-                borderRadius: 1,
-                mr: 1,
-              }}
-            />
-            <Typography variant="body2">Estimada</Typography>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Box
-              sx={{
-                width: 16,
-                height: 16,
-                backgroundColor: "rgba(185, 28, 28, 0.2)", // Clearer red for negative consumption
-                border: "1px solid rgba(185, 28, 28, 0.5)",
-                borderRadius: 1,
-                mr: 1,
-              }}
-            />
-            <Typography variant="body2">Consumo Negativo</Typography>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Box
-              sx={{
-                width: 16,
-                height: 16,
-                backgroundColor: "rgba(59, 130, 246, 0.2)", // Blue for low consumption
-                border: "1px solid rgba(59, 130, 246, 0.5)",
-                borderRadius: 1,
-                mr: 1,
-              }}
-            />
-            <Typography variant="body2">Consumo Bajo</Typography>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Box
-              sx={{
-                width: 16,
-                height: 16,
-                backgroundColor: "rgba(75, 85, 99, 0.2)", // Dark gray for high consumption
-                border: "1px solid rgba(75, 85, 99, 0.5)",
-                borderRadius: 1,
-                mr: 1,
-              }}
-            />
-            <Typography variant="body2">Consumo Elevado</Typography>
-          </Box>
-        </Box>
-      </Box>
     </Container>
   );
 }

@@ -2169,10 +2169,6 @@ function MeterScreen({
                   width: "100%",
                   py: 1.2,
                   borderRadius: 3,
-                  backgroundColor: alpha(theme.palette.warning.main, 0.9), // Fix the alpha function call
-                  "&:hover": {
-                    backgroundColor: "#d97706", // Amber-600 (darker yellowish gold)
-                  },
                 }}
               >
                 Finalizar
