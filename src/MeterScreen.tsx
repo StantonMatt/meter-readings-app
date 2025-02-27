@@ -1350,11 +1350,170 @@ function MeterScreen({
     setShowCantReadDialog(false);
   };
 
+  // Update the historical readings display section
+
+  // First, add this helper function near the top of your component
+  const formatHistoricalDate = (
+    dateString: string
+  ): { month: string; year: string } => {
+    try {
+      const [year, monthName] = dateString.split("-");
+      // Capitalize first letter only and use full month name
+      const formattedMonth =
+        monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
+      return { month: formattedMonth, year };
+    } catch (e) {
+      return { month: "---", year: "---" };
+    }
+  };
+
+  // Then replace the historical readings Paper component with this improved version
+  <Paper
+    elevation={0}
+    sx={{
+      p: 2,
+      backgroundColor: alpha(theme.palette.background.default, 0.7),
+      border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+      borderRadius: 2,
+      height: "auto",
+      minHeight: 200,
+      overflow: "visible", // Explicitly set to visible to prevent scrolling
+    }}
+  >
+    {historicalReadings && historicalReadings.length > 0 ? (
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        {historicalReadings.map((item, index) => {
+          const { month, year } = formatHistoricalDate(item.date);
+          return (
+            <Box
+              key={index}
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                p: 1.5,
+                borderRadius: 1,
+                backgroundColor: "transparent", // Remove background color
+                borderBottom:
+                  index !== historicalReadings.length - 1
+                    ? `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                    : "none",
+                "&:hover": {
+                  backgroundColor: alpha(theme.palette.primary.light, 0.05),
+                },
+                // Use a left border instead of background for highlighting the most recent
+                borderLeft:
+                  index === 0
+                    ? `3px solid ${theme.palette.primary.main}`
+                    : "3px solid transparent",
+                // Add subtle padding to compensate for the border
+                pl: 2,
+                // Remove shadow
+                boxShadow: "none",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                {/* Remove the circular container and display month and year together */}
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: index === 0 ? 700 : 600,
+                    color:
+                      index === 0
+                        ? theme.palette.primary.main
+                        : theme.palette.text.primary,
+                    mr: 1,
+                  }}
+                >
+                  {month}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: index === 0 ? 600 : 500,
+                    color:
+                      index === 0
+                        ? theme.palette.primary.main
+                        : theme.palette.text.secondary,
+                  }}
+                >
+                  {year}
+                </Typography>
+              </Box>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  backgroundColor: item.isMissing
+                    ? "transparent"
+                    : index === 0
+                    ? alpha(theme.palette.primary.main, 0.08) // Lighter background
+                    : alpha(theme.palette.grey[100], 0.5),
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 1.5,
+                  minWidth: 80,
+                  justifyContent: "center",
+                  // Remove border
+                  border: "none",
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: index === 0 ? 700 : 600,
+                    color: item.isMissing
+                      ? theme.palette.text.secondary
+                      : index === 0
+                      ? theme.palette.primary.main
+                      : theme.palette.text.primary,
+                    fontSize: index === 0 ? "1rem" : "0.85rem",
+                  }}
+                >
+                  {item.isMissing ? "—" : item.value}
+                  {!item.isMissing && (
+                    <Box
+                      component="span"
+                      sx={{
+                        fontSize: index === 0 ? "0.8rem" : "0.75rem",
+                        ml: 0.5,
+                      }}
+                    >
+                      m³
+                    </Box>
+                  )}
+                </Typography>
+              </Box>
+            </Box>
+          );
+        })}
+      </Box>
+    ) : (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100%",
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          No hay lecturas anteriores disponibles
+        </Typography>
+      </Box>
+    )}
+  </Paper>;
+
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      {/* Navigation Pills */}
-
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 3 }}>
+      {/* Header with meter info and navigation pills */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 4,
+        }}
+      >
         <Box
           sx={{
             display: "flex",
@@ -1362,45 +1521,56 @@ function MeterScreen({
             backgroundColor: alpha(theme.palette.primary.main, 0.1),
             borderRadius: 2,
             px: 2,
-            py: 0.75,
+            py: 1,
           }}
         >
           <HomeOutlinedIcon
             fontSize="small"
             sx={{ color: theme.palette.primary.main, mr: 1 }}
           />
-
           <Typography variant="body2" sx={{ fontWeight: 500 }}>
             Medidor {currentIndex + 1} de {totalMeters}
           </Typography>
         </Box>
 
-        {/* Main Card */}
+        <Typography
+          variant="h6"
+          sx={{ fontWeight: 600, color: theme.palette.text.secondary }}
+        >
+          {months[selectedMonth]} {selectedYear}
+        </Typography>
+      </Box>
 
-        <Card
-          elevation={2}
+      {/* Main Card with improved layout */}
+      <Card
+        elevation={3}
+        sx={{
+          borderRadius: 3,
+          overflow: "visible",
+          boxShadow: "0 6px 20px rgba(0,0,0,0.07)",
+          mb: 4,
+        }}
+      >
+        {/* Header Section */}
+        <Box
           sx={{
-            mb: 4,
-            borderRadius: 2,
-            overflow: "visible",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+            p: 3,
+            background: `linear-gradient(to right, ${
+              theme.palette.primary.main
+            }, ${alpha(theme.palette.primary.main, 0.8)})`,
+            color: "white",
+            borderTopLeftRadius: 12,
+            borderTopRightRadius: 12,
           }}
         >
-          <CardContent sx={{ p: 0 }}>
-            {/* Header Section */}
-
-            <Box
-              sx={{
-                p: 3,
-                pb: 2,
-                background: `linear-gradient(to right, ${
-                  theme.palette.primary.main
-                }, ${alpha(theme.palette.primary.main, 0.8)})`,
-                color: "white",
-                borderTopLeftRadius: 4,
-                borderTopRightRadius: 4,
-              }}
-            >
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <Box>
               <Typography
                 variant="h5"
                 fontWeight="600"
@@ -1408,222 +1578,400 @@ function MeterScreen({
               >
                 #{meter.ID}
               </Typography>
-
               <Typography variant="body1" sx={{ mt: 1, opacity: 0.9 }}>
                 {meter.ADDRESS}
               </Typography>
             </Box>
+            <Chip
+              icon={<AccessTimeIcon fontSize="small" />}
+              label={`Última lectura: ${
+                previousReadingEntries.length > 0
+                  ? formatMonthOnly(previousReadingEntries[0]?.date)
+                  : "N/A"
+              }`}
+              sx={{
+                backgroundColor: "rgba(255,255,255,0.15)",
+                color: "white",
+                fontWeight: 500,
+                "& .MuiChip-icon": { color: "white" },
+              }}
+            />
+          </Box>
+        </Box>
 
-            {/* Content Section */}
-
-            <Box sx={{ p: 3 }}>
-              {/* Previous Readings Section */}
-
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 2 }}>
-                  Lecturas Anteriores
-                </Typography>
-
-                {renderHistoricalReadings()}
-              </Box>
-
-              {/* Consumption Summary - Now with only 2 boxes */}
-
-              <Box sx={{ mt: 3, mb: 3 }}>
-                <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 2 }}>
-                  Resumen de Consumo
-                </Typography>
-
-                <Grid container spacing={2}>
-                  {/* Promedio de Consumo - renamed */}
-
-                  <Grid item xs={6}>
-                    <Box
-                      sx={{
-                        borderRadius: 1,
-                        p: 1.5,
-                        backgroundColor: alpha(theme.palette.info.main, 0.08),
-                        border: `1px solid ${alpha(
-                          theme.palette.info.main,
-                          0.15
-                        )}`,
-                        height: "100%",
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          display: "block",
-                          fontWeight: 500,
-                          color: "text.secondary",
-                          mb: 0.5,
-                        }}
-                      >
-                        Promedio de Consumo
-                      </Typography>
-
-                      <Typography
-                        variant="body1"
-                        fontWeight={600}
-                        color="info.main"
-                      >
-                        {averageConsumption.toFixed(1) || "---"} m³
-                      </Typography>
-                    </Box>
-                  </Grid>
-
-                  {/* Lectura Estimada - renamed */}
-
-                  <Grid item xs={6}>
-                    <Box
-                      sx={{
-                        borderRadius: 1,
-                        p: 1.5,
-                        backgroundColor: alpha(
-                          theme.palette.warning.main,
-                          0.08
-                        ),
-                        border: `1px solid ${alpha(
-                          theme.palette.warning.main,
-                          0.15
-                        )}`,
-                        height: "100%",
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
-                        sx={{
-                          display: "block",
-                          fontWeight: 500,
-                          color: "text.secondary",
-                          mb: 0.5,
-                        }}
-                      >
-                        Lectura Estimada
-                      </Typography>
-
-                      <Typography
-                        variant="body1"
-                        fontWeight={600}
-                        color="warning.main"
-                      >
-                        {estimatedReading && estimatedReading !== "---"
-                          ? `${estimatedReading} m³`
-                          : "--- m³"}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Box>
-
-              <Divider sx={{ my: 3 }} />
-
-              {/* Current Reading Section */}
-
-              <Box>
-                <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 2 }}>
-                  Lectura Actual
-                </Typography>
-
-                <TextField
-                  key={`meter-reading-${meter.ID}`}
-                  fullWidth
-                  label="Lectura del medidor"
-                  placeholder="Ingrese lectura"
-                  variant="outlined"
-                  type="number"
-                  value={inputValue}
-                  onChange={handleInputChange}
-                  onKeyDown={(e) => {
-                    // Handle Enter key press
-                    if (e.key === "Enter" && inputValue && !localIsConfirmed) {
-                      e.preventDefault(); // Prevent form submission if inside a form
-                      handleConfirmClick();
-                    }
-                  }}
-                  disabled={localIsConfirmed}
-                  InputProps={{
-                    endAdornment: <span style={{ marginLeft: "4px" }}>m³</span>,
-                    sx: {
-                      fontSize: "1.1rem",
-                      fontWeight: 500,
-                      backgroundColor: localIsConfirmed
-                        ? alpha("#f5f5f5", 0.8)
-                        : "white",
-                      opacity: localIsConfirmed ? 0.8 : 1,
-                      "& input": {
-                        color: "text.primary",
-                        WebkitTextFillColor: localIsConfirmed
-                          ? "rgba(0, 0, 0, 0.7) !important"
-                          : undefined,
-                        fontWeight: localIsConfirmed ? 600 : 500,
-                      },
-                    },
-                  }}
+        {/* Content Section with Grid Layout */}
+        <Box sx={{ p: 3 }}>
+          <Grid container spacing={3}>
+            {/* Left Column - Previous Readings */}
+            <Grid item xs={12} md={5}>
+              <Typography
+                variant="subtitle1"
+                fontWeight="600"
+                sx={{ mb: 2, display: "flex", alignItems: "center" }}
+              >
+                <AccessTimeIcon
                   sx={{
-                    mb: 2,
-                    "& .MuiOutlinedInput-root": {
-                      bgcolor: localIsConfirmed
-                        ? alpha("#f5f5f5", 0.8)
-                        : "white",
-                      borderRadius: 1,
-                    },
-                    "& .MuiInputLabel-root": {
-                      color: localIsConfirmed ? "text.secondary" : undefined,
-                    },
-                    "& .Mui-disabled": {
-                      opacity: "0.9 !important",
-                      color: "text.primary !important",
-                      WebkitTextFillColor: "rgba(0, 0, 0, 0.8) !important",
-                    },
+                    mr: 1,
+                    color: theme.palette.primary.main,
+                    fontSize: 20,
                   }}
                 />
+                Historial de Lecturas
+              </Typography>
 
-                {/* Move Consumo Actual here - just after the TextField and before the confirm button */}
+              {/* Improved Historical Readings Display */}
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  backgroundColor: alpha(theme.palette.background.default, 0.7),
+                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  borderRadius: 2,
+                  height: "auto",
+                  minHeight: 200,
+                  overflow: "visible", // Explicitly prevent scrolling
+                }}
+              >
+                {historicalReadings && historicalReadings.length > 0 ? (
+                  <Box
+                    sx={{ display: "flex", flexDirection: "column", gap: 1 }}
+                  >
+                    {historicalReadings.map((item, index) => {
+                      const [year, monthName] = item.date.split("-");
+                      const month =
+                        monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
-                {inputValue &&
-                  previousReadingEntries.length > 0 &&
-                  previousReadingEntries[0]?.value && (
-                    <Box
+                      return (
+                        <Box
+                          key={index}
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            p: 1.5,
+                            borderRadius: 1,
+                            backgroundColor: "transparent",
+                            borderBottom:
+                              index !== historicalReadings.length - 1
+                                ? `1px solid ${alpha(
+                                    theme.palette.divider,
+                                    0.1
+                                  )}`
+                                : "none",
+                            "&:hover": {
+                              backgroundColor: alpha(
+                                theme.palette.primary.light,
+                                0.05
+                              ),
+                            },
+                            // Left border highlight for most recent
+                            borderLeft:
+                              index === 0
+                                ? `3px solid ${theme.palette.primary.main}`
+                                : "3px solid transparent",
+                            pl: 2,
+                          }}
+                        >
+                          <Box sx={{ display: "flex", alignItems: "center" }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: index === 0 ? 700 : 600,
+                                color:
+                                  index === 0
+                                    ? theme.palette.primary.main
+                                    : theme.palette.text.primary,
+                                mr: 1,
+                              }}
+                            >
+                              {month}
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: index === 0 ? 600 : 500,
+                                color:
+                                  index === 0
+                                    ? theme.palette.primary.main
+                                    : theme.palette.text.secondary,
+                              }}
+                            >
+                              {year}
+                            </Typography>
+                          </Box>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              backgroundColor: item.isMissing
+                                ? "transparent"
+                                : index === 0
+                                ? alpha(theme.palette.primary.main, 0.08)
+                                : alpha(theme.palette.grey[100], 0.5),
+                              px: 2,
+                              py: 0.75,
+                              borderRadius: 1.5,
+                              minWidth: 80,
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: index === 0 ? 700 : 600,
+                                color: item.isMissing
+                                  ? theme.palette.text.secondary
+                                  : index === 0
+                                  ? theme.palette.primary.main
+                                  : theme.palette.text.primary,
+                                fontSize: index === 0 ? "1rem" : "0.85rem",
+                              }}
+                            >
+                              {item.isMissing ? "—" : item.value}
+                              {!item.isMissing && (
+                                <Box
+                                  component="span"
+                                  sx={{
+                                    fontSize:
+                                      index === 0 ? "0.8rem" : "0.75rem",
+                                    ml: 0.5,
+                                  }}
+                                >
+                                  m³
+                                </Box>
+                              )}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      height: "100%",
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      No hay lecturas anteriores disponibles
+                    </Typography>
+                  </Box>
+                )}
+              </Paper>
+            </Grid>
+
+            {/* Right Column - Consumption Summary and Current Reading */}
+            <Grid item xs={12} md={7}>
+              {/* Consumption Summary */}
+              <Typography
+                variant="subtitle1"
+                fontWeight="600"
+                sx={{ mb: 2, display: "flex", alignItems: "center" }}
+              >
+                <InfoOutlinedIcon
+                  sx={{
+                    mr: 1,
+                    color: theme.palette.primary.main,
+                    fontSize: 20,
+                  }}
+                />
+                Resumen de Consumo
+              </Typography>
+
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                {/* Promedio de Consumo */}
+                <Grid item xs={6}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      height: "100%",
+                      borderRadius: 2,
+                      backgroundColor: alpha(theme.palette.info.main, 0.08),
+                      border: `1px solid ${alpha(
+                        theme.palette.info.main,
+                        0.15
+                      )}`,
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
                       sx={{
-                        mb: 2.5,
-                        p: 1.5,
-                        border: "1px solid",
-                        borderColor: (consumption) => {
-                          const consumptionValue =
-                            parseFloat(inputValue) -
-                            parseFloat(
-                              String(previousReadingEntries[0]?.value || "0")
-                            );
-
-                          if (consumptionValue > 0)
-                            return alpha(theme.palette.success.main, 0.15);
-
-                          if (consumptionValue < 0)
-                            return alpha(theme.palette.error.main, 0.15);
-
-                          return alpha(theme.palette.grey[500], 0.15); // For zero
-                        },
-
-                        backgroundColor: (consumption) => {
-                          const consumptionValue =
-                            parseFloat(inputValue) -
-                            parseFloat(
-                              String(previousReadingEntries[0]?.value || "0")
-                            );
-
-                          if (consumptionValue > 0)
-                            return alpha(theme.palette.success.main, 0.05);
-
-                          if (consumptionValue < 0)
-                            return alpha(theme.palette.error.main, 0.05);
-
-                          return alpha(theme.palette.grey[500], 0.05); // For zero
-                        },
-
-                        borderRadius: 1,
+                        display: "block",
+                        fontWeight: 500,
+                        color: "text.secondary",
+                        mb: 0.5,
                       }}
                     >
+                      Promedio de Consumo
+                    </Typography>
+                    <Typography variant="h6" fontWeight={600} color="info.main">
+                      {averageConsumption.toFixed(1) || "---"} m³
+                    </Typography>
+                  </Paper>
+                </Grid>
+
+                {/* Lectura Estimada */}
+                <Grid item xs={6}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 2,
+                      height: "100%",
+                      borderRadius: 2,
+                      backgroundColor: alpha(theme.palette.warning.main, 0.08),
+                      border: `1px solid ${alpha(
+                        theme.palette.warning.main,
+                        0.15
+                      )}`,
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        fontWeight: 500,
+                        color: "text.secondary",
+                        mb: 0.5,
+                      }}
+                    >
+                      Lectura Estimada
+                    </Typography>
+                    <Typography
+                      variant="h6"
+                      fontWeight={600}
+                      color="warning.main"
+                    >
+                      {estimatedReading && estimatedReading !== "---"
+                        ? `${estimatedReading} m³`
+                        : "--- m³"}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+
+              {/* Current Reading Section */}
+              <Typography
+                variant="subtitle1"
+                fontWeight="600"
+                sx={{ mb: 2, mt: 4, display: "flex", alignItems: "center" }}
+              >
+                <CheckCircleOutlineIcon
+                  sx={{
+                    mr: 1,
+                    color: theme.palette.primary.main,
+                    fontSize: 20,
+                  }}
+                />
+                Lectura Actual
+              </Typography>
+
+              <TextField
+                key={`meter-reading-${meter.ID}`}
+                fullWidth
+                label="Lectura del medidor"
+                placeholder="Ingrese lectura"
+                variant="outlined"
+                type="number"
+                value={inputValue}
+                onChange={handleInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && inputValue && !localIsConfirmed) {
+                    e.preventDefault();
+                    handleConfirmClick();
+                  }
+                }}
+                disabled={localIsConfirmed}
+                InputProps={{
+                  endAdornment: <span style={{ marginLeft: "4px" }}>m³</span>,
+                  sx: {
+                    fontSize: "1.2rem",
+                    fontWeight: 500,
+                    backgroundColor: localIsConfirmed
+                      ? alpha("#f5f5f5", 0.8)
+                      : "white",
+                    opacity: localIsConfirmed ? 0.8 : 1,
+                    "& input": {
+                      color: "text.primary",
+                      WebkitTextFillColor: localIsConfirmed
+                        ? "rgba(0, 0, 0, 0.7) !important"
+                        : undefined,
+                      fontWeight: localIsConfirmed ? 600 : 500,
+                    },
+                  },
+                }}
+                sx={{
+                  mb: 2,
+                  "& .MuiOutlinedInput-root": {
+                    bgcolor: localIsConfirmed ? alpha("#f5f5f5", 0.8) : "white",
+                    borderRadius: 2,
+                  },
+                  "& .MuiInputLabel-root": {
+                    color: localIsConfirmed ? "text.secondary" : undefined,
+                  },
+                  "& .Mui-disabled": {
+                    opacity: "0.9 !important",
+                    color: "text.primary !important",
+                    WebkitTextFillColor: "rgba(0, 0, 0, 0.8) !important",
+                  },
+                }}
+              />
+
+              {/* Consumo Actual */}
+              {inputValue &&
+                previousReadingEntries.length > 0 &&
+                previousReadingEntries[0]?.value && (
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      mb: 3,
+                      p: 2,
+                      border: "1px solid",
+                      borderColor: (consumption) => {
+                        const consumptionValue =
+                          parseFloat(inputValue) -
+                          parseFloat(
+                            String(previousReadingEntries[0]?.value || "0")
+                          );
+
+                        if (consumptionValue > 0)
+                          return alpha(theme.palette.success.main, 0.15);
+
+                        if (consumptionValue < 0)
+                          return alpha(theme.palette.error.main, 0.15);
+
+                        return alpha(theme.palette.grey[500], 0.15);
+                      },
+                      backgroundColor: (consumption) => {
+                        const consumptionValue =
+                          parseFloat(inputValue) -
+                          parseFloat(
+                            String(previousReadingEntries[0]?.value || "0")
+                          );
+
+                        if (consumptionValue > 0)
+                          return alpha(theme.palette.success.main, 0.05);
+
+                        if (consumptionValue < 0)
+                          return alpha(theme.palette.error.main, 0.05);
+
+                        return alpha(theme.palette.grey[500], 0.05);
+                      },
+                      borderRadius: 2,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Box>
                       <Typography
                         variant="caption"
                         sx={{
@@ -1637,10 +1985,9 @@ function MeterScreen({
                       </Typography>
 
                       <Typography
-                        variant="body1"
+                        variant="h6"
                         fontWeight={600}
                         sx={{
-                          fontSize: "1.1rem",
                           color: () => {
                             const consumptionValue =
                               parseFloat(inputValue) -
@@ -1654,376 +2001,572 @@ function MeterScreen({
                             if (consumptionValue < 0)
                               return theme.palette.error.main;
 
-                            return theme.palette.grey[600]; // For zero
+                            return theme.palette.grey[600];
                           },
                         }}
                       >
                         {formatConsumption()} m³
                       </Typography>
                     </Box>
-                  )}
 
-                <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-                  <Button
-                    variant={localIsConfirmed ? "outlined" : "contained"}
-                    color={localIsConfirmed ? "error" : "primary"}
-                    onClick={() => {
-                      if (localIsConfirmed) {
-                        // Show confirmation dialog instead of immediately unconfirming
-                        handleUnconfirmButtonClick();
+                    {/* Add a visual indicator of consumption trend */}
+                    {(() => {
+                      const consumptionValue = parseFloat(formatConsumption());
+                      if (isNaN(consumptionValue)) return null;
+
+                      if (consumptionValue > averageConsumption * 1.3) {
+                        return (
+                          <Chip
+                            icon={<WarningIcon fontSize="small" />}
+                            label="Consumo elevado"
+                            color="warning"
+                            size="small"
+                          />
+                        );
+                      } else if (consumptionValue < 0) {
+                        return (
+                          <Chip
+                            icon={<ErrorOutlineIcon fontSize="small" />}
+                            label="Consumo negativo"
+                            color="error"
+                            size="small"
+                          />
+                        );
+                      } else if (consumptionValue < 4) {
+                        return (
+                          <Chip
+                            icon={<InfoOutlinedIcon fontSize="small" />}
+                            label="Consumo bajo"
+                            color="info"
+                            size="small"
+                          />
+                        );
                       } else {
-                        // Confirm logic
-                        handleConfirmClick();
+                        return (
+                          <Chip
+                            icon={<CheckCircleIcon fontSize="small" />}
+                            label="Consumo normal"
+                            color="success"
+                            size="small"
+                          />
+                        );
                       }
-                    }}
-                    disabled={inputValue.trim() === ""}
-                    startIcon={
-                      localIsConfirmed ? (
-                        <WarningIcon />
-                      ) : (
-                        <CheckCircleOutlineIcon />
-                      )
+                    })()}
+                  </Paper>
+                )}
+
+              {/* Action Buttons */}
+              <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
+                <Button
+                  variant={localIsConfirmed ? "outlined" : "contained"}
+                  color={localIsConfirmed ? "error" : "primary"}
+                  onClick={() => {
+                    if (localIsConfirmed) {
+                      handleUnconfirmButtonClick();
+                    } else {
+                      handleConfirmClick();
                     }
-                    sx={{ minWidth: 120 }}
+                  }}
+                  disabled={inputValue.trim() === ""}
+                  startIcon={
+                    localIsConfirmed ? (
+                      <WarningIcon />
+                    ) : (
+                      <CheckCircleOutlineIcon />
+                    )
+                  }
+                  sx={{
+                    minWidth: 120,
+                    py: 1.2,
+                    px: 3,
+                    borderRadius: 2,
+                    boxShadow: localIsConfirmed ? "none" : 2,
+                  }}
+                >
+                  {localIsConfirmed ? "Desconfirmar" : "Confirmar"}
+                </Button>
+
+                {!localIsConfirmed && (
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={handleCantReadMeter}
+                    startIcon={<ErrorOutlineIcon />}
+                    sx={{
+                      minWidth: 160,
+                      py: 1.2,
+                      px: 3,
+                      borderRadius: 2,
+                    }}
                   >
-                    {localIsConfirmed ? "Desconfirmar" : "Confirmar"}
+                    No puedo leer el medidor
                   </Button>
-
-                  {!localIsConfirmed && (
-                    <Button
-                      variant="outlined"
-                      color="secondary"
-                      onClick={handleCantReadMeter}
-                      startIcon={<ErrorOutlineIcon />}
-                      sx={{ minWidth: 160 }}
-                    >
-                      No Puedo Leer
-                    </Button>
-                  )}
-                </Box>
+                )}
               </Box>
-            </Box>
-          </CardContent>
-        </Card>
-
-        {/* Navigation Buttons */}
-
-        <Box sx={{ display: "flex", mt: 3, gap: 2 }}>
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            onClick={() => handleNavigation("prev", onPrev)}
-            disabled={currentIndex === 0}
-            sx={{ flexGrow: 1 }}
-          >
-            Anterior
-          </Button>
-
-          <Button
-            variant="outlined"
-            startIcon={<HomeOutlinedIcon />}
-            onClick={() => handleNavigation("home", onHome)}
-            sx={{ flexGrow: 1 }}
-          >
-            Inicio
-          </Button>
-
-          {currentIndex < totalMeters - 1 ? (
-            <Button
-              variant="contained"
-              endIcon={<ArrowForwardIcon />}
-              onClick={() => handleNavigation("next", onNext)}
-              sx={{ flexGrow: 1 }}
-            >
-              Siguiente
-            </Button>
-          ) : (
-            <Button
-              variant="contained"
-              color="success"
-              onClick={() => handleNavigation("finish", onFinish)}
-              sx={{ flexGrow: 1 }}
-            >
-              Finalizar
-            </Button>
-          )}
+            </Grid>
+          </Grid>
         </Box>
+      </Card>
 
-        {/* Enhanced Navigation Confirmation Dialog */}
-        <Dialog
-          open={isNavigationDialogOpen}
-          onClose={() => setIsNavigationDialogOpen(false)}
-          aria-labelledby="navigation-dialog-title"
-          maxWidth="sm"
-          fullWidth
+      {/* Navigation Buttons - Improved Layout */}
+      <Paper
+        elevation={2}
+        sx={{
+          p: 2,
+          borderRadius: 3,
+          backgroundColor: alpha(theme.palette.background.paper, 0.8),
+          backdropFilter: "blur(8px)",
+        }}
+      >
+        <Grid container spacing={2}>
+          <Grid item xs={4}>
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBackIcon />}
+              onClick={() => handleNavigation("prev", onPrev)}
+              disabled={currentIndex === 0}
+              sx={{
+                width: "100%",
+                py: 1.2,
+                borderRadius: 2,
+                borderWidth: "1.5px",
+              }}
+            >
+              Anterior
+            </Button>
+          </Grid>
+
+          <Grid item xs={4}>
+            <Button
+              variant="outlined"
+              startIcon={<HomeOutlinedIcon />}
+              onClick={() => handleNavigation("home", onHome)}
+              sx={{
+                width: "100%",
+                py: 1.2,
+                borderRadius: 2,
+                borderWidth: "1.5px",
+              }}
+            >
+              Inicio
+            </Button>
+          </Grid>
+
+          <Grid item xs={4}>
+            {currentIndex < totalMeters - 1 ? (
+              <Button
+                variant="contained"
+                endIcon={<ArrowForwardIcon />}
+                onClick={() => handleNavigation("next", onNext)}
+                sx={{
+                  width: "100%",
+                  py: 1.2,
+                  borderRadius: 2,
+                  boxShadow: 2,
+                }}
+              >
+                Siguiente
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                color="success"
+                onClick={() => handleNavigation("finish", onFinish)}
+                sx={{
+                  width: "100%",
+                  py: 1.2,
+                  borderRadius: 2,
+                  boxShadow: 2,
+                }}
+              >
+                Finalizar
+              </Button>
+            )}
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {/* Enhanced Navigation Confirmation Dialog */}
+      <Dialog
+        open={isNavigationDialogOpen}
+        onClose={() => setIsNavigationDialogOpen(false)}
+        aria-labelledby="navigation-dialog-title"
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          id="navigation-dialog-title"
+          sx={{
+            borderBottom: 1,
+            borderColor: "divider",
+            backgroundColor: alpha(theme.palette.warning.light, 0.1),
+            px: 3,
+            py: 2.5,
+            "& .MuiTypography-root": {
+              fontSize: "1.25rem",
+              fontWeight: 600,
+            },
+          }}
         >
-          <DialogTitle
-            id="navigation-dialog-title"
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <WarningAmberIcon color="warning" />
+            <Typography>Lectura Sin Confirmar</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, py: 3 }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+              Resumen de la Lectura:
+            </Typography>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                backgroundColor: alpha(theme.palette.background.default, 0.7),
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 1,
+              }}
+            >
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Medidor:
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {meter.ID}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Lectura Ingresada:
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {inputValue}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Box>
+
+          <Alert
+            severity="warning"
+            variant="outlined"
             sx={{
-              borderBottom: 1,
-              borderColor: "divider",
-              backgroundColor: alpha(theme.palette.warning.light, 0.1),
-              px: 3,
-              py: 2.5,
-              "& .MuiTypography-root": {
-                fontSize: "1.25rem",
-                fontWeight: 600,
+              mb: 3,
+              "& .MuiAlert-message": {
+                fontWeight: 500,
               },
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <WarningAmberIcon color="warning" />
-              <Typography>Lectura Sin Confirmar</Typography>
-            </Box>
-          </DialogTitle>
-          <DialogContent sx={{ px: 3, py: 3 }}>
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                Resumen de la Lectura:
-              </Typography>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 2,
-                  backgroundColor: alpha(theme.palette.background.default, 0.7),
-                  border: 1,
-                  borderColor: "divider",
-                  borderRadius: 1,
-                }}
-              >
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Medidor:
-                    </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {meter.ID}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Lectura Ingresada:
-                    </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {inputValue}
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Box>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              Ha ingresado una lectura pero no la ha confirmado.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Si continúa sin confirmar, la lectura no será ingresada.
+            </Typography>
+          </Alert>
 
-            <Alert
-              severity="warning"
-              variant="outlined"
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+            ¿Qué desea hacer?
+          </Typography>
+        </DialogContent>
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2.5,
+            gap: 1,
+            borderTop: 1,
+            borderColor: "divider",
+          }}
+        >
+          <Button
+            onClick={() => setIsNavigationDialogOpen(false)}
+            color="inherit"
+            variant="outlined"
+            sx={{ minWidth: 120 }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleLeaveUnconfirmed}
+            color="warning"
+            variant="outlined"
+            sx={{ minWidth: 120 }}
+          >
+            Continuar Sin Confirmar
+          </Button>
+          <Button
+            onClick={handleConfirmAndNavigate}
+            color="success"
+            variant="contained"
+            sx={{ minWidth: 120 }}
+            startIcon={<CheckCircleIcon />}
+          >
+            Confirmar y Continuar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Low Consumption Verification Dialog */}
+      <Dialog
+        open={showLowConsumptionDialog}
+        onClose={handleCancelLowConsumptionDialog}
+        aria-labelledby="low-consumption-dialog-title"
+        maxWidth="sm"
+        fullWidth
+      >
+        {verificationStep === 1 && (
+          <>
+            <DialogTitle
+              id="low-consumption-dialog-title"
               sx={{
-                mb: 3,
-                "& .MuiAlert-message": {
-                  fontWeight: 500,
+                borderBottom: 1,
+                borderColor: "divider",
+                backgroundColor: alpha(theme.palette.info.light, 0.1),
+                px: 3,
+                py: 2.5,
+                "& .MuiTypography-root": {
+                  fontSize: "1.25rem",
+                  fontWeight: 600,
                 },
               }}
             >
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                Ha ingresado una lectura pero no la ha confirmado.
-              </Typography>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Si continúa sin confirmar, la lectura no será ingresada.
-              </Typography>
-            </Alert>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <InfoOutlinedIcon color="info" />
+                <Typography>Consumo Bajo Detectado</Typography>
+              </Box>
+            </DialogTitle>
+            <DialogContent sx={{ px: 3, py: 3 }}>
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                  Resumen de la Lectura:
+                </Typography>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 2,
+                    backgroundColor: alpha(
+                      theme.palette.background.default,
+                      0.7
+                    ),
+                    border: 1,
+                    borderColor: "divider",
+                    borderRadius: 1,
+                  }}
+                >
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Lectura Anterior:
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        {previousReadingEntries.length > 0
+                          ? previousReadingEntries[0]?.value
+                          : "---"}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Lectura Actual:
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        {inputValue}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Consumo Promedio:
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        {averageConsumption.toFixed(1)} m³
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Consumo Calculado:
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          fontWeight: 600,
+                          color: theme.palette.info.dark,
+                        }}
+                      >
+                        {currentConsumptionRef.current !== null
+                          ? currentConsumptionRef.current
+                          : "?"}{" "}
+                        m³
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Divider sx={{ my: 1 }} />
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", mt: 1 }}
+                      >
+                        <Typography variant="body2" sx={{ mr: 1 }}>
+                          El consumo actual es{" "}
+                          <Box component="span" sx={{ fontWeight: 600 }}>
+                            muy bajo
+                          </Box>
+                        </Typography>
+                        <Chip
+                          label="Bajo"
+                          color="info"
+                          size="small"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: "0.75rem",
+                            height: 24,
+                            ml: 1,
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Box>
 
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-              ¿Qué desea hacer?
-            </Typography>
-          </DialogContent>
-          <DialogActions
-            sx={{
-              px: 3,
-              py: 2.5,
-              gap: 1,
-              borderTop: 1,
-              borderColor: "divider",
-            }}
-          >
-            <Button
-              onClick={() => setIsNavigationDialogOpen(false)}
-              color="inherit"
-              variant="outlined"
-              sx={{ minWidth: 120 }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleLeaveUnconfirmed}
-              color="warning"
-              variant="outlined"
-              sx={{ minWidth: 120 }}
-            >
-              Continuar Sin Confirmar
-            </Button>
-            <Button
-              onClick={handleConfirmAndNavigate}
-              color="success"
-              variant="contained"
-              sx={{ minWidth: 120 }}
-              startIcon={<CheckCircleIcon />}
-            >
-              Confirmar y Continuar
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Low Consumption Verification Dialog */}
-        <Dialog
-          open={showLowConsumptionDialog}
-          onClose={handleCancelLowConsumptionDialog}
-          aria-labelledby="low-consumption-dialog-title"
-          maxWidth="sm"
-          fullWidth
-        >
-          {verificationStep === 1 && (
-            <>
-              <DialogTitle
-                id="low-consumption-dialog-title"
+              <Alert
+                severity="info"
+                variant="outlined"
                 sx={{
-                  borderBottom: 1,
-                  borderColor: "divider",
-                  backgroundColor: alpha(theme.palette.info.light, 0.1),
-                  px: 3,
-                  py: 2.5,
-                  "& .MuiTypography-root": {
-                    fontSize: "1.25rem",
-                    fontWeight: 600,
+                  mb: 3,
+                  "& .MuiAlert-message": {
+                    fontWeight: 500,
                   },
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                  <InfoOutlinedIcon color="info" />
-                  <Typography>Consumo Bajo Detectado</Typography>
-                </Box>
-              </DialogTitle>
-              <DialogContent sx={{ px: 3, py: 3 }}>
-                <Box sx={{ mb: 3 }}>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: 600, mb: 1 }}
-                  >
-                    Resumen de la Lectura:
-                  </Typography>
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 2,
-                      backgroundColor: alpha(
-                        theme.palette.background.default,
-                        0.7
-                      ),
-                      border: 1,
-                      borderColor: "divider",
-                      borderRadius: 1,
-                    }}
-                  >
-                    <Grid container spacing={2}>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          Lectura Anterior:
-                        </Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                          {previousReadingEntries.length > 0
-                            ? previousReadingEntries[0]?.value
-                            : "---"}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          Lectura Actual:
-                        </Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                          {inputValue}
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          Consumo Promedio:
-                        </Typography>
-                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                          {averageConsumption.toFixed(1)} m³
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Typography variant="body2" color="text.secondary">
-                          Consumo Calculado:
-                        </Typography>
-                        <Typography
-                          variant="h6"
-                          sx={{
-                            fontWeight: 600,
-                            color: theme.palette.info.dark,
-                          }}
-                        >
-                          {currentConsumptionRef.current !== null
-                            ? currentConsumptionRef.current
-                            : "?"}{" "}
-                          m³
-                        </Typography>
-                      </Grid>
-                      <Grid item xs={12}>
-                        <Divider sx={{ my: 1 }} />
-                        <Box
-                          sx={{ display: "flex", alignItems: "center", mt: 1 }}
-                        >
-                          <Typography variant="body2" sx={{ mr: 1 }}>
-                            El consumo actual es{" "}
-                            <Box component="span" sx={{ fontWeight: 600 }}>
-                              muy bajo
-                            </Box>
-                          </Typography>
-                          <Chip
-                            label="Bajo"
-                            color="info"
-                            size="small"
-                            sx={{
-                              fontWeight: 600,
-                              fontSize: "0.75rem",
-                              height: 24,
-                              ml: 1,
-                            }}
-                          />
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Box>
-
-                <Alert
-                  severity="info"
-                  variant="outlined"
-                  sx={{
-                    mb: 3,
-                    "& .MuiAlert-message": {
-                      fontWeight: 500,
-                    },
-                  }}
-                >
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                    Se requiere verificación
-                  </Typography>
-                  <Typography variant="body2">
-                    Debido al bajo consumo detectado, necesitamos verificar la
-                    situación de esta propiedad. Por favor siga estos pasos:
-                  </Typography>
-                  <List dense disablePadding sx={{ mt: 0.5 }}>
-                    <ListItem sx={{ py: 0.5 }}>
-                      <ListItemText primary="1. Toque a la puerta de la propiedad" />
-                    </ListItem>
-                    <ListItem sx={{ py: 0.5 }}>
-                      <ListItemText primary="2. Complete el siguiente cuestionario" />
-                    </ListItem>
-                  </List>
-                </Alert>
-
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-                  ¿Alguien atendió en la propiedad?
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                  Se requiere verificación
                 </Typography>
+                <Typography variant="body2">
+                  Debido al bajo consumo detectado, necesitamos verificar la
+                  situación de esta propiedad. Por favor siga estos pasos:
+                </Typography>
+                <List dense disablePadding sx={{ mt: 0.5 }}>
+                  <ListItem sx={{ py: 0.5 }}>
+                    <ListItemText primary="1. Toque a la puerta de la propiedad" />
+                  </ListItem>
+                  <ListItem sx={{ py: 0.5 }}>
+                    <ListItemText primary="2. Complete el siguiente cuestionario" />
+                  </ListItem>
+                </List>
+              </Alert>
 
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                ¿Alguien atendió en la propiedad?
+              </Typography>
+
+              <Box
+                sx={{
+                  p: 2,
+                  border: 1,
+                  borderColor: alpha(theme.palette.primary.main, 0.2),
+                  borderRadius: 1,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                }}
+              >
+                <FormControl component="fieldset" sx={{ width: "100%" }}>
+                  <RadioGroup
+                    value={
+                      verificationData.answeredDoor === undefined
+                        ? ""
+                        : verificationData.answeredDoor
+                        ? "yes"
+                        : "no"
+                    }
+                    onChange={handleAnsweredDoorChange}
+                    sx={{ flexDirection: "row", gap: 4 }}
+                  >
+                    <FormControlLabel
+                      value="yes"
+                      control={<Radio color="primary" />}
+                      label="Sí"
+                      sx={{
+                        "& .MuiFormControlLabel-label": {
+                          fontWeight: 500,
+                        },
+                      }}
+                    />
+                    <FormControlLabel
+                      value="no"
+                      control={<Radio color="primary" />}
+                      label="No"
+                      sx={{
+                        "& .MuiFormControlLabel-label": {
+                          fontWeight: 500,
+                        },
+                      }}
+                    />
+                  </RadioGroup>
+                </FormControl>
+              </Box>
+            </DialogContent>
+
+            <DialogActions
+              sx={{
+                px: 3,
+                py: 2.5,
+                gap: 1,
+                borderTop: 1,
+                borderColor: "divider",
+              }}
+            >
+              <Button
+                onClick={handleCancelLowConsumptionDialog}
+                color="inherit"
+                variant="outlined"
+                sx={{ minWidth: 100 }}
+              >
+                Cancelar
+              </Button>
+              <Box sx={{ flex: 1 }} />
+              <Button
+                onClick={() => setVerificationStep(2)}
+                color="primary"
+                variant="contained"
+                disabled={verificationData.answeredDoor === undefined}
+                startIcon={<ArrowForwardIcon />}
+                sx={{ minWidth: 140 }}
+              >
+                Siguiente
+              </Button>
+            </DialogActions>
+          </>
+        )}
+
+        {verificationStep === 2 && verificationData.answeredDoor === true && (
+          <>
+            <DialogTitle
+              id="low-consumption-dialog-title-step2"
+              sx={{
+                borderBottom: 1,
+                borderColor: "divider",
+                backgroundColor: alpha(theme.palette.info.light, 0.1),
+                px: 3,
+                py: 2.5,
+                "& .MuiTypography-root": {
+                  fontSize: "1.25rem",
+                  fontWeight: 600,
+                },
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <InfoOutlinedIcon color="info" />
+                <Typography>Verificación - Cliente Presente</Typography>
+              </Box>
+            </DialogTitle>
+            <DialogContent sx={{ px: 3, py: 3 }}>
+              <Typography variant="body1" paragraph>
+                Por favor complete la siguiente información con los datos
+                proporcionados por el cliente:
+              </Typography>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                  ¿Ha tenido problemas con el suministro de agua?
+                </Typography>
                 <Box
                   sx={{
                     p: 2,
@@ -2031,18 +2574,19 @@ function MeterScreen({
                     borderColor: alpha(theme.palette.primary.main, 0.2),
                     borderRadius: 1,
                     backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                    mb: 3,
                   }}
                 >
                   <FormControl component="fieldset" sx={{ width: "100%" }}>
                     <RadioGroup
                       value={
-                        verificationData.answeredDoor === undefined
+                        verificationData.hadIssues === undefined
                           ? ""
-                          : verificationData.answeredDoor
+                          : verificationData.hadIssues
                           ? "yes"
                           : "no"
                       }
-                      onChange={handleAnsweredDoorChange}
+                      onChange={handleWaterIssuesChange}
                       sx={{ flexDirection: "row", gap: 4 }}
                     >
                       <FormControlLabel
@@ -2068,996 +2612,869 @@ function MeterScreen({
                     </RadioGroup>
                   </FormControl>
                 </Box>
-              </DialogContent>
 
-              <DialogActions
-                sx={{
-                  px: 3,
-                  py: 2.5,
-                  gap: 1,
-                  borderTop: 1,
-                  borderColor: "divider",
-                }}
-              >
-                <Button
-                  onClick={handleCancelLowConsumptionDialog}
-                  color="inherit"
-                  variant="outlined"
-                  sx={{ minWidth: 100 }}
-                >
-                  Cancelar
-                </Button>
-                <Box sx={{ flex: 1 }} />
-                <Button
-                  onClick={() => setVerificationStep(2)}
-                  color="primary"
-                  variant="contained"
-                  disabled={verificationData.answeredDoor === undefined}
-                  startIcon={<ArrowForwardIcon />}
-                  sx={{ minWidth: 140 }}
-                >
-                  Siguiente
-                </Button>
-              </DialogActions>
-            </>
-          )}
-
-          {verificationStep === 2 && verificationData.answeredDoor === true && (
-            <>
-              <DialogTitle
-                id="low-consumption-dialog-title-step2"
-                sx={{
-                  borderBottom: 1,
-                  borderColor: "divider",
-                  backgroundColor: alpha(theme.palette.info.light, 0.1),
-                  px: 3,
-                  py: 2.5,
-                  "& .MuiTypography-root": {
-                    fontSize: "1.25rem",
-                    fontWeight: 600,
-                  },
-                }}
-              >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                  <InfoOutlinedIcon color="info" />
-                  <Typography>Verificación - Cliente Presente</Typography>
-                </Box>
-              </DialogTitle>
-              <DialogContent sx={{ px: 3, py: 3 }}>
-                <Typography variant="body1" paragraph>
-                  Por favor complete la siguiente información con los datos
-                  proporcionados por el cliente:
-                </Typography>
-
-                <Box sx={{ mb: 3 }}>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: 600, mb: 2 }}
-                  >
-                    ¿Ha tenido problemas con el suministro de agua?
-                  </Typography>
-                  <Box
-                    sx={{
-                      p: 2,
-                      border: 1,
-                      borderColor: alpha(theme.palette.primary.main, 0.2),
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.primary.main, 0.02),
-                      mb: 3,
-                    }}
-                  >
-                    <FormControl component="fieldset" sx={{ width: "100%" }}>
-                      <RadioGroup
-                        value={
-                          verificationData.hadIssues === undefined
-                            ? ""
-                            : verificationData.hadIssues
-                            ? "yes"
-                            : "no"
-                        }
-                        onChange={handleWaterIssuesChange}
-                        sx={{ flexDirection: "row", gap: 4 }}
-                      >
-                        <FormControlLabel
-                          value="yes"
-                          control={<Radio color="primary" />}
-                          label="Sí"
-                          sx={{
-                            "& .MuiFormControlLabel-label": {
-                              fontWeight: 500,
-                            },
-                          }}
-                        />
-                        <FormControlLabel
-                          value="no"
-                          control={<Radio color="primary" />}
-                          label="No"
-                          sx={{
-                            "& .MuiFormControlLabel-label": {
-                              fontWeight: 500,
-                            },
-                          }}
-                        />
-                      </RadioGroup>
-                    </FormControl>
-                  </Box>
-
-                  {verificationData.hadIssues && (
-                    <Box sx={{ mb: 3 }}>
-                      <Typography
-                        variant="subtitle1"
-                        sx={{ fontWeight: 500, mb: 1 }}
-                      >
-                        Describa brevemente el problema:
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        multiline
-                        rows={2}
-                        placeholder="Describa el problema reportado por el cliente"
-                        value={verificationData.issueDescription || ""}
-                        onChange={handleIssueDescriptionChange}
-                        variant="outlined"
-                        sx={{ backgroundColor: "white" }}
-                      />
-                    </Box>
-                  )}
-
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ fontWeight: 600, mb: 2 }}
-                  >
-                    ¿Cuántos meses lleva viviendo en esta propiedad?
-                  </Typography>
-                  <TextField
-                    fullWidth
-                    type="number"
-                    placeholder="Ingrese el número de meses"
-                    value={verificationData.residenceMonths || ""}
-                    onChange={handleResidenceMonthsChange}
-                    variant="outlined"
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">meses</InputAdornment>
-                      ),
-                    }}
-                    sx={{ backgroundColor: "white" }}
-                  />
-                </Box>
-              </DialogContent>
-
-              <DialogActions
-                sx={{
-                  px: 3,
-                  py: 2.5,
-                  gap: 1,
-                  borderTop: 1,
-                  borderColor: "divider",
-                }}
-              >
-                <Button
-                  onClick={() => setVerificationStep(1)}
-                  color="inherit"
-                  variant="outlined"
-                  startIcon={<ArrowBackIcon />}
-                  sx={{ minWidth: 100 }}
-                >
-                  Atrás
-                </Button>
-                <Box sx={{ flex: 1 }} />
-                <Button
-                  onClick={handleCompleteVerification}
-                  color="primary"
-                  variant="contained"
-                  disabled={
-                    verificationData.hadIssues === undefined ||
-                    (verificationData.hadIssues === true &&
-                      !verificationData.issueDescription) ||
-                    !verificationData.residenceMonths
-                  }
-                  startIcon={<CheckCircleIcon />}
-                  sx={{ minWidth: 140 }}
-                >
-                  Guardar y Confirmar
-                </Button>
-              </DialogActions>
-            </>
-          )}
-
-          {verificationStep === 2 &&
-            verificationData.answeredDoor === false && (
-              <>
-                <DialogTitle
-                  id="low-consumption-dialog-title-step2"
-                  sx={{
-                    borderBottom: 1,
-                    borderColor: "divider",
-                    backgroundColor: alpha(theme.palette.info.light, 0.1),
-                    px: 3,
-                    py: 2.5,
-                    "& .MuiTypography-root": {
-                      fontSize: "1.25rem",
-                      fontWeight: 600,
-                    },
-                  }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                    <InfoOutlinedIcon color="info" />
-                    <Typography>Verificación - Sin Respuesta</Typography>
-                  </Box>
-                </DialogTitle>
-                <DialogContent sx={{ px: 3, py: 3 }}>
-                  <Typography variant="body1" paragraph>
-                    Ya que no hubo respuesta en la propiedad, por favor observe
-                    y responda:
-                  </Typography>
-
+                {verificationData.hadIssues && (
                   <Box sx={{ mb: 3 }}>
                     <Typography
                       variant="subtitle1"
-                      sx={{ fontWeight: 600, mb: 2 }}
+                      sx={{ fontWeight: 500, mb: 1 }}
                     >
-                      ¿La propiedad parece habitada?
+                      Describa brevemente el problema:
                     </Typography>
-                    <Box
-                      sx={{
-                        p: 2,
-                        border: 1,
-                        borderColor: alpha(theme.palette.primary.main, 0.2),
-                        borderRadius: 1,
-                        backgroundColor: alpha(
-                          theme.palette.primary.main,
-                          0.02
-                        ),
-                      }}
-                    >
-                      <FormControl component="fieldset" sx={{ width: "100%" }}>
-                        <RadioGroup
-                          value={
-                            verificationData.looksLivedIn === undefined
-                              ? ""
-                              : verificationData.looksLivedIn
-                              ? "yes"
-                              : "no"
-                          }
-                          onChange={handleHouseInhabitedChange}
-                          sx={{ flexDirection: "row", gap: 4 }}
-                        >
-                          <FormControlLabel
-                            value="yes"
-                            control={<Radio color="primary" />}
-                            label="Sí"
-                            sx={{
-                              "& .MuiFormControlLabel-label": {
-                                fontWeight: 500,
-                              },
-                            }}
-                          />
-                          <FormControlLabel
-                            value="no"
-                            control={<Radio color="primary" />}
-                            label="No"
-                            sx={{
-                              "& .MuiFormControlLabel-label": {
-                                fontWeight: 500,
-                              },
-                            }}
-                          />
-                        </RadioGroup>
-                      </FormControl>
-                    </Box>
-
-                    <Box sx={{ mt: 3 }}>
-                      <Alert severity="info">
-                        <Typography variant="body2">
-                          Señales de que una propiedad está habitada incluyen:
-                        </Typography>
-                        <List dense disablePadding>
-                          <ListItem sx={{ py: 0.5 }}>
-                            <ListItemText primary="• Luces encendidas" />
-                          </ListItem>
-                          <ListItem sx={{ py: 0.5 }}>
-                            <ListItemText primary="• Vehículos estacionados" />
-                          </ListItem>
-                          <ListItem sx={{ py: 0.5 }}>
-                            <ListItemText primary="• Jardín mantenido" />
-                          </ListItem>
-                          <ListItem sx={{ py: 0.5 }}>
-                            <ListItemText primary="• Cortinas/persianas abiertas" />
-                          </ListItem>
-                        </List>
-                      </Alert>
-                    </Box>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={2}
+                      placeholder="Describa el problema reportado por el cliente"
+                      value={verificationData.issueDescription || ""}
+                      onChange={handleIssueDescriptionChange}
+                      variant="outlined"
+                      sx={{ backgroundColor: "white" }}
+                    />
                   </Box>
-                </DialogContent>
+                )}
 
-                <DialogActions
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                  ¿Cuántos meses lleva viviendo en esta propiedad?
+                </Typography>
+                <TextField
+                  fullWidth
+                  type="number"
+                  placeholder="Ingrese el número de meses"
+                  value={verificationData.residenceMonths || ""}
+                  onChange={handleResidenceMonthsChange}
+                  variant="outlined"
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">meses</InputAdornment>
+                    ),
+                  }}
+                  sx={{ backgroundColor: "white" }}
+                />
+              </Box>
+            </DialogContent>
+
+            <DialogActions
+              sx={{
+                px: 3,
+                py: 2.5,
+                gap: 1,
+                borderTop: 1,
+                borderColor: "divider",
+              }}
+            >
+              <Button
+                onClick={() => setVerificationStep(1)}
+                color="inherit"
+                variant="outlined"
+                startIcon={<ArrowBackIcon />}
+                sx={{ minWidth: 100 }}
+              >
+                Atrás
+              </Button>
+              <Box sx={{ flex: 1 }} />
+              <Button
+                onClick={handleCompleteVerification}
+                color="primary"
+                variant="contained"
+                disabled={
+                  verificationData.hadIssues === undefined ||
+                  (verificationData.hadIssues === true &&
+                    !verificationData.issueDescription) ||
+                  !verificationData.residenceMonths
+                }
+                startIcon={<CheckCircleIcon />}
+                sx={{ minWidth: 140 }}
+              >
+                Guardar y Confirmar
+              </Button>
+            </DialogActions>
+          </>
+        )}
+
+        {verificationStep === 2 && verificationData.answeredDoor === false && (
+          <>
+            <DialogTitle
+              id="low-consumption-dialog-title-step2"
+              sx={{
+                borderBottom: 1,
+                borderColor: "divider",
+                backgroundColor: alpha(theme.palette.info.light, 0.1),
+                px: 3,
+                py: 2.5,
+                "& .MuiTypography-root": {
+                  fontSize: "1.25rem",
+                  fontWeight: 600,
+                },
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <InfoOutlinedIcon color="info" />
+                <Typography>Verificación - Sin Respuesta</Typography>
+              </Box>
+            </DialogTitle>
+            <DialogContent sx={{ px: 3, py: 3 }}>
+              <Typography variant="body1" paragraph>
+                Ya que no hubo respuesta en la propiedad, por favor observe y
+                responda:
+              </Typography>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+                  ¿La propiedad parece habitada?
+                </Typography>
+                <Box
                   sx={{
-                    px: 3,
-                    py: 2.5,
-                    gap: 1,
-                    borderTop: 1,
-                    borderColor: "divider",
+                    p: 2,
+                    border: 1,
+                    borderColor: alpha(theme.palette.primary.main, 0.2),
+                    borderRadius: 1,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.02),
                   }}
                 >
-                  <Button
-                    onClick={() => setVerificationStep(1)}
-                    color="inherit"
-                    variant="outlined"
-                    startIcon={<ArrowBackIcon />}
-                    sx={{ minWidth: 100 }}
-                  >
-                    Atrás
-                  </Button>
-                  <Box sx={{ flex: 1 }} />
-                  <Button
-                    onClick={handleCompleteVerification}
-                    color="primary"
-                    variant="contained"
-                    disabled={verificationData.looksLivedIn === undefined}
-                    startIcon={<CheckCircleIcon />}
-                    sx={{ minWidth: 140 }}
-                  >
-                    Guardar y Confirmar
-                  </Button>
-                </DialogActions>
-              </>
-            )}
-        </Dialog>
+                  <FormControl component="fieldset" sx={{ width: "100%" }}>
+                    <RadioGroup
+                      value={
+                        verificationData.looksLivedIn === undefined
+                          ? ""
+                          : verificationData.looksLivedIn
+                          ? "yes"
+                          : "no"
+                      }
+                      onChange={handleHouseInhabitedChange}
+                      sx={{ flexDirection: "row", gap: 4 }}
+                    >
+                      <FormControlLabel
+                        value="yes"
+                        control={<Radio color="primary" />}
+                        label="Sí"
+                        sx={{
+                          "& .MuiFormControlLabel-label": {
+                            fontWeight: 500,
+                          },
+                        }}
+                      />
+                      <FormControlLabel
+                        value="no"
+                        control={<Radio color="primary" />}
+                        label="No"
+                        sx={{
+                          "& .MuiFormControlLabel-label": {
+                            fontWeight: 500,
+                          },
+                        }}
+                      />
+                    </RadioGroup>
+                  </FormControl>
+                </Box>
 
-        {/* Unconfirm Confirmation Dialog */}
-        <Dialog
-          open={showUnconfirmDialog}
-          onClose={handleCancelUnconfirm}
-          aria-labelledby="unconfirm-dialog-title"
-          PaperProps={{
-            sx: {
-              borderRadius: 2,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-              overflow: "hidden",
-              maxWidth: 500,
+                <Box sx={{ mt: 3 }}>
+                  <Alert severity="info">
+                    <Typography variant="body2">
+                      Señales de que una propiedad está habitada incluyen:
+                    </Typography>
+                    <List dense disablePadding>
+                      <ListItem sx={{ py: 0.5 }}>
+                        <ListItemText primary="• Luces encendidas" />
+                      </ListItem>
+                      <ListItem sx={{ py: 0.5 }}>
+                        <ListItemText primary="• Vehículos estacionados" />
+                      </ListItem>
+                      <ListItem sx={{ py: 0.5 }}>
+                        <ListItemText primary="• Jardín mantenido" />
+                      </ListItem>
+                      <ListItem sx={{ py: 0.5 }}>
+                        <ListItemText primary="• Cortinas/persianas abiertas" />
+                      </ListItem>
+                    </List>
+                  </Alert>
+                </Box>
+              </Box>
+            </DialogContent>
+
+            <DialogActions
+              sx={{
+                px: 3,
+                py: 2.5,
+                gap: 1,
+                borderTop: 1,
+                borderColor: "divider",
+              }}
+            >
+              <Button
+                onClick={() => setVerificationStep(1)}
+                color="inherit"
+                variant="outlined"
+                startIcon={<ArrowBackIcon />}
+                sx={{ minWidth: 100 }}
+              >
+                Atrás
+              </Button>
+              <Box sx={{ flex: 1 }} />
+              <Button
+                onClick={handleCompleteVerification}
+                color="primary"
+                variant="contained"
+                disabled={verificationData.looksLivedIn === undefined}
+                startIcon={<CheckCircleIcon />}
+                sx={{ minWidth: 140 }}
+              >
+                Guardar y Confirmar
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
+
+      {/* Unconfirm Confirmation Dialog */}
+      <Dialog
+        open={showUnconfirmDialog}
+        onClose={handleCancelUnconfirm}
+        aria-labelledby="unconfirm-dialog-title"
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            overflow: "hidden",
+            maxWidth: 500,
+          },
+        }}
+      >
+        <DialogTitle
+          id="unconfirm-dialog-title"
+          sx={{
+            borderBottom: 1,
+            borderColor: "divider",
+            backgroundColor: alpha(theme.palette.error.light, 0.05),
+            px: 3,
+            py: 2.5,
+            "& .MuiTypography-root": {
+              fontSize: "1.25rem",
+              fontWeight: 600,
             },
           }}
         >
-          <DialogTitle
-            id="unconfirm-dialog-title"
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <WarningIcon color="error" />
+            <Typography>¿Desconfirmar Lectura?</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3, pt: 3 }}>
+          <DialogContentText
             sx={{
-              borderBottom: 1,
-              borderColor: "divider",
-              backgroundColor: alpha(theme.palette.error.light, 0.05),
-              px: 3,
-              py: 2.5,
-              "& .MuiTypography-root": {
-                fontSize: "1.25rem",
-                fontWeight: 600,
-              },
+              pt: 2,
+              mb: 2,
+              color: "text.primary",
+              fontSize: "1rem",
             }}
+            component="div"
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <WarningIcon color="error" />
-              <Typography>¿Desconfirmar Lectura?</Typography>
-            </Box>
-          </DialogTitle>
-          <DialogContent sx={{ p: 3, pt: 3 }}>
-            <DialogContentText
-              sx={{
-                pt: 2,
-                mb: 2,
-                color: "text.primary",
-                fontSize: "1rem",
-              }}
-              component="div"
-            >
-              Si desconfirma esta lectura y continua sin confirmar, no se
-              agregará al archivo de lecturas.
-            </DialogContentText>
-            <Alert severity="warning" sx={{ mb: 1 }}>
-              ¿Está seguro que desea desconfirmar la lectura?
-            </Alert>
-          </DialogContent>
-          <DialogActions
-            sx={{
-              px: 3,
-              py: 2.5,
-              gap: 1,
-              borderTop: 1,
-              borderColor: "divider",
-            }}
-          >
-            <Button
-              onClick={handleCancelUnconfirm}
-              color="inherit"
-              variant="outlined"
-              sx={{ minWidth: 100 }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleConfirmUnconfirm}
-              color="error"
-              variant="contained"
-              sx={{ minWidth: 140 }}
-              startIcon={<WarningIcon />}
-            >
-              Desconfirmar
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Negative Consumption Verification Dialog */}
-        <Dialog
-          open={showNegativeConsumptionDialog}
-          onClose={handleCancelNegativeConsumptionDialog}
-          aria-labelledby="negative-consumption-dialog-title"
-          maxWidth="sm"
-          fullWidth
+            Si desconfirma esta lectura y continua sin confirmar, no se agregará
+            al archivo de lecturas.
+          </DialogContentText>
+          <Alert severity="warning" sx={{ mb: 1 }}>
+            ¿Está seguro que desea desconfirmar la lectura?
+          </Alert>
+        </DialogContent>
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2.5,
+            gap: 1,
+            borderTop: 1,
+            borderColor: "divider",
+          }}
         >
-          <DialogTitle
-            id="negative-consumption-dialog-title"
-            sx={{
-              borderBottom: 1,
-              borderColor: "divider",
-              backgroundColor: alpha(theme.palette.error.light, 0.1),
-              px: 3,
-              py: 2.5,
-              "& .MuiTypography-root": {
-                fontSize: "1.25rem",
-                fontWeight: 600,
-              },
-            }}
+          <Button
+            onClick={handleCancelUnconfirm}
+            color="inherit"
+            variant="outlined"
+            sx={{ minWidth: 100 }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <ErrorOutlineIcon color="error" />
-              <Typography>Consumo Negativo Detectado</Typography>
-            </Box>
-          </DialogTitle>
-          <DialogContent sx={{ px: 3, py: 3 }}>
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                Resumen de la Lectura:
-              </Typography>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 2,
-                  backgroundColor: alpha(theme.palette.background.default, 0.7),
-                  border: 1,
-                  borderColor: "divider",
-                  borderRadius: 1,
-                }}
-              >
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Lectura Anterior:
-                    </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {previousReadingEntries.length > 0
-                        ? previousReadingEntries[0]?.value
-                        : "---"}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Lectura Actual:
-                    </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {inputValue}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Consumo Promedio:
-                    </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {averageConsumption.toFixed(1)} m³
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Consumo Calculado:
-                    </Typography>
-                    <Typography
-                      variant="h6"
-                      sx={{ fontWeight: 600, color: theme.palette.error.dark }}
-                    >
-                      {currentConsumptionRef.current !== null
-                        ? currentConsumptionRef.current
-                        : "?"}{" "}
-                      m³
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Divider sx={{ my: 1 }} />
-                    <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-                      <Typography variant="body2" sx={{ mr: 1 }}>
-                        El consumo actual es{" "}
-                        <Box
-                          component="span"
-                          sx={{
-                            fontWeight: 600,
-                            color: theme.palette.error.main,
-                          }}
-                        >
-                          negativo
-                        </Box>
-                      </Typography>
-                      <Chip
-                        label="Negativo"
-                        color="error"
-                        size="small"
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: "0.75rem",
-                          height: 24,
-                          ml: 1,
-                        }}
-                      />
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Box>
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirmUnconfirm}
+            color="error"
+            variant="contained"
+            sx={{ minWidth: 140 }}
+            startIcon={<WarningIcon />}
+          >
+            Desconfirmar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-            <Alert
-              severity="error"
-              variant="outlined"
-              sx={{
-                mb: 3,
-                "& .MuiAlert-message": {
-                  fontWeight: 500,
-                },
-              }}
-            >
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                Posibles causas de consumo negativo:
-              </Typography>
-              <List dense disablePadding sx={{ mt: 0.5 }}>
-                <ListItem sx={{ py: 0.5 }}>
-                  <ListItemText primary="• Error al ingresar la lectura actual" />
-                </ListItem>
-                <ListItem sx={{ py: 0.5 }}>
-                  <ListItemText primary="• Lectura anterior fue una estimación alta" />
-                </ListItem>
-                <ListItem sx={{ py: 0.5 }}>
-                  <ListItemText primary="• Reemplazo o reinicio del medidor" />
-                </ListItem>
-              </List>
-            </Alert>
-
+      {/* Negative Consumption Verification Dialog */}
+      <Dialog
+        open={showNegativeConsumptionDialog}
+        onClose={handleCancelNegativeConsumptionDialog}
+        aria-labelledby="negative-consumption-dialog-title"
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          id="negative-consumption-dialog-title"
+          sx={{
+            borderBottom: 1,
+            borderColor: "divider",
+            backgroundColor: alpha(theme.palette.error.light, 0.1),
+            px: 3,
+            py: 2.5,
+            "& .MuiTypography-root": {
+              fontSize: "1.25rem",
+              fontWeight: 600,
+            },
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <ErrorOutlineIcon color="error" />
+            <Typography>Consumo Negativo Detectado</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, py: 3 }}>
+          <Box sx={{ mb: 3 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-              ¿Desea continuar?
+              Resumen de la Lectura:
             </Typography>
-            <Typography variant="body2">
-              Si está seguro que la lectura actual ({inputValue}) es correcta,
-              puede confirmarla. De lo contrario, regrese para corregir el
-              valor.
-            </Typography>
-          </DialogContent>
-          <DialogActions
-            sx={{
-              px: 3,
-              py: 2.5,
-              gap: 1,
-              borderTop: 1,
-              borderColor: "divider",
-            }}
-          >
-            <Button
-              onClick={handleCancelNegativeConsumptionDialog}
-              color="inherit"
-              variant="outlined"
-              sx={{ minWidth: 140 }}
-            >
-              Cancelar y Editar
-            </Button>
-            <Button
-              onClick={handleConfirmNegativeReading}
-              color="error"
-              variant="contained"
-              sx={{ minWidth: 140 }}
-              startIcon={<CheckCircleIcon />}
-            >
-              Confirmar Lectura
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* High Consumption Verification Dialog */}
-        <Dialog
-          open={showHighConsumptionDialog}
-          onClose={handleCancelHighConsumptionDialog}
-          aria-labelledby="high-consumption-dialog-title"
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle
-            id="high-consumption-dialog-title"
-            sx={{
-              borderBottom: 1,
-              borderColor: "divider",
-              backgroundColor: alpha(theme.palette.warning.light, 0.1),
-              px: 3,
-              py: 2.5,
-              "& .MuiTypography-root": {
-                fontSize: "1.25rem",
-                fontWeight: 600,
-              },
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <WarningAmberIcon color="warning" />
-              <Typography>Consumo Elevado Detectado</Typography>
-            </Box>
-          </DialogTitle>
-          <DialogContent sx={{ px: 3, py: 3 }}>
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                Resumen de la Lectura:
-              </Typography>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 2,
-                  backgroundColor: alpha(theme.palette.background.default, 0.7),
-                  border: 1,
-                  borderColor: "divider",
-                  borderRadius: 1,
-                }}
-              >
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Lectura Anterior:
-                    </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {previousReadingEntries.length > 0
-                        ? previousReadingEntries[0]?.value
-                        : "---"}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Lectura Actual:
-                    </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {inputValue}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Consumo Promedio:
-                    </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {averageConsumption.toFixed(1)} m³
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Consumo Calculado:
-                    </Typography>
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        fontWeight: 600,
-                        color: theme.palette.warning.dark,
-                      }}
-                    >
-                      {currentConsumptionRef.current !== null
-                        ? currentConsumptionRef.current
-                        : "?"}{" "}
-                      m³
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Divider sx={{ my: 1 }} />
-                    <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-                      <Typography variant="body2" sx={{ mr: 1 }}>
-                        El consumo actual es{" "}
-                        <Box component="span" sx={{ fontWeight: 600 }}>
-                          {currentConsumptionRef.current !== null &&
-                          averageConsumption > 0
-                            ? (
-                                currentConsumptionRef.current /
-                                averageConsumption
-                              ).toFixed(1)
-                            : "?"}{" "}
-                          veces
-                        </Box>{" "}
-                        mayor que el promedio
-                      </Typography>
-                      <Chip
-                        label="Alto"
-                        color="warning"
-                        size="small"
-                        sx={{
-                          fontWeight: 600,
-                          fontSize: "0.75rem",
-                          height: 24,
-                          ml: 1,
-                        }}
-                      />
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Box>
-
-            <Alert
-              severity="warning"
-              variant="outlined"
-              sx={{
-                mb: 3,
-                "& .MuiAlert-message": {
-                  fontWeight: 500,
-                },
-              }}
-            >
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                Posibles causas de consumo elevado:
-              </Typography>
-              <List dense disablePadding sx={{ mt: 0.5 }}>
-                <ListItem sx={{ py: 0.5 }}>
-                  <ListItemText primary="• Fuga de agua en la propiedad" />
-                </ListItem>
-                <ListItem sx={{ py: 0.5 }}>
-                  <ListItemText primary="• Uso excesivo de agua en el período" />
-                </ListItem>
-                <ListItem sx={{ py: 0.5 }}>
-                  <ListItemText primary="• Error en la lectura anterior (subestimada)" />
-                </ListItem>
-                <ListItem sx={{ py: 0.5 }}>
-                  <ListItemText primary="• Error al ingresar la lectura actual" />
-                </ListItem>
-              </List>
-            </Alert>
-
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-              ¿Desea continuar?
-            </Typography>
-            <Typography variant="body2">
-              Si está seguro que la lectura actual ({inputValue}) es correcta,
-              puede confirmarla. De lo contrario, regrese para corregir el
-              valor.
-            </Typography>
-          </DialogContent>
-          <DialogActions
-            sx={{
-              px: 3,
-              py: 2.5,
-              gap: 1,
-              borderTop: 1,
-              borderColor: "divider",
-            }}
-          >
-            <Button
-              onClick={handleCancelHighConsumptionDialog}
-              color="inherit"
-              variant="outlined"
-              sx={{ minWidth: 140 }}
-            >
-              Cancelar y Editar
-            </Button>
-            <Button
-              onClick={handleConfirmHighConsumption}
-              color="warning"
-              variant="contained"
-              sx={{ minWidth: 140 }}
-              startIcon={<CheckCircleIcon />}
-            >
-              Confirmar Lectura
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Can't Read Meter Dialog */}
-        <Dialog
-          open={showCantReadDialog}
-          onClose={handleCancelCantRead}
-          aria-labelledby="cant-read-dialog-title"
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle
-            id="cant-read-dialog-title"
-            sx={{
-              borderBottom: 1,
-              borderColor: "divider",
-              backgroundColor: alpha(theme.palette.info.light, 0.1),
-              px: 3,
-              py: 2.5,
-              "& .MuiTypography-root": {
-                fontSize: "1.25rem",
-                fontWeight: 600,
-              },
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-              <ErrorOutlineIcon color="info" />
-              <Typography>No Se Puede Leer el Medidor</Typography>
-            </Box>
-          </DialogTitle>
-          <DialogContent sx={{ px: 3, py: 3 }}>
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                Información del Medidor:
-              </Typography>
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 2,
-                  backgroundColor: alpha(theme.palette.background.default, 0.7),
-                  border: 1,
-                  borderColor: "divider",
-                  borderRadius: 1,
-                }}
-              >
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      ID del Medidor:
-                    </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      {meter.ID}
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Lectura Estimada:
-                    </Typography>
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        fontWeight: 600,
-                        color: theme.palette.warning.dark,
-                      }}
-                    >
-                      {estimatedReading} m³
-                    </Typography>
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography variant="body2" color="text.secondary">
-                      Dirección:
-                    </Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                      {meter.ADDRESS}
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </Paper>
-            </Box>
-
-            <Alert
-              severity="info"
-              variant="outlined"
-              sx={{
-                mb: 3,
-                "& .MuiAlert-message": {
-                  fontWeight: 500,
-                },
-              }}
-            >
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                Se utilizará la lectura estimada
-              </Typography>
-              <Typography variant="body2">
-                Por favor indique el motivo por el cual no puede realizar la
-                lectura del medidor. Esta información es importante para mejorar
-                el servicio.
-              </Typography>
-            </Alert>
-
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-              Motivo:
-            </Typography>
-
-            <Box
+            <Paper
+              elevation={0}
               sx={{
                 p: 2,
+                backgroundColor: alpha(theme.palette.background.default, 0.7),
                 border: 1,
-                borderColor: alpha(theme.palette.primary.main, 0.2),
+                borderColor: "divider",
                 borderRadius: 1,
-                backgroundColor: alpha(theme.palette.primary.main, 0.02),
               }}
             >
-              <FormControl component="fieldset" sx={{ width: "100%" }}>
-                <RadioGroup
-                  value={cantReadReason}
-                  onChange={handleReasonChange}
-                  sx={{ flexDirection: "column", gap: 1 }}
-                >
-                  <FormControlLabel
-                    value="damaged_meter"
-                    control={<Radio color="primary" />}
-                    label="Medidor dañado o ilegible"
-                    sx={{
-                      "& .MuiFormControlLabel-label": {
-                        fontWeight: 500,
-                      },
-                    }}
-                  />
-                  <FormControlLabel
-                    value="access_blocked"
-                    control={<Radio color="primary" />}
-                    label="Acceso bloqueado (reja, cerca, etc.)"
-                    sx={{
-                      "& .MuiFormControlLabel-label": {
-                        fontWeight: 500,
-                      },
-                    }}
-                  />
-                  <FormControlLabel
-                    value="animals"
-                    control={<Radio color="primary" />}
-                    label="Animales impiden acceso (perros, etc.)"
-                    sx={{
-                      "& .MuiFormControlLabel-label": {
-                        fontWeight: 500,
-                      },
-                    }}
-                  />
-                  <FormControlLabel
-                    value="other"
-                    control={<Radio color="primary" />}
-                    label="Otro motivo"
-                    sx={{
-                      "& .MuiFormControlLabel-label": {
-                        fontWeight: 500,
-                      },
-                    }}
-                  />
-                </RadioGroup>
-              </FormControl>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Lectura Anterior:
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {previousReadingEntries.length > 0
+                      ? previousReadingEntries[0]?.value
+                      : "---"}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Lectura Actual:
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {inputValue}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Consumo Promedio:
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {averageConsumption.toFixed(1)} m³
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Consumo Calculado:
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    sx={{ fontWeight: 600, color: theme.palette.error.dark }}
+                  >
+                    {currentConsumptionRef.current !== null
+                      ? currentConsumptionRef.current
+                      : "?"}{" "}
+                    m³
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <Divider sx={{ my: 1 }} />
+                  <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+                    <Typography variant="body2" sx={{ mr: 1 }}>
+                      El consumo actual es{" "}
+                      <Box
+                        component="span"
+                        sx={{
+                          fontWeight: 600,
+                          color: theme.palette.error.main,
+                        }}
+                      >
+                        negativo
+                      </Box>
+                    </Typography>
+                    <Chip
+                      label="Negativo"
+                      color="error"
+                      size="small"
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: "0.75rem",
+                        height: 24,
+                        ml: 1,
+                      }}
+                    />
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Box>
 
-              {cantReadReason === "other" && (
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={2}
-                  placeholder="Describa el motivo por el cual no puede leer el medidor"
-                  value={otherReasonText}
-                  onChange={handleOtherReasonChange}
-                  variant="outlined"
-                  sx={{ mt: 2, backgroundColor: "white" }}
-                />
-              )}
-            </Box>
-          </DialogContent>
-
-          <DialogActions
+          <Alert
+            severity="error"
+            variant="outlined"
             sx={{
-              px: 3,
-              py: 2.5,
-              gap: 1,
-              borderTop: 1,
-              borderColor: "divider",
+              mb: 3,
+              "& .MuiAlert-message": {
+                fontWeight: 500,
+              },
             }}
           >
-            <Button
-              onClick={handleCancelCantRead}
-              color="inherit"
-              variant="outlined"
-              sx={{ minWidth: 100 }}
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+              Posibles causas de consumo negativo:
+            </Typography>
+            <List dense disablePadding sx={{ mt: 0.5 }}>
+              <ListItem sx={{ py: 0.5 }}>
+                <ListItemText primary="• Error al ingresar la lectura actual" />
+              </ListItem>
+              <ListItem sx={{ py: 0.5 }}>
+                <ListItemText primary="• Lectura anterior fue una estimación alta" />
+              </ListItem>
+              <ListItem sx={{ py: 0.5 }}>
+                <ListItemText primary="• Reemplazo o reinicio del medidor" />
+              </ListItem>
+            </List>
+          </Alert>
+
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+            ¿Desea continuar?
+          </Typography>
+          <Typography variant="body2">
+            Si está seguro que la lectura actual ({inputValue}) es correcta,
+            puede confirmarla. De lo contrario, regrese para corregir el valor.
+          </Typography>
+        </DialogContent>
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2.5,
+            gap: 1,
+            borderTop: 1,
+            borderColor: "divider",
+          }}
+        >
+          <Button
+            onClick={handleCancelNegativeConsumptionDialog}
+            color="inherit"
+            variant="outlined"
+            sx={{ minWidth: 140 }}
+          >
+            Cancelar y Editar
+          </Button>
+          <Button
+            onClick={handleConfirmNegativeReading}
+            color="error"
+            variant="contained"
+            sx={{ minWidth: 140 }}
+            startIcon={<CheckCircleIcon />}
+          >
+            Confirmar Lectura
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* High Consumption Verification Dialog */}
+      <Dialog
+        open={showHighConsumptionDialog}
+        onClose={handleCancelHighConsumptionDialog}
+        aria-labelledby="high-consumption-dialog-title"
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          id="high-consumption-dialog-title"
+          sx={{
+            borderBottom: 1,
+            borderColor: "divider",
+            backgroundColor: alpha(theme.palette.warning.light, 0.1),
+            px: 3,
+            py: 2.5,
+            "& .MuiTypography-root": {
+              fontSize: "1.25rem",
+              fontWeight: 600,
+            },
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <WarningAmberIcon color="warning" />
+            <Typography>Consumo Elevado Detectado</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, py: 3 }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+              Resumen de la Lectura:
+            </Typography>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                backgroundColor: alpha(theme.palette.background.default, 0.7),
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 1,
+              }}
             >
-              Cancelar
-            </Button>
-            <Box sx={{ flex: 1 }} />
-            <Button
-              onClick={handleConfirmEstimatedReading}
-              color="primary"
-              variant="contained"
-              disabled={
-                cantReadReason === "" ||
-                (cantReadReason === "other" && otherReasonText.trim() === "")
-              }
-              startIcon={<CheckCircleIcon />}
-              sx={{ minWidth: 140 }}
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Lectura Anterior:
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {previousReadingEntries.length > 0
+                      ? previousReadingEntries[0]?.value
+                      : "---"}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Lectura Actual:
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {inputValue}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Consumo Promedio:
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {averageConsumption.toFixed(1)} m³
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Consumo Calculado:
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      color: theme.palette.warning.dark,
+                    }}
+                  >
+                    {currentConsumptionRef.current !== null
+                      ? currentConsumptionRef.current
+                      : "?"}{" "}
+                    m³
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <Divider sx={{ my: 1 }} />
+                  <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+                    <Typography variant="body2" sx={{ mr: 1 }}>
+                      El consumo actual es{" "}
+                      <Box component="span" sx={{ fontWeight: 600 }}>
+                        {currentConsumptionRef.current !== null &&
+                        averageConsumption > 0
+                          ? (
+                              currentConsumptionRef.current / averageConsumption
+                            ).toFixed(1)
+                          : "?"}{" "}
+                        veces
+                      </Box>{" "}
+                      mayor que el promedio
+                    </Typography>
+                    <Chip
+                      label="Alto"
+                      color="warning"
+                      size="small"
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: "0.75rem",
+                        height: 24,
+                        ml: 1,
+                      }}
+                    />
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Box>
+
+          <Alert
+            severity="warning"
+            variant="outlined"
+            sx={{
+              mb: 3,
+              "& .MuiAlert-message": {
+                fontWeight: 500,
+              },
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+              Posibles causas de consumo elevado:
+            </Typography>
+            <List dense disablePadding sx={{ mt: 0.5 }}>
+              <ListItem sx={{ py: 0.5 }}>
+                <ListItemText primary="• Fuga de agua en la propiedad" />
+              </ListItem>
+              <ListItem sx={{ py: 0.5 }}>
+                <ListItemText primary="• Uso excesivo de agua en el período" />
+              </ListItem>
+              <ListItem sx={{ py: 0.5 }}>
+                <ListItemText primary="• Error en la lectura anterior (subestimada)" />
+              </ListItem>
+              <ListItem sx={{ py: 0.5 }}>
+                <ListItemText primary="• Error al ingresar la lectura actual" />
+              </ListItem>
+            </List>
+          </Alert>
+
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+            ¿Desea continuar?
+          </Typography>
+          <Typography variant="body2">
+            Si está seguro que la lectura actual ({inputValue}) es correcta,
+            puede confirmarla. De lo contrario, regrese para corregir el valor.
+          </Typography>
+        </DialogContent>
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2.5,
+            gap: 1,
+            borderTop: 1,
+            borderColor: "divider",
+          }}
+        >
+          <Button
+            onClick={handleCancelHighConsumptionDialog}
+            color="inherit"
+            variant="outlined"
+            sx={{ minWidth: 140 }}
+          >
+            Cancelar y Editar
+          </Button>
+          <Button
+            onClick={handleConfirmHighConsumption}
+            color="warning"
+            variant="contained"
+            sx={{ minWidth: 140 }}
+            startIcon={<CheckCircleIcon />}
+          >
+            Confirmar Lectura
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Can't Read Meter Dialog */}
+      <Dialog
+        open={showCantReadDialog}
+        onClose={handleCancelCantRead}
+        aria-labelledby="cant-read-dialog-title"
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          id="cant-read-dialog-title"
+          sx={{
+            borderBottom: 1,
+            borderColor: "divider",
+            backgroundColor: alpha(theme.palette.info.light, 0.1),
+            px: 3,
+            py: 2.5,
+            "& .MuiTypography-root": {
+              fontSize: "1.25rem",
+              fontWeight: 600,
+            },
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <ErrorOutlineIcon color="info" />
+            <Typography>No se puede leer el medidor</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, py: 3 }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+              Información del Medidor:
+            </Typography>
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2,
+                backgroundColor: alpha(theme.palette.background.default, 0.7),
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 1,
+              }}
             >
-              Confirmar Estimación
-            </Button>
-          </DialogActions>
-        </Dialog>
-      </Box>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    ID del Medidor:
+                  </Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    {meter.ID}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="body2" color="text.secondary">
+                    Lectura Estimada:
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      color: theme.palette.warning.dark,
+                    }}
+                  >
+                    {estimatedReading} m³
+                  </Typography>
+                </Grid>
+                <Grid item xs={12}>
+                  <Typography variant="body2" color="text.secondary">
+                    Dirección:
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {meter.ADDRESS}
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Box>
+
+          <Alert
+            severity="info"
+            variant="outlined"
+            sx={{
+              mb: 3,
+              "& .MuiAlert-message": {
+                fontWeight: 500,
+              },
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+              Se utilizará la lectura estimada
+            </Typography>
+            <Typography variant="body2">
+              Por favor indique el motivo por el cual no puede realizar la
+              lectura del medidor. Esta información es importante para mejorar
+              el servicio.
+            </Typography>
+          </Alert>
+
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
+            Motivo:
+          </Typography>
+
+          <Box
+            sx={{
+              p: 2,
+              border: 1,
+              borderColor: alpha(theme.palette.primary.main, 0.2),
+              borderRadius: 1,
+              backgroundColor: alpha(theme.palette.primary.main, 0.02),
+            }}
+          >
+            <FormControl component="fieldset" sx={{ width: "100%" }}>
+              <RadioGroup
+                value={cantReadReason}
+                onChange={handleReasonChange}
+                sx={{ flexDirection: "column", gap: 1 }}
+              >
+                <FormControlLabel
+                  value="damaged_meter"
+                  control={<Radio color="primary" />}
+                  label="Medidor dañado o ilegible"
+                  sx={{
+                    "& .MuiFormControlLabel-label": {
+                      fontWeight: 500,
+                    },
+                  }}
+                />
+                <FormControlLabel
+                  value="access_blocked"
+                  control={<Radio color="primary" />}
+                  label="Acceso bloqueado (reja, cerca, etc.)"
+                  sx={{
+                    "& .MuiFormControlLabel-label": {
+                      fontWeight: 500,
+                    },
+                  }}
+                />
+                <FormControlLabel
+                  value="animals"
+                  control={<Radio color="primary" />}
+                  label="Animales impiden acceso (perros, etc.)"
+                  sx={{
+                    "& .MuiFormControlLabel-label": {
+                      fontWeight: 500,
+                    },
+                  }}
+                />
+                <FormControlLabel
+                  value="other"
+                  control={<Radio color="primary" />}
+                  label="Otro motivo"
+                  sx={{
+                    "& .MuiFormControlLabel-label": {
+                      fontWeight: 500,
+                    },
+                  }}
+                />
+              </RadioGroup>
+            </FormControl>
+
+            {cantReadReason === "other" && (
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                placeholder="Describa el motivo por el cual no puede leer el medidor"
+                value={otherReasonText}
+                onChange={handleOtherReasonChange}
+                variant="outlined"
+                sx={{ mt: 2, backgroundColor: "white" }}
+              />
+            )}
+          </Box>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2.5,
+            gap: 1,
+            borderTop: 1,
+            borderColor: "divider",
+          }}
+        >
+          <Button
+            onClick={handleCancelCantRead}
+            color="inherit"
+            variant="outlined"
+            sx={{ minWidth: 100 }}
+          >
+            Cancelar
+          </Button>
+          <Box sx={{ flex: 1 }} />
+          <Button
+            onClick={handleConfirmEstimatedReading}
+            color="primary"
+            variant="contained"
+            disabled={
+              cantReadReason === "" ||
+              (cantReadReason === "other" && otherReasonText.trim() === "")
+            }
+            startIcon={<CheckCircleIcon />}
+            sx={{ minWidth: 140 }}
+          >
+            Confirmar Estimación
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
