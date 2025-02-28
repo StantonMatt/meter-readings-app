@@ -339,14 +339,18 @@ function SummaryScreen({
                 label: "",
               };
 
-              if (row.consumption !== "---") {
+              if (row.consumption !== "---" && !row.isEstimated) {
                 const consumptionValue = parseFloat(row.consumption);
 
                 if (consumptionValue < 0) {
                   consumptionLabels = { type: "negative", label: "Negativo" };
                 } else if (consumptionValue < 4) {
                   consumptionLabels = { type: "low", label: "Bajo" };
-                } else if (consumptionValue > 20) {
+                } else if (
+                  averageConsumption > 0 &&
+                  consumptionValue > averageConsumption * 1.6
+                ) {
+                  // Only mark as high if it's more than 1.6 times the average consumption
                   consumptionLabels = { type: "high", label: "Elevado" };
                 }
               }
@@ -362,16 +366,22 @@ function SummaryScreen({
                     {row.id}
                   </TableCell>
                   <TableCell>{row.address}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 500 }}>
+                  <TableCell
+                    align="right"
+                    sx={{
+                      fontWeight: 600,
+                      color: "text.primary",
+                      fontSize: "0.9rem",
+                    }}
+                  >
                     {row.previousReading}
                   </TableCell>
                   <TableCell
                     align="right"
                     sx={{
                       fontWeight: 600,
-                      color: row.isEstimated
-                        ? "rgba(79, 70, 229, 0.9)"
-                        : "text.primary",
+                      color: "text.primary",
+                      fontSize: "0.9rem",
                     }}
                   >
                     {row.currentReading}
@@ -380,14 +390,55 @@ function SummaryScreen({
                     <Typography
                       sx={{
                         fontWeight: 600,
-                        color:
-                          consumptionLabels.type === "negative"
-                            ? "error.main"
-                            : consumptionLabels.type === "low"
-                            ? "info.main"
-                            : consumptionLabels.type === "high"
-                            ? "text.secondary"
-                            : "text.primary",
+                        color: () => {
+                          // Check if this is an estimated reading
+                          if (row.isEstimated) return "rgba(79, 70, 229, 0.9)"; // Purple for estimated
+
+                          // Handle consumption-based colors
+                          if (row.consumption === "---") return "text.primary";
+
+                          const consumptionValue = parseFloat(row.consumption);
+
+                          if (isNaN(consumptionValue)) return "text.primary";
+
+                          if (consumptionValue < 0) return "error.main"; // Red for negative
+                          if (consumptionValue < 4) return "info.main"; // Blue for low
+                          if (
+                            averageConsumption > 0 &&
+                            consumptionValue > averageConsumption * 1.6
+                          )
+                            return "text.secondary"; // Gray for elevated
+
+                          return "text.primary"; // Default color
+                        },
+                        fontSize: "0.9rem",
+                        // Optionally add background highlighting for better visualization
+                        px: 1,
+                        py: 0.5,
+                        borderRadius: 1,
+                        display: "inline-block",
+                        backgroundColor: () => {
+                          // Add subtle background highlighting based on status
+                          if (row.isEstimated) return "rgba(79, 70, 229, 0.05)"; // Light purple bg
+
+                          if (row.consumption === "---") return "transparent";
+
+                          const consumptionValue = parseFloat(row.consumption);
+
+                          if (isNaN(consumptionValue)) return "transparent";
+
+                          if (consumptionValue < 0)
+                            return "rgba(239, 68, 68, 0.05)"; // Light red bg
+                          if (consumptionValue < 4)
+                            return "rgba(59, 130, 246, 0.05)"; // Light blue bg
+                          if (
+                            averageConsumption > 0 &&
+                            consumptionValue > averageConsumption * 1.6
+                          )
+                            return "rgba(107, 114, 128, 0.05)"; // Light gray bg
+
+                          return "transparent";
+                        },
                       }}
                     >
                       {row.consumption}
