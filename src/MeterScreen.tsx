@@ -681,6 +681,7 @@ function MeterScreen({
 
         // Store complete reading data
         storeMeterReading(meter.ID, {
+          ...existingData,
           reading: newValue,
           previousReading: String(previousValue),
           consumption: consumptionType,
@@ -694,9 +695,7 @@ function MeterScreen({
         currentConsumptionRef.current = consumptionType.value;
       }
     } else {
-      // If the value is empty, clear the consumption data
-      currentConsumptionRef.current = null;
-      // Clear the stored data but preserve verification if it exists
+      // If the value is empty, clear the consumption data but preserve verification
       const existingData = getMeterReading(meter.ID);
       if (existingData) {
         storeMeterReading(meter.ID, {

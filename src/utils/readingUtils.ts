@@ -275,6 +275,11 @@ export function storeMeterReading(
     ...existingData,
     ...data,
     timestamp: new Date().toISOString(),
+    verification: data.verification || existingData?.verification,
+    historicalReadings:
+      data.historicalReadings || existingData?.historicalReadings,
+    averageConsumption:
+      data.averageConsumption || existingData?.averageConsumption,
   };
   localStorage.setItem(key, JSON.stringify(newData));
 }

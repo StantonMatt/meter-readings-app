@@ -373,53 +373,39 @@ function SummaryScreen({
                       sx={{
                         fontWeight: 600,
                         color: () => {
-                          // Check if this is an estimated reading
-                          if (row.isEstimated) return "rgba(79, 70, 229, 0.9)"; // Purple for estimated
-
-                          // Handle consumption-based colors
-                          if (row.consumption === "---") return "text.primary";
-
-                          const consumptionValue = parseFloat(row.consumption);
-
-                          if (isNaN(consumptionValue)) return "text.primary";
-
-                          if (consumptionValue < 0) return "error.main"; // Red for negative
-                          if (consumptionValue < 4) return "info.main"; // Blue for low
-                          if (
-                            averageConsumption > 0 &&
-                            consumptionValue > averageConsumption * 1.6
-                          )
-                            return "text.secondary"; // Gray for elevated
-
-                          return "text.primary"; // Default color
+                          // Use the stored consumption type
+                          switch (row.consumptionType.type) {
+                            case "estimated":
+                              return "rgba(79, 70, 229, 0.9)"; // Purple for estimated
+                            case "negative":
+                              return theme.palette.error.main;
+                            case "low":
+                              return theme.palette.info.main;
+                            case "high":
+                              return theme.palette.text.secondary;
+                            default:
+                              return theme.palette.text.primary;
+                          }
                         },
                         fontSize: "0.9rem",
-                        // Optionally add background highlighting for better visualization
                         px: 1,
                         py: 0.5,
                         borderRadius: 1,
                         display: "inline-block",
                         backgroundColor: () => {
-                          // Add subtle background highlighting based on status
-                          if (row.isEstimated) return "rgba(79, 70, 229, 0.05)"; // Light purple bg
-
-                          if (row.consumption === "---") return "transparent";
-
-                          const consumptionValue = parseFloat(row.consumption);
-
-                          if (isNaN(consumptionValue)) return "transparent";
-
-                          if (consumptionValue < 0)
-                            return "rgba(239, 68, 68, 0.05)"; // Light red bg
-                          if (consumptionValue < 4)
-                            return "rgba(59, 130, 246, 0.05)"; // Light blue bg
-                          if (
-                            averageConsumption > 0 &&
-                            consumptionValue > averageConsumption * 1.6
-                          )
-                            return "rgba(107, 114, 128, 0.05)"; // Light gray bg
-
-                          return "transparent";
+                          // Use the stored consumption type
+                          switch (row.consumptionType.type) {
+                            case "estimated":
+                              return "rgba(79, 70, 229, 0.05)"; // Light purple bg
+                            case "negative":
+                              return "rgba(239, 68, 68, 0.05)"; // Light red bg
+                            case "low":
+                              return "rgba(59, 130, 246, 0.05)"; // Light blue bg
+                            case "high":
+                              return "rgba(107, 114, 128, 0.05)"; // Light gray bg
+                            default:
+                              return "transparent";
+                          }
                         },
                       }}
                     >
@@ -445,16 +431,6 @@ function SummaryScreen({
                       {/* Status chips - without the "Confirmado" chip */}
                       {!row.isConfirmed && (
                         <Chip label="Pendiente" color="warning" size="small" />
-                      )}
-
-                      {/* Show estimated tag if applicable */}
-                      {row.isEstimated && (
-                        <Chip
-                          label="Estimada"
-                          color="primary"
-                          size="small"
-                          sx={{ bgcolor: "rgba(79, 70, 229, 0.8)" }}
-                        />
                       )}
 
                       {/* Show consumption status tag if applicable and confirmed */}
