@@ -62,6 +62,9 @@ function SummaryScreen({
 }: SummaryScreenProps): JSX.Element {
   const theme = useTheme();
 
+  // Add state for showing normal readings (near the top of the component)
+  const [showNormalReadings, setShowNormalReadings] = useState<boolean>(false);
+
   // Calculate reading statistics
   const stats: SummaryStats = useMemo(() => {
     const confirmed = meters.filter(
@@ -96,21 +99,22 @@ function SummaryScreen({
 
       const previousReading = (meter as any).previousReading || "---";
 
-      // If there's no reading, don't assign a consumption type
-      if (readingValue === "---") {
+      // If there's no reading or it's not confirmed, mark as pending
+      if (!isConfirmed) {
         return {
           id: meter.ID,
           address: meter.ADDRESS,
           previousReading,
           currentReading: readingValue,
-          consumption: "---",
-          consumptionType: { type: "none", label: "", value: 0 },
+          consumption: readingValue,
+          consumptionType: { type: "pending", label: "Pendiente", value: 0 },
           status: "pending",
           isConfirmed,
           isEstimated: false,
         };
       }
 
+      // Only calculate consumption type if the reading is confirmed
       const consumption = meterData?.consumption || {
         type: "normal",
         label: "Normal",
@@ -200,6 +204,16 @@ function SummaryScreen({
     // Default value if no data
     return 15;
   }, [rows]);
+
+  // Add a function to filter rows
+  const filteredRows = useMemo(() => {
+    return rows.filter((row) => {
+      if (!showNormalReadings && row.consumptionType.type === "normal") {
+        return false;
+      }
+      return true;
+    });
+  }, [rows, showNormalReadings]);
 
   return (
     <Container maxWidth="lg" sx={{ py: 4, position: "relative" }}>
@@ -340,6 +354,46 @@ function SummaryScreen({
         </Button>
       </Box>
 
+      {/* Add the toggle button (after the Stats Cards and before the Table) */}
+      <Box
+        sx={{
+          position: "fixed",
+          right: 24,
+          top: "50%",
+          transform: "translateY(-50%)",
+          zIndex: 10,
+        }}
+      >
+        <Button
+          variant="contained"
+          onClick={() => setShowNormalReadings((prev) => !prev)}
+          sx={{
+            minWidth: "auto",
+            borderRadius: "12px",
+            py: 2,
+            px: 2,
+            backgroundColor: showNormalReadings
+              ? palette.consumption.normal.main
+              : palette.neutral.background,
+            color: showNormalReadings
+              ? palette.neutral.white
+              : palette.neutral.text.primary,
+            boxShadow: theme.shadows[3],
+            transition: "all 0.2s ease-in-out",
+            writingMode: "vertical-rl",
+            textOrientation: "mixed",
+            "&:hover": {
+              backgroundColor: showNormalReadings
+                ? palette.consumption.normal.dark
+                : alpha(palette.neutral.background, 0.9),
+              boxShadow: theme.shadows[6],
+            },
+          }}
+        >
+          {showNormalReadings ? "Ocultar Normales" : "Mostrar Normales"}
+        </Button>
+      </Box>
+
       {/* Table Container */}
       <TableContainer component={Paper} sx={{ mb: 10 }}>
         {" "}
@@ -358,12 +412,24 @@ function SummaryScreen({
             </TableRow>
           </TableHead>
           <TableBody>
-            {rows.map((row, index) => {
+            {filteredRows.map((row, index) => {
               return (
                 <TableRow
                   key={row.id}
                   sx={{
                     "&:last-child td, &:last-child th": { border: 0 },
+                    // Add animation for smooth appearance
+                    animation: "fadeIn 0.3s ease-in-out",
+                    "@keyframes fadeIn": {
+                      "0%": {
+                        opacity: 0,
+                        transform: "translateY(10px)",
+                      },
+                      "100%": {
+                        opacity: 1,
+                        transform: "translateY(0)",
+                      },
+                    },
                   }}
                 >
                   <TableCell component="th" scope="row">
@@ -407,6 +473,8 @@ function SummaryScreen({
                               return palette.consumption.high.main;
                             case "none":
                               return palette.neutral.text.primary;
+                            case "pending":
+                              return palette.semantic.warning.main;
                             default:
                               return palette.consumption.normal.main;
                           }
@@ -541,6 +609,21 @@ function SummaryScreen({
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Add a count of hidden readings (after the table) */}
+      {!showNormalReadings && rows.length !== filteredRows.length && (
+        <Typography
+          variant="body2"
+          sx={{
+            textAlign: "center",
+            mt: 2,
+            color: palette.neutral.text.secondary,
+            fontStyle: "italic",
+          }}
+        >
+          {rows.length - filteredRows.length} lecturas normales ocultas
+        </Typography>
+      )}
     </Container>
   );
 }

@@ -68,26 +68,31 @@ const palette = {
   consumption: {
     normal: {
       main: "#10b981",
+      dark: "#059669",
       background: "#ecfdf5",
       border: "#a7f3d0",
     },
     low: {
       main: "#3b82f6",
+      dark: "#2563eb",
       background: "#eff6ff",
       border: "#bfdbfe",
     },
     high: {
       main: "#64748b",
+      dark: "#475569",
       background: "#f8fafc",
       border: "#e2e8f0",
     },
     negative: {
       main: "#ef4444",
+      dark: "#dc2626",
       background: "#fef2f2",
       border: "#fecaca",
     },
     estimated: {
       main: "rgba(79, 70, 229, 0.9)",
+      dark: "rgba(67, 56, 202, 0.9)",
       background: "rgba(79, 70, 229, 0.1)",
       border: "rgba(79, 70, 229, 0.3)",
     },
