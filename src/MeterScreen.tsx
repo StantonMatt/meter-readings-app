@@ -988,19 +988,17 @@ function MeterScreen({
       return; // Don't proceed if we don't have valid input
     }
 
-    // Use stored consumption data if available
-    const consumptionType =
-      meterData?.consumption ||
-      determineConsumptionType(
-        parseFloat(inputValue),
-        previousReadingEntries[0]?.value || 0,
-        averageConsumption
-      );
+    // Calculate consumption type fresh each time
+    const consumptionType = determineConsumptionType(
+      parseFloat(inputValue),
+      previousReadingEntries[0]?.value || 0,
+      averageConsumption
+    );
 
-    // Store or update the data
+    // Store the current consumption type
     storeMeterReading(meter.ID, {
       ...meterData,
-      isConfirmed: true,
+      reading: inputValue,
       consumption: consumptionType,
       timestamp: new Date().toISOString(),
     });
@@ -1017,13 +1015,11 @@ function MeterScreen({
     }
 
     if (consumptionType.type === "low") {
-      // Check if we already have verification data
-      if (!meterData?.verification) {
-        setVerificationStep(1);
-        setVerificationData({});
-        setShowLowConsumptionDialog(true);
-        return;
-      }
+      // Always show the dialog for low consumption, regardless of previous verification
+      setVerificationStep(1);
+      setVerificationData({});
+      setShowLowConsumptionDialog(true);
+      return;
     }
 
     // If we get here, either there's no special case or it's already been handled
@@ -1092,6 +1088,7 @@ function MeterScreen({
 
     // Clear local state
     setLocalIsConfirmed(false);
+    setVerificationData({});
 
     // Update parent state
     onConfirmationChange(meter.ID, false);
@@ -1099,11 +1096,14 @@ function MeterScreen({
     // Get existing data to preserve historical readings
     const existingData = getMeterReading(meter.ID);
 
-    // Store the unconfirmed state while preserving the reading
+    // Store the unconfirmed state while preserving the reading and historical data
     storeMeterReading(meter.ID, {
-      ...existingData,
+      reading: existingData?.reading || inputValue,
       isConfirmed: false,
-      verification: undefined, // Clear any verification data
+      consumption: undefined, // Clear consumption data
+      verification: undefined, // Clear verification data
+      historicalReadings: existingData?.historicalReadings, // Preserve historical readings
+      averageConsumption: existingData?.averageConsumption, // Preserve average consumption
     });
   };
 
