@@ -21,6 +21,8 @@ import {
 import { MeterData, ReadingsState } from "./utils/readingUtils";
 import { alpha } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
 
 interface SummaryScreenProps {
   meters: MeterData[];
@@ -36,7 +38,6 @@ interface SummaryScreenProps {
 interface SummaryStats {
   confirmed: number;
   pending: number;
-  skipped: number;
   total: number;
   completionPercentage: number;
 }
@@ -320,7 +321,8 @@ function SummaryScreen({
               <TableCell align="right">Lectura Anterior</TableCell>
               <TableCell align="right">Lectura Actual</TableCell>
               <TableCell align="right">Consumo (m³)</TableCell>
-              <TableCell align="center">Estado</TableCell>
+              <TableCell align="center">Confirmado</TableCell>
+              <TableCell align="center">Lectura</TableCell>
               <TableCell align="center">Acciones</TableCell>
             </TableRow>
           </TableHead>
@@ -339,15 +341,15 @@ function SummaryScreen({
                 const consumptionValue = parseFloat(row.consumption);
 
                 if (consumptionValue < 0) {
-                  consumptionLabels = { type: "negative", label: "Negativo" };
+                  consumptionLabels = { type: "negative", label: "Negativa" };
                 } else if (consumptionValue < 4) {
-                  consumptionLabels = { type: "low", label: "Bajo" };
+                  consumptionLabels = { type: "low", label: "Baja" };
                 } else if (
                   averageConsumption > 0 &&
                   consumptionValue > averageConsumption * 1.6
                 ) {
                   // Only mark as high if it's more than 1.6 times the average consumption
-                  consumptionLabels = { type: "high", label: "Elevado" };
+                  consumptionLabels = { type: "high", label: "Elevada" };
                 }
               }
 
@@ -441,6 +443,13 @@ function SummaryScreen({
                     </Typography>
                   </TableCell>
                   <TableCell align="center">
+                    {row.isConfirmed ? (
+                      <CheckCircleIcon color="success" sx={{ fontSize: 24 }} />
+                    ) : (
+                      <CancelIcon color="error" sx={{ fontSize: 24 }} />
+                    )}
+                  </TableCell>
+                  <TableCell align="center">
                     <Box
                       sx={{
                         display: "flex",
@@ -449,17 +458,15 @@ function SummaryScreen({
                         justifyContent: "center",
                       }}
                     >
-                      {/* Main status chip */}
-                      <Chip
-                        label={row.isConfirmed ? "Confirmado" : "Pendiente"}
-                        color={row.isConfirmed ? "success" : "warning"}
-                        size="small"
-                      />
+                      {/* Status chips - without the "Confirmado" chip */}
+                      {!row.isConfirmed && (
+                        <Chip label="Pendiente" color="warning" size="small" />
+                      )}
 
                       {/* Show estimated tag if applicable */}
                       {row.isEstimated && (
                         <Chip
-                          label="Estimado"
+                          label="Estimada"
                           color="primary"
                           size="small"
                           sx={{ bgcolor: "rgba(79, 70, 229, 0.8)" }}

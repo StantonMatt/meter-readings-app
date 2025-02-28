@@ -93,7 +93,8 @@ interface EmailPreviewTableProps {}
 function EmailPreviewTable(props: EmailPreviewTableProps): JSX.Element {
   // Generate the HTML table
   const generateTableHtml = (): string => {
-    const logoUrl = "https://firebasestorage.googleapis.com/v0/b/meter-readings-app.appspot.com/o/coab_logo.png?alt=media";
+    const logoUrl =
+      "https://firebasestorage.googleapis.com/v0/b/meter-readings-app.appspot.com/o/coab_logo.png?alt=media";
 
     // Calculate statistics
     const totalMeters = mockReadings.length;
@@ -320,7 +321,7 @@ function EmailPreviewTable(props: EmailPreviewTableProps): JSX.Element {
 
   useEffect(() => {
     // Set the iframe content when component mounts
-    const iframe = document.getElementById('tablePreview') as HTMLIFrameElement;
+    const iframe = document.getElementById("tablePreview") as HTMLIFrameElement;
     if (iframe && iframe.contentWindow) {
       iframe.contentWindow.document.open();
       iframe.contentWindow.document.write(generateTableHtml());

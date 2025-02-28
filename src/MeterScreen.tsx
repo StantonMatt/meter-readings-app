@@ -1211,9 +1211,19 @@ function MeterScreen({
     localStorage.setItem(confirmedKey, "true");
     onConfirmationChange(meter.ID, true);
 
-    // Reset navigation state to prevent the navigation dialog from appearing
+    // Store the current pending navigation
+    const currentNavigation = pendingNavigation;
+
+    // Reset navigation state
     setPendingNavigation(null);
     setNavigationHandledByChild(false);
+
+    // If we had a pending navigation (came from navigation attempt), execute it
+    if (currentNavigation) {
+      setTimeout(() => {
+        currentNavigation();
+      }, 50);
+    }
   };
 
   // Handler for canceling
@@ -1250,21 +1260,21 @@ function MeterScreen({
     }
   };
 
-  // Update the handleEmptyCantReadMeter function to properly clean up
+  // Update the handleEmptyCantReadMeter function to store the pending navigation
   const handleEmptyCantReadMeter = () => {
+    // Store the current pending navigation before closing the empty input dialog
+    const storedNavigation = pendingNavigation;
+
     // First close the empty input dialog
     setShowEmptyInputDialog(false);
-
-    // Clear the pending navigation to prevent the navigation dialog from showing
-    setPendingNavigation(null);
-
-    // Reset navigation handled flag
-    setNavigationHandledByChild(false);
 
     // After a small delay to allow state updates to propagate
     setTimeout(() => {
       // Then open the can't read meter dialog
       handleCantReadMeter();
+
+      // Restore the pending navigation
+      setPendingNavigation(() => storedNavigation);
     }, 50);
   };
 
@@ -1282,7 +1292,8 @@ function MeterScreen({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 4,
+          mb: 1,
+          mt: 4,
         }}
       >
         <Box
@@ -1306,9 +1317,9 @@ function MeterScreen({
 
         <Typography
           variant="h6"
-          sx={{ fontWeight: 600, color: theme.palette.text.secondary }}
+          sx={{ pr: 1, fontWeight: 800, color: theme.palette.text.secondary }}
         >
-          {months[selectedMonth]} {selectedYear}
+          {months[selectedMonth]} - {selectedYear}
         </Typography>
       </Box>
 
@@ -1319,7 +1330,7 @@ function MeterScreen({
           borderRadius: 3,
           overflow: "visible",
           boxShadow: "0 6px 20px rgba(0,0,0,0.07)",
-          mb: 4,
+          mb: 3,
         }}
       >
         {/* Header Section */}
