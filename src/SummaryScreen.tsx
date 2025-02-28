@@ -105,7 +105,9 @@ function SummaryScreen({
         address: meter.ADDRESS,
         previousReading,
         currentReading: readingValue,
-        consumption: consumption.value.toFixed(1),
+        consumption: isNaN(consumption.value)
+          ? "---"
+          : consumption.value.toFixed(1),
         consumptionType: consumption,
         status:
           readingValue !== "---"

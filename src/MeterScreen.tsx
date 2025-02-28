@@ -1036,6 +1036,15 @@ function MeterScreen({
     setShowLowConsumptionDialog(false);
     setVerificationStep(1);
     setVerificationData({});
+    // Clear stored data when canceling
+    const existingData = getMeterReading(meter.ID);
+    if (existingData) {
+      storeMeterReading(meter.ID, {
+        ...existingData,
+        isConfirmed: false,
+        consumption: undefined,
+      });
+    }
     // Reset pending navigation since we're canceling
     setPendingNavigation(null);
     setNavigationHandledByChild(false);
@@ -1141,6 +1150,15 @@ function MeterScreen({
   // Add these handlers for negative consumption dialog
   const handleCancelNegativeConsumptionDialog = () => {
     setShowNegativeConsumptionDialog(false);
+    // Clear stored data when canceling
+    const existingData = getMeterReading(meter.ID);
+    if (existingData) {
+      storeMeterReading(meter.ID, {
+        ...existingData,
+        isConfirmed: false,
+        consumption: undefined,
+      });
+    }
     // Reset pending navigation since we're canceling
     setPendingNavigation(null);
     setNavigationHandledByChild(false);
@@ -1189,6 +1207,15 @@ function MeterScreen({
   // Add these handlers for high consumption dialog
   const handleCancelHighConsumptionDialog = () => {
     setShowHighConsumptionDialog(false);
+    // Clear stored data when canceling
+    const existingData = getMeterReading(meter.ID);
+    if (existingData) {
+      storeMeterReading(meter.ID, {
+        ...existingData,
+        isConfirmed: false,
+        consumption: undefined,
+      });
+    }
     // Reset pending navigation since we're canceling
     setPendingNavigation(null);
     setNavigationHandledByChild(false);
@@ -3038,7 +3065,7 @@ function MeterScreen({
           sx={{
             borderBottom: 1,
             borderColor: "divider",
-            backgroundColor: alpha(theme.palette.warning.light, 0.1),
+            backgroundColor: alpha(theme.palette.grey[500], 0.1),
             px: 3,
             py: 2.5,
             "& .MuiTypography-root": {
@@ -3048,7 +3075,7 @@ function MeterScreen({
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <WarningAmberIcon color="warning" />
+            <WarningAmberIcon sx={{ color: theme.palette.grey[700] }} />
             <Typography>Consumo Elevado Detectado</Typography>
           </Box>
         </DialogTitle>
@@ -3145,10 +3172,15 @@ function MeterScreen({
           </Box>
 
           <Alert
-            severity="warning"
+            severity="info"
             variant="outlined"
             sx={{
               mb: 3,
+              borderColor: alpha(theme.palette.grey[500], 0.5),
+              backgroundColor: alpha(theme.palette.grey[500], 0.05),
+              "& .MuiAlert-icon": {
+                color: theme.palette.grey[700],
+              },
               "& .MuiAlert-message": {
                 fontWeight: 500,
               },
@@ -3200,9 +3232,14 @@ function MeterScreen({
           </Button>
           <Button
             onClick={handleConfirmHighConsumption}
-            color="warning"
-            variant="contained"
-            sx={{ minWidth: 140 }}
+            sx={{
+              minWidth: 140,
+              backgroundColor: theme.palette.grey[700],
+              color: "white",
+              "&:hover": {
+                backgroundColor: theme.palette.grey[800],
+              },
+            }}
             startIcon={<CheckCircleIcon />}
           >
             Confirmar Lectura
