@@ -59,19 +59,15 @@ function SummaryScreen({
       (meter) => readingsState[meter.ID]?.isConfirmed
     ).length;
 
-    const pending = meters.filter(
-      (meter) =>
-        readingsState[meter.ID]?.reading &&
-        !readingsState[meter.ID]?.isConfirmed
-    ).length;
+    // Consider any meter that's not confirmed as pending (no more "skipped" category)
+    const pending = meters.length - confirmed;
 
-    const skipped = meters.length - confirmed - pending;
+    // Calculate completion percentage based on confirmed readings
     const completionPercentage = Math.round((confirmed / meters.length) * 100);
 
     return {
       confirmed,
       pending,
-      skipped,
       total: meters.length,
       completionPercentage,
     };
@@ -252,7 +248,7 @@ function SummaryScreen({
           </Typography>
           <Typography variant="h3">{stats.completionPercentage}%</Typography>
           <Typography variant="body2" color="text.secondary">
-            {stats.skipped} omitidas
+            del total
           </Typography>
         </Paper>
       </Box>
