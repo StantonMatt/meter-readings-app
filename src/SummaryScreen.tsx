@@ -30,6 +30,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningIcon from "@mui/icons-material/Warning";
+import { palette } from "./theme";
 
 interface SummaryScreenProps {
   meters: MeterData[];
@@ -94,6 +95,22 @@ function SummaryScreen({
         reading?.isConfirmed || (meter as any).isConfirmed || false;
 
       const previousReading = (meter as any).previousReading || "---";
+
+      // If there's no reading, don't assign a consumption type
+      if (readingValue === "---") {
+        return {
+          id: meter.ID,
+          address: meter.ADDRESS,
+          previousReading,
+          currentReading: readingValue,
+          consumption: "---",
+          consumptionType: { type: "none", label: "", value: 0 },
+          status: "pending",
+          isConfirmed,
+          isEstimated: false,
+        };
+      }
+
       const consumption = meterData?.consumption || {
         type: "normal",
         label: "Normal",
@@ -233,7 +250,10 @@ function SummaryScreen({
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            bgcolor: stats.pending > 0 ? "warning.light" : undefined,
+            bgcolor:
+              stats.pending > 0
+                ? palette.semantic.warning.background
+                : undefined,
           }}
         >
           <Typography variant="h6" gutterBottom>
@@ -290,10 +310,10 @@ function SummaryScreen({
           variant="outlined"
           onClick={onBack}
           sx={{
-            backgroundColor: "white",
+            backgroundColor: palette.neutral.white,
             boxShadow: 2,
             "&:hover": {
-              backgroundColor: "white",
+              backgroundColor: palette.neutral.white,
               boxShadow: 3,
             },
           }}
@@ -354,7 +374,7 @@ function SummaryScreen({
                     align="right"
                     sx={{
                       fontWeight: 600,
-                      color: "text.primary",
+                      color: palette.neutral.text.primary,
                       fontSize: "0.9rem",
                     }}
                   >
@@ -364,7 +384,7 @@ function SummaryScreen({
                     align="right"
                     sx={{
                       fontWeight: 600,
-                      color: "text.primary",
+                      color: palette.neutral.text.primary,
                       fontSize: "0.9rem",
                     }}
                   >
@@ -378,37 +398,21 @@ function SummaryScreen({
                           // Use the stored consumption type
                           switch (row.consumptionType.type) {
                             case "estimated":
-                              return "rgba(79, 70, 229, 0.9)"; // Purple for estimated
+                              return palette.consumption.estimated.main;
                             case "negative":
-                              return theme.palette.error.main;
+                              return palette.consumption.negative.main;
                             case "low":
-                              return theme.palette.info.main;
+                              return palette.consumption.low.main;
                             case "high":
-                              return theme.palette.text.secondary;
+                              return palette.consumption.high.main;
+                            case "none":
+                              return palette.neutral.text.primary;
                             default:
-                              return theme.palette.text.primary;
+                              return palette.consumption.normal.main;
                           }
                         },
                         fontSize: "0.9rem",
-                        px: 1,
-                        py: 0.5,
-                        borderRadius: 1,
                         display: "inline-block",
-                        backgroundColor: () => {
-                          // Use the stored consumption type
-                          switch (row.consumptionType.type) {
-                            case "estimated":
-                              return "rgba(79, 70, 229, 0.05)"; // Light purple bg
-                            case "negative":
-                              return "rgba(239, 68, 68, 0.05)"; // Light red bg
-                            case "low":
-                              return "rgba(59, 130, 246, 0.05)"; // Light blue bg
-                            case "high":
-                              return "rgba(107, 114, 128, 0.05)"; // Light gray bg
-                            default:
-                              return "transparent";
-                          }
-                        },
                       }}
                     >
                       {row.consumption}
@@ -436,63 +440,75 @@ function SummaryScreen({
                       )}
 
                       {/* Show consumption status tag if applicable and confirmed */}
-                      {row.isConfirmed && (
-                        <Chip
-                          icon={(() => {
-                            switch (row.consumptionType.type) {
-                              case "estimated":
-                                return <InfoOutlinedIcon fontSize="small" />;
-                              case "negative":
-                                return <ErrorOutlineIcon fontSize="small" />;
-                              case "low":
-                                return <InfoOutlinedIcon fontSize="small" />;
-                              case "high":
-                                return <WarningIcon fontSize="small" />;
-                              default:
-                                return <CheckCircleIcon fontSize="small" />;
-                            }
-                          })()}
-                          label={row.consumptionType.label}
-                          color={(() => {
-                            switch (row.consumptionType.type) {
-                              case "estimated":
-                                return undefined; // Use custom color for high consumption
-                              case "negative":
-                                return "error";
-                              case "low":
-                                return "info";
-                              case "high":
-                                return undefined; // Use custom color for high consumption
-                              default:
-                                return "success";
-                            }
-                          })()}
-                          sx={
-                            row.consumptionType.type === "estimated"
-                              ? {
-                                  backgroundColor: "rgba(79, 70, 229, 0.1)",
-                                  color: "rgba(79, 70, 229, 0.9)",
-                                  borderColor: "rgba(79, 70, 229, 0.3)",
-                                  fontWeight: 600,
-                                }
-                              : row.consumptionType.type === "high"
-                              ? {
-                                  backgroundColor: alpha(
-                                    theme.palette.grey[500],
-                                    0.1
-                                  ),
-                                  color: theme.palette.grey[700],
-                                  borderColor: alpha(
-                                    theme.palette.grey[500],
-                                    0.3
-                                  ),
-                                  fontWeight: 600,
-                                }
-                              : undefined
-                          }
-                          size="small"
-                        />
-                      )}
+                      {row.isConfirmed &&
+                        row.consumptionType.type !== "none" && (
+                          <Chip
+                            icon={(() => {
+                              switch (row.consumptionType.type) {
+                                case "estimated":
+                                  return <InfoOutlinedIcon fontSize="small" />;
+                                case "negative":
+                                  return <ErrorOutlineIcon fontSize="small" />;
+                                case "low":
+                                  return <InfoOutlinedIcon fontSize="small" />;
+                                case "high":
+                                  return <WarningIcon fontSize="small" />;
+                                default:
+                                  return <CheckCircleIcon fontSize="small" />;
+                              }
+                            })()}
+                            label={row.consumptionType.label}
+                            sx={(() => {
+                              switch (row.consumptionType.type) {
+                                case "estimated":
+                                  return {
+                                    backgroundColor:
+                                      palette.consumption.estimated.background,
+                                    color: palette.consumption.estimated.main,
+                                    borderColor:
+                                      palette.consumption.estimated.border,
+                                    fontWeight: 600,
+                                  };
+                                case "negative":
+                                  return {
+                                    backgroundColor:
+                                      palette.consumption.negative.background,
+                                    color: palette.consumption.negative.main,
+                                    borderColor:
+                                      palette.consumption.negative.border,
+                                    fontWeight: 600,
+                                  };
+                                case "low":
+                                  return {
+                                    backgroundColor:
+                                      palette.consumption.low.background,
+                                    color: palette.consumption.low.main,
+                                    borderColor: palette.consumption.low.border,
+                                    fontWeight: 600,
+                                  };
+                                case "high":
+                                  return {
+                                    backgroundColor:
+                                      palette.consumption.high.background,
+                                    color: palette.consumption.high.main,
+                                    borderColor:
+                                      palette.consumption.high.border,
+                                    fontWeight: 600,
+                                  };
+                                default:
+                                  return {
+                                    backgroundColor:
+                                      palette.consumption.normal.background,
+                                    color: palette.consumption.normal.main,
+                                    borderColor:
+                                      palette.consumption.normal.border,
+                                    fontWeight: 600,
+                                  };
+                              }
+                            })()}
+                            size="small"
+                          />
+                        )}
                     </Box>
                   </TableCell>
                   <TableCell align="center">
@@ -503,10 +519,14 @@ function SummaryScreen({
                       variant="outlined"
                       sx={{
                         minWidth: "80px",
+                        backgroundColor: alpha(
+                          palette.neutral.background,
+                          0.05
+                        ),
                         "&:hover": {
                           backgroundColor: alpha(
-                            theme.palette.primary.main,
-                            0.05
+                            palette.neutral.background,
+                            0.1
                           ),
                         },
                         transition: "all 0.2s",
