@@ -30,6 +30,10 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningIcon from "@mui/icons-material/Warning";
+import CalculateOutlinedIcon from "@mui/icons-material/CalculateOutlined";
+import TrendingDownIcon from "@mui/icons-material/TrendingDown";
+import WaterDropIcon from "@mui/icons-material/WaterDrop";
+import PriorityHighIcon from "@mui/icons-material/PriorityHigh";
 import { palette } from "./theme";
 
 interface SummaryScreenProps {
@@ -504,7 +508,18 @@ function SummaryScreen({
                     >
                       {/* Status chips - without the "Confirmado" chip */}
                       {!row.isConfirmed && (
-                        <Chip label="Pendiente" color="warning" size="small" />
+                        <Chip
+                          icon={<WarningIcon fontSize="small" />}
+                          label="Pendiente"
+                          sx={{
+                            backgroundColor:
+                              palette.semantic.warning.background,
+                            color: palette.semantic.warning.main,
+                            borderColor: palette.semantic.warning.border,
+                            fontWeight: 600,
+                          }}
+                          size="small"
+                        />
                       )}
 
                       {/* Show consumption status tag if applicable and confirmed */}
@@ -514,15 +529,24 @@ function SummaryScreen({
                             icon={(() => {
                               switch (row.consumptionType.type) {
                                 case "estimated":
-                                  return <InfoOutlinedIcon fontSize="small" />;
+                                  return (
+                                    <CalculateOutlinedIcon fontSize="small" />
+                                  );
                                 case "negative":
-                                  return <ErrorOutlineIcon fontSize="small" />;
+                                  return <TrendingDownIcon fontSize="small" />;
                                 case "low":
-                                  return <InfoOutlinedIcon fontSize="small" />;
+                                  return <WaterDropIcon fontSize="small" />;
                                 case "high":
-                                  return <WarningIcon fontSize="small" />;
+                                  return <PriorityHighIcon fontSize="small" />;
                                 default:
-                                  return <CheckCircleIcon fontSize="small" />;
+                                  return (
+                                    <CheckCircleIcon
+                                      fontSize="small"
+                                      sx={{
+                                        color: palette.consumption.normal.main,
+                                      }}
+                                    />
+                                  );
                               }
                             })()}
                             label={row.consumptionType.label}
