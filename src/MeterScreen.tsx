@@ -1022,7 +1022,16 @@ function MeterScreen({
       return;
     }
 
-    // If we get here, either there's no special case or it's already been handled
+    // If we get here, it's a normal consumption - store and confirm immediately
+    storeMeterReading(meter.ID, {
+      ...meterData,
+      reading: inputValue,
+      consumption: consumptionType,
+      isConfirmed: true,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Update local state
     setLocalIsConfirmed(true);
     onConfirmationChange(meter.ID, true);
   };
