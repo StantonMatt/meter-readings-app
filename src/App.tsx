@@ -76,6 +76,9 @@ interface NavigationHandlers {
   handleNextMeter: () => void;
 }
 
+// Near the top of the file, add this type definition
+type AppState = "loading" | "ready" | "auth-required";
+
 function App(): JSX.Element {
   // Core state
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
@@ -118,9 +121,7 @@ function App(): JSX.Element {
   );
 
   // First, update the state definitions with a more explicit loading state
-  const [appState, setAppState] = useState<
-    "loading" | "ready" | "auth-required"
-  >("loading");
+  const [appState, setAppState] = useState<AppState>("loading");
   const [isRestoringSession, setIsRestoringSession] = useState<boolean>(true);
 
   // Add this new state to store previous readings data
@@ -776,7 +777,7 @@ function App(): JSX.Element {
     );
   }
 
-  if (appState === "auth-required") {
+  if (appState === ("auth-required" as AppState)) {
     return <LoginScreen />;
   }
 
@@ -784,6 +785,15 @@ function App(): JSX.Element {
   return (
     <BrowserRouter>
       {(() => {
+        // Show login screen when auth is required
+        if (appState === ("auth-required" as AppState)) {
+          return (
+            <Routes>
+              <Route path="*" element={<LoginScreen />} />
+            </Routes>
+          );
+        }
+
         // Home screen (when currentIndex is null and we're NOT restoring)
         if (currentIndex === null) {
           // Check for any readings or confirmed readings in readingsState
@@ -904,6 +914,7 @@ function App(): JSX.Element {
                   console.log("Updated readings:", updatedReadings);
                 }}
                 onPreviousReadingsUpdate={handlePreviousReadingsUpdate}
+                readingsState={readingsState}
               />
             </Layout>
           );

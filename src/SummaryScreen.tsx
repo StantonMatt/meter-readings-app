@@ -18,11 +18,18 @@ import {
   ListItemText,
   Divider,
 } from "@mui/material";
-import { MeterData, ReadingsState } from "./utils/readingUtils";
+import {
+  MeterData,
+  ReadingsState,
+  getMeterReading,
+} from "./utils/readingUtils";
 import { alpha } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import WarningIcon from "@mui/icons-material/Warning";
 
 interface SummaryScreenProps {
   meters: MeterData[];
@@ -79,6 +86,7 @@ function SummaryScreen({
     console.log("Creating rows with meters:", meters);
 
     return meters.map((meter) => {
+      const meterData = getMeterReading(meter.ID);
       const reading = readingsState[meter.ID];
       const readingValue =
         reading?.reading || (meter as any).currentReading || "---";
@@ -86,14 +94,19 @@ function SummaryScreen({
         reading?.isConfirmed || (meter as any).isConfirmed || false;
 
       const previousReading = (meter as any).previousReading || "---";
-      const consumption = (meter as any).consumption || "---";
+      const consumption = meterData?.consumption || {
+        type: "normal",
+        label: "Normal",
+        value: parseFloat((meter as any).consumption || "0"),
+      };
 
       return {
         id: meter.ID,
         address: meter.ADDRESS,
         previousReading,
         currentReading: readingValue,
-        consumption,
+        consumption: consumption.value.toFixed(1),
+        consumptionType: consumption,
         status:
           readingValue !== "---"
             ? isConfirmed
@@ -101,11 +114,7 @@ function SummaryScreen({
               : "pending"
             : "pending",
         isConfirmed,
-        isEstimated: localStorage.getItem(`meter_${meter.ID}_verification`)
-          ? JSON.parse(
-              localStorage.getItem(`meter_${meter.ID}_verification`) || "{}"
-            ).type === "cantRead"
-          : false,
+        isEstimated: consumption.type === "estimated",
       };
     });
   }, [meters, readingsState]);
@@ -328,31 +337,6 @@ function SummaryScreen({
           </TableHead>
           <TableBody>
             {rows.map((row, index) => {
-              // Determine consumption status for tagging
-              let consumptionLabels: {
-                type: "negative" | "low" | "high" | null;
-                label: string;
-              } = {
-                type: null,
-                label: "",
-              };
-
-              if (row.consumption !== "---" && !row.isEstimated) {
-                const consumptionValue = parseFloat(row.consumption);
-
-                if (consumptionValue < 0) {
-                  consumptionLabels = { type: "negative", label: "Negativa" };
-                } else if (consumptionValue < 4) {
-                  consumptionLabels = { type: "low", label: "Baja" };
-                } else if (
-                  averageConsumption > 0 &&
-                  consumptionValue > averageConsumption * 1.6
-                ) {
-                  // Only mark as high if it's more than 1.6 times the average consumption
-                  consumptionLabels = { type: "high", label: "Elevada" };
-                }
-              }
-
               return (
                 <TableRow
                   key={row.id}
@@ -474,15 +458,46 @@ function SummaryScreen({
                       )}
 
                       {/* Show consumption status tag if applicable and confirmed */}
-                      {row.isConfirmed && consumptionLabels.type && (
+                      {row.isConfirmed && (
                         <Chip
-                          label={consumptionLabels.label}
-                          color={
-                            consumptionLabels.type === "negative"
-                              ? "error"
-                              : consumptionLabels.type === "low"
-                              ? "info"
-                              : "default"
+                          icon={(() => {
+                            switch (row.consumptionType.type) {
+                              case "estimated":
+                                return <InfoOutlinedIcon fontSize="small" />;
+                              case "negative":
+                                return <ErrorOutlineIcon fontSize="small" />;
+                              case "low":
+                                return <InfoOutlinedIcon fontSize="small" />;
+                              case "high":
+                                return <WarningIcon fontSize="small" />;
+                              default:
+                                return <CheckCircleIcon fontSize="small" />;
+                            }
+                          })()}
+                          label={row.consumptionType.label}
+                          color={(() => {
+                            switch (row.consumptionType.type) {
+                              case "estimated":
+                                return undefined; // Use custom color
+                              case "negative":
+                                return "error";
+                              case "low":
+                                return "info";
+                              case "high":
+                                return "warning";
+                              default:
+                                return "success";
+                            }
+                          })()}
+                          sx={
+                            row.consumptionType.type === "estimated"
+                              ? {
+                                  backgroundColor: "rgba(79, 70, 229, 0.1)",
+                                  color: "rgba(79, 70, 229, 0.9)",
+                                  borderColor: "rgba(79, 70, 229, 0.3)",
+                                  fontWeight: 600,
+                                }
+                              : undefined
                           }
                           size="small"
                         />

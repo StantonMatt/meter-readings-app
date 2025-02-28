@@ -31,7 +31,16 @@ import {
   ListItemText,
 } from "@mui/material";
 
-import { MeterData, ReadingsState } from "./utils/readingUtils";
+import {
+  MeterData,
+  ReadingsState,
+  storeMeterReading,
+  getMeterReading,
+  clearMeterReading,
+  determineConsumptionType,
+  ConsumptionType,
+  MeterReadingData,
+} from "./utils/readingUtils";
 import { months } from "./utils/dateUtils";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -86,6 +95,7 @@ interface MeterScreenProps {
   reading: string;
   isConfirmed: boolean;
   onPreviousReadingsUpdate?: (meterId: string, readings: any) => void;
+  readingsState: ReadingsState;
 }
 
 // Format month helpers
@@ -157,6 +167,7 @@ function MeterScreen({
   reading,
   isConfirmed: propIsConfirmed,
   onPreviousReadingsUpdate,
+  readingsState,
 }: MeterScreenProps): JSX.Element {
   const theme = useTheme();
 
@@ -164,10 +175,30 @@ function MeterScreen({
   const readingKey = `meter_${meter.ID}_reading`;
   const confirmedKey = `meter_${meter.ID}_confirmed`;
 
-  // We need a LOCAL inputValue separate from the persisted reading
-  const [inputValue, setInputValue] = useState<string>("");
-  const [localIsConfirmed, setLocalIsConfirmed] =
-    useState<boolean>(propIsConfirmed);
+  // First, update the initial state declarations
+  const [inputValue, setInputValue] = useState<string>(() => {
+    const meterData = getMeterReading(meter.ID);
+    if (meterData?.reading) {
+      return meterData.reading;
+    }
+    const stateReading = readingsState?.[meter.ID]?.reading;
+    if (stateReading && typeof stateReading === "string") {
+      return stateReading;
+    }
+    return "";
+  });
+
+  const [localIsConfirmed, setLocalIsConfirmed] = useState<boolean>(() => {
+    const meterData = getMeterReading(meter.ID);
+    if (meterData?.isConfirmed !== undefined) {
+      return Boolean(meterData.isConfirmed);
+    }
+    const stateConfirmed = readingsState?.[meter.ID]?.isConfirmed;
+    if (stateConfirmed !== undefined) {
+      return Boolean(stateConfirmed);
+    }
+    return false;
+  });
 
   // Add state for navigation dialog
   const [isNavigationDialogOpen, setIsNavigationDialogOpen] =
@@ -211,14 +242,40 @@ function MeterScreen({
 
   // Initialize input value and confirmation status when meter changes
   useEffect(() => {
-    // Retrieve stored reading from localStorage
-    const storedReading = localStorage.getItem(readingKey) || "";
-    setInputValue(storedReading);
+    // Restore meter data when the meter changes or component mounts
+    const meterData = getMeterReading(meter.ID);
 
-    // Also retrieve stored confirmation status
-    const storedConfirmation = localStorage.getItem(confirmedKey) === "true";
-    setLocalIsConfirmed(storedConfirmation);
-  }, [meter.ID, readingKey, confirmedKey]);
+    // Always start with a clean slate when meter changes
+    if (meterData) {
+      // Restore reading value if it exists for this specific meter
+      if (meterData.reading) {
+        setInputValue(meterData.reading);
+      } else {
+        setInputValue(""); // Reset if no reading exists
+      }
+
+      // Restore confirmation state
+      setLocalIsConfirmed(meterData.isConfirmed || false);
+
+      // Restore consumption data if available
+      if (meterData.consumption) {
+        currentConsumptionRef.current = meterData.consumption.value;
+      } else {
+        currentConsumptionRef.current = null;
+      }
+    } else {
+      // If no stored data, check readingsState prop for backward compatibility
+      const reading = readingsState?.[meter.ID];
+      if (reading?.reading) {
+        setInputValue(reading.reading);
+        setLocalIsConfirmed(reading.isConfirmed || false);
+      } else {
+        // Reset state for new meter
+        setInputValue("");
+        setLocalIsConfirmed(false);
+      }
+    }
+  }, [meter.ID]); // Only depend on meter.ID changes
 
   // Load previous readings for the current meter
   const [previousReadingEntries, setPreviousReadingEntries] = useState<any[]>(
@@ -571,103 +628,84 @@ function MeterScreen({
   // Reference to store the calculated consumption
   const currentConsumptionRef = useRef<number | null>(null);
 
-  // Update the handleInputChange function to directly find the previous month's reading
+  // Add this effect near the top of the component, after state declarations
+  useEffect(() => {
+    // Restore meter data when the meter changes or component mounts
+    const meterData = getMeterReading(meter.ID);
+
+    if (meterData) {
+      // Only update states if the values are different
+      if (meterData.reading && meterData.reading !== inputValue) {
+        setInputValue(meterData.reading);
+      }
+      if (meterData.isConfirmed !== localIsConfirmed) {
+        setLocalIsConfirmed(meterData.isConfirmed);
+      }
+      if (meterData.consumption) {
+        currentConsumptionRef.current = meterData.consumption.value;
+      }
+    } else {
+      // If no stored data, check readingsState prop for backward compatibility
+      const reading = readingsState?.[meter.ID];
+      if (reading) {
+        if (reading.reading && reading.reading !== inputValue) {
+          setInputValue(reading.reading);
+        }
+        if (reading.isConfirmed !== localIsConfirmed) {
+          setLocalIsConfirmed(reading.isConfirmed || false);
+        }
+      }
+    }
+  }, [meter.ID, readingsState]); // Remove onReadingChange and onConfirmationChange from dependencies
+
+  // Update handleInputChange to allow empty values
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setInputValue(newValue);
-
-    // Update localStorage and parent component
-    localStorage.setItem(readingKey, newValue);
     onReadingChange(meter.ID, newValue);
 
-    // Calculate consumption with proper logging
-    if (meter.readings) {
-      try {
-        const currentReading = parseFloat(newValue);
+    // Only calculate consumption if we have a non-empty value
+    if (newValue && previousReadingEntries.length > 0) {
+      const currentReading = parseFloat(newValue);
+      const previousValue = previousReadingEntries[0]?.value || 0;
 
-        if (!isNaN(currentReading)) {
-          // Get selected date and previous month date
-          const selectedDate = new Date(selectedYear, selectedMonth);
-          const prevDate = new Date(selectedDate);
-          prevDate.setMonth(prevDate.getMonth() - 1);
-          const prevYear = prevDate.getFullYear();
-          const prevMonth = prevDate.getMonth() + 1; // Convert to 1-based month
+      if (!isNaN(currentReading) && !isNaN(previousValue)) {
+        const consumptionType = determineConsumptionType(
+          currentReading,
+          previousValue,
+          averageConsumption
+        );
 
-          // Create a pattern to look for - we'll match both the filename format and the Month name format
-          const prevMonthPattern1 = `${prevYear}-${prevMonth
-            .toString()
-            .padStart(2, "0")}`; // e.g., "2025-01"
-          const prevMonthPattern2 = `${prevYear}-${
-            months[prevDate.getMonth()]
-          }`; // e.g., "2025-Enero"
+        // Get existing data to preserve other fields
+        const existingData = getMeterReading(meter.ID);
 
-          // Try to find the previous month reading by matching patterns
-          let prevReading = null;
-          let prevReadingKey = null;
+        // Store complete reading data
+        storeMeterReading(meter.ID, {
+          reading: newValue,
+          previousReading: String(previousValue),
+          consumption: consumptionType,
+          isConfirmed: existingData?.isConfirmed || false,
+          timestamp: new Date().toISOString(),
+          averageConsumption,
+          historicalReadings: previousReadingEntries,
+        });
 
-          // First, try exact patterns
-          for (const [key, value] of Object.entries(meter.readings)) {
-            if (key === "ID" || key === "ADDRESS") continue;
-
-            if (
-              key.startsWith(prevMonthPattern1) ||
-              key === prevMonthPattern2
-            ) {
-              prevReading = value;
-              prevReadingKey = key;
-              break;
-            }
-          }
-
-          // If not found, try a more flexible approach for the date format files
-          if (prevReading === null) {
-            const readingsArray = Object.entries(meter.readings)
-              .filter(([key]) => key !== "ID" && key !== "ADDRESS")
-              .map(([key, value]) => ({
-                key,
-                value,
-                date: new Date(key.split("T")[0]),
-              }))
-              .sort((a, b) => b.date.getTime() - a.date.getTime()); // Sort by date desc
-
-            // Find the most recent reading that's before or equal to the previous month
-            for (const reading of readingsArray) {
-              const readingYear = reading.date.getFullYear();
-              const readingMonth = reading.date.getMonth();
-
-              const isPrevMonthOrBefore =
-                readingYear < prevYear ||
-                (readingYear === prevYear &&
-                  readingMonth <= prevDate.getMonth());
-
-              if (isPrevMonthOrBefore) {
-                prevReading = reading.value;
-                prevReadingKey = reading.key;
-                break;
-              }
-            }
-          }
-
-          // Now calculate consumption with the found value
-          if (prevReading !== null) {
-            const previousReading = parseFloat(String(prevReading || "0"));
-            const consumption = parseFloat(
-              (currentReading - previousReading).toFixed(1)
-            );
-
-            // Store the calculated value
-            currentConsumptionRef.current = consumption;
-          } else {
-            currentConsumptionRef.current = null;
-          }
-        } else {
-          currentConsumptionRef.current = null;
-        }
-      } catch (e) {
-        currentConsumptionRef.current = null;
+        // Store the calculated consumption for later use
+        currentConsumptionRef.current = consumptionType.value;
       }
     } else {
+      // If the value is empty, clear the consumption data
       currentConsumptionRef.current = null;
+      // Clear the stored data but preserve verification if it exists
+      const existingData = getMeterReading(meter.ID);
+      if (existingData) {
+        storeMeterReading(meter.ID, {
+          ...existingData,
+          reading: "",
+          consumption: undefined,
+          isConfirmed: false,
+        });
+      }
     }
   };
 
@@ -679,10 +717,24 @@ function MeterScreen({
 
   // Add this useEffect to monitor for pending navigation
   useEffect(() => {
-    if (pendingNavigation && !showEmptyInputDialog) {
+    if (
+      pendingNavigation &&
+      !showEmptyInputDialog &&
+      !showCantReadDialog &&
+      !showLowConsumptionDialog &&
+      !showHighConsumptionDialog &&
+      !showNegativeConsumptionDialog
+    ) {
       setIsNavigationDialogOpen(true);
     }
-  }, [pendingNavigation, showEmptyInputDialog]);
+  }, [
+    pendingNavigation,
+    showEmptyInputDialog,
+    showCantReadDialog,
+    showLowConsumptionDialog,
+    showHighConsumptionDialog,
+    showNegativeConsumptionDialog,
+  ]);
 
   // Simplify navigation handling
   const handleNavigation = (type: string, navigationAction: () => void) => {
@@ -705,113 +757,75 @@ function MeterScreen({
     }
   };
 
+  // Update handleConfirmAndNavigate to use stored data
   const handleConfirmAndNavigate = async () => {
-    // Instead of directly confirming, we'll use the same validation logic from handleConfirmClick
-    // to check if we need to show any validation dialogs first
+    const meterData = getMeterReading(meter.ID);
 
-    // Calculate consumption here instead of using the ref
-    let consumption = null;
-
-    try {
-      if (inputValue && meter.readings) {
-        const currentReading = parseFloat(inputValue);
-        if (!isNaN(currentReading)) {
-          // Use our utility to find the previous month's reading
-          const { key, reading } = findPreviousMonthReading(
-            meter.readings,
-            selectedMonth,
-            selectedYear
-          );
-
-          if (reading !== null) {
-            const previousReading = parseFloat(String(reading || "0"));
-            consumption = parseFloat(
-              (currentReading - previousReading).toFixed(1)
-            );
-          } else {
-            // Fallback to using the most recent reading in previousEntries
-            if (previousReadingEntries.length > 0) {
-              const lastReadingEntry = previousReadingEntries[0];
-              const fallbackReading = parseFloat(
-                String(lastReadingEntry.value || "0")
-              );
-              consumption = parseFloat(
-                (currentReading - fallbackReading).toFixed(1)
-              );
-            }
-          }
-        }
+    if (!inputValue || !previousReadingEntries.length) {
+      if (pendingNavigation) {
+        pendingNavigation();
+        setPendingNavigation(null);
+        setNavigationHandledByChild(false);
       }
-    } catch (e) {
-      // Silent catch
+      return;
     }
 
-    // Store the value for later use
-    currentConsumptionRef.current = consumption;
+    // Use stored consumption data if available
+    const consumptionType =
+      meterData?.consumption ||
+      determineConsumptionType(
+        parseFloat(inputValue),
+        previousReadingEntries[0]?.value || 0,
+        averageConsumption
+      );
 
     // Close the navigation dialog first
     setIsNavigationDialogOpen(false);
 
-    // Check if this is a negative consumption case
-    if (consumption !== null && consumption < 0) {
-      // Show negative consumption verification dialog
+    // Check consumption type and show appropriate dialog
+    if (consumptionType.type === "negative") {
       setShowNegativeConsumptionDialog(true);
-      // Store the pending navigation to execute after validation
       return;
     }
 
-    // Check if this is a high consumption case (> 1.6 * averageConsumption)
-    if (
-      consumption !== null &&
-      averageConsumption > 0 &&
-      consumption > averageConsumption * 1.6
-    ) {
-      // Show high consumption verification dialog
+    if (consumptionType.type === "high") {
       setShowHighConsumptionDialog(true);
       return;
     }
 
-    // Check if this is a low consumption case (>= 0 and < 4)
-    if (consumption !== null && consumption >= 0 && consumption < 4) {
+    if (consumptionType.type === "low") {
       // Check if we already have verification data
-      const storedVerification = localStorage.getItem(
-        `meter_${meter.ID}_verification`
-      );
-
-      if (storedVerification) {
-        // If we already verified this meter, just confirm normally
-        confirmAndNavigate();
-      } else {
-        // Show low consumption verification dialog
+      if (!meterData?.verification) {
         setVerificationStep(1);
         setVerificationData({});
         setShowLowConsumptionDialog(true);
+        return;
       }
-    } else {
-      // Normal confirmation without validation needed
-      confirmAndNavigate();
     }
+
+    // If we get here, either there's no special case or it's already been handled
+    confirmAndNavigate();
   };
 
-  // Add this helper function to handle the actual confirmation and navigation
+  // Update confirmAndNavigate to ensure we store the final state
   const confirmAndNavigate = () => {
-    // Update the local state
+    const meterData = getMeterReading(meter.ID);
+
+    // Store the final confirmed state with all data
+    storeMeterReading(meter.ID, {
+      ...meterData,
+      isConfirmed: true,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Update local state
     setLocalIsConfirmed(true);
-
-    // Update the parent state directly
-    if (onConfirmationChange) {
-      onConfirmationChange(meter.ID.toString(), true);
-    }
-
-    // Store in localStorage immediately
-    localStorage.setItem(confirmedKey, "true");
+    onConfirmationChange(meter.ID, true);
 
     // Use a small timeout to allow state to propagate
     setTimeout(() => {
       if (pendingNavigation) {
-        // Execute the stored navigation action directly
         pendingNavigation();
-        // Reset the navigation state
         setPendingNavigation(null);
         setNavigationHandledByChild(false);
       }
@@ -897,34 +911,42 @@ function MeterScreen({
 
   // Update the handleCompleteVerification function
   const handleCompleteVerification = () => {
-    // Store verification data
-    const verificationInfo = {
-      type: "lowConsumption",
-      details: verificationData,
-      consumption: currentConsumptionRef.current,
-      currentReading: inputValue,
-      previousReading:
-        previousReadingEntries.length > 0
-          ? previousReadingEntries[0].value
-          : "0",
-      previousReadingDate:
-        previousReadingEntries.length > 0
-          ? previousReadingEntries[0].key
-          : null,
-      timestamp: new Date().toISOString(),
-    };
+    // First, update the local state and parent state
+    setLocalIsConfirmed(true);
+    onConfirmationChange(meter.ID, true);
 
-    // Save to localStorage
-    localStorage.setItem(
-      `meter_${meter.ID}_verification`,
-      JSON.stringify(verificationInfo)
-    );
+    // Store the reading with verification data
+    storeMeterReading(meter.ID, {
+      reading: inputValue,
+      isConfirmed: true,
+      consumption: {
+        type: "low",
+        label: "Baja",
+        value: parseFloat(formatConsumption()),
+      },
+      verification: {
+        type: "lowConsumption",
+        details: verificationData,
+        timestamp: new Date().toISOString(),
+      },
+    });
 
-    // Close dialog and confirm the reading
+    // Close dialog
     setShowLowConsumptionDialog(false);
 
-    // Use the confirmAndNavigate helper
-    confirmAndNavigate();
+    // Store the current navigation callback
+    const currentNavigation = pendingNavigation;
+
+    // Reset navigation state
+    setPendingNavigation(null);
+    setNavigationHandledByChild(false);
+
+    // Execute navigation after a small delay to ensure state updates are processed
+    if (currentNavigation) {
+      setTimeout(() => {
+        currentNavigation();
+      }, 50);
+    }
   };
 
   // Add this to the beginning of the component to restore verification state
@@ -959,90 +981,55 @@ function MeterScreen({
     }
   }, [meter.ID]);
 
-  // Update the handleConfirmClick function to check for high consumption
+  // Update handleConfirmClick to use stored consumption data
   const handleConfirmClick = () => {
-    // Calculate consumption here instead of using the ref
-    let consumption = null;
+    const meterData = getMeterReading(meter.ID);
 
-    try {
-      if (inputValue && meter.readings) {
-        const currentReading = parseFloat(inputValue);
-        if (!isNaN(currentReading)) {
-          // Use our utility to find the previous month's reading
-          const { key, reading } = findPreviousMonthReading(
-            meter.readings,
-            selectedMonth,
-            selectedYear
-          );
-
-          if (reading !== null) {
-            const previousReading = parseFloat(String(reading || "0"));
-            consumption = parseFloat(
-              (currentReading - previousReading).toFixed(1)
-            );
-          } else {
-            // Fallback to using the most recent reading in previousEntries
-            if (previousReadingEntries.length > 0) {
-              const lastReadingEntry = previousReadingEntries[0];
-              const fallbackReading = parseFloat(
-                String(lastReadingEntry.value || "0")
-              );
-              consumption = parseFloat(
-                (currentReading - fallbackReading).toFixed(1)
-              );
-            }
-          }
-        }
-      }
-    } catch (e) {
-      // Silent catch
+    if (!inputValue || !previousReadingEntries.length) {
+      return; // Don't proceed if we don't have valid input
     }
 
-    // Store the value for later use
-    currentConsumptionRef.current = consumption;
+    // Use stored consumption data if available
+    const consumptionType =
+      meterData?.consumption ||
+      determineConsumptionType(
+        parseFloat(inputValue),
+        previousReadingEntries[0]?.value || 0,
+        averageConsumption
+      );
 
-    // Check if this is a negative consumption case
-    if (consumption !== null && consumption < 0) {
-      // Show negative consumption verification dialog
+    // Store or update the data
+    storeMeterReading(meter.ID, {
+      ...meterData,
+      isConfirmed: true,
+      consumption: consumptionType,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Check consumption type and show appropriate dialog
+    if (consumptionType.type === "negative") {
       setShowNegativeConsumptionDialog(true);
       return;
     }
 
-    // Check if this is a high consumption case (> 1.6 * averageConsumption)
-    if (
-      consumption !== null &&
-      averageConsumption > 0 &&
-      consumption > averageConsumption * 1.6
-    ) {
-      // Show high consumption verification dialog
+    if (consumptionType.type === "high") {
       setShowHighConsumptionDialog(true);
       return;
     }
 
-    // Check if this is a low consumption case (>= 0 and < 4)
-    if (consumption !== null && consumption >= 0 && consumption < 4) {
+    if (consumptionType.type === "low") {
       // Check if we already have verification data
-      const storedVerification = localStorage.getItem(
-        `meter_${meter.ID}_verification`
-      );
-
-      if (storedVerification) {
-        // If we already verified this meter, just confirm normally
-        setLocalIsConfirmed(true);
-        localStorage.setItem(confirmedKey, "true");
-        onConfirmationChange(meter.ID, true);
-      } else {
-        // Show low consumption verification dialog
+      if (!meterData?.verification) {
         setVerificationStep(1);
         setVerificationData({});
         setShowLowConsumptionDialog(true);
+        return;
       }
-    } else {
-      // Normal confirmation without validation needed
-      setLocalIsConfirmed(true);
-      localStorage.setItem(confirmedKey, "true");
-      onConfirmationChange(meter.ID, true);
     }
+
+    // If we get here, either there's no special case or it's already been handled
+    setLocalIsConfirmed(true);
+    onConfirmationChange(meter.ID, true);
   };
 
   // Add these handlers if they're missing
@@ -1069,11 +1056,15 @@ function MeterScreen({
     // Update parent state
     onConfirmationChange(meter.ID, false);
 
-    // Update localStorage
-    localStorage.removeItem(confirmedKey);
+    // Get existing data to preserve historical readings
+    const existingData = getMeterReading(meter.ID);
 
-    // Also remove verification data from localStorage
-    localStorage.removeItem(`meter_${meter.ID}_verification`);
+    // Store the unconfirmed state while preserving the reading
+    storeMeterReading(meter.ID, {
+      ...existingData,
+      isConfirmed: false,
+      verification: undefined, // Clear any verification data
+    });
   };
 
   // Add these handler functions:
@@ -1086,41 +1077,35 @@ function MeterScreen({
     setShowUnconfirmDialog(false);
   };
 
+  // Update handleConfirmUnconfirm to properly clear all states
   const handleConfirmUnconfirm = () => {
     // Close the dialog
     setShowUnconfirmDialog(false);
 
-    // Proceed with unconfirming
+    // Clear local state
     setLocalIsConfirmed(false);
 
     // Update parent state
     onConfirmationChange(meter.ID, false);
 
-    // Update localStorage
-    localStorage.removeItem(confirmedKey);
+    // Get existing data to preserve historical readings
+    const existingData = getMeterReading(meter.ID);
 
-    // Also remove verification data from localStorage
-    localStorage.removeItem(`meter_${meter.ID}_verification`);
+    // Store the unconfirmed state while preserving the reading
+    storeMeterReading(meter.ID, {
+      ...existingData,
+      isConfirmed: false,
+      verification: undefined, // Clear any verification data
+    });
   };
 
-  // Find this function or similar in the component
+  // Update formatConsumption to use stored data instead of recalculating
   const formatConsumption = () => {
-    if (!inputValue || !previousReadingEntries.length) return "---";
-
-    try {
-      // Use the first entry (most recent), not the last entry
-      const previousValue = previousReadingEntries[0]?.value || 0;
-      const current = parseFloat(inputValue);
-      const previous = parseFloat(String(previousValue));
-
-      if (isNaN(current) || isNaN(previous)) return "---";
-
-      const difference = current - previous;
-      return difference.toFixed(1);
-    } catch (error) {
-      console.error("Error calculating consumption:", error);
-      return "---";
+    const meterData = getMeterReading(meter.ID);
+    if (meterData?.consumption) {
+      return meterData.consumption.value.toFixed(1);
     }
+    return "---";
   };
 
   // Add these handlers for negative consumption dialog
@@ -1131,13 +1116,44 @@ function MeterScreen({
     setNavigationHandledByChild(false);
   };
 
-  // Handle confirming the negative reading is correct
+  // Update handleConfirmNegativeReading
   const handleConfirmNegativeReading = () => {
+    // First, update the local state and parent state
+    setLocalIsConfirmed(true);
+    onConfirmationChange(meter.ID, true);
+
+    // Store the reading with verification data
+    storeMeterReading(meter.ID, {
+      reading: inputValue,
+      isConfirmed: true,
+      consumption: {
+        type: "negative",
+        label: "Negativa",
+        value: parseFloat(formatConsumption()),
+      },
+      verification: {
+        type: "negativeConsumption",
+        details: {},
+        timestamp: new Date().toISOString(),
+      },
+    });
+
     // Close the dialog
     setShowNegativeConsumptionDialog(false);
 
-    // Proceed with confirming the reading
-    confirmAndNavigate();
+    // Store the current navigation callback
+    const currentNavigation = pendingNavigation;
+
+    // Reset navigation state
+    setPendingNavigation(null);
+    setNavigationHandledByChild(false);
+
+    // Execute navigation after a small delay to ensure state updates are processed
+    if (currentNavigation) {
+      setTimeout(() => {
+        currentNavigation();
+      }, 50);
+    }
   };
 
   // Add these handlers for high consumption dialog
@@ -1148,13 +1164,44 @@ function MeterScreen({
     setNavigationHandledByChild(false);
   };
 
-  // Handle confirming the high consumption reading is correct
+  // Update handleConfirmHighConsumption
   const handleConfirmHighConsumption = () => {
+    // First, update the local state and parent state
+    setLocalIsConfirmed(true);
+    onConfirmationChange(meter.ID, true);
+
+    // Store the reading with verification data
+    storeMeterReading(meter.ID, {
+      reading: inputValue,
+      isConfirmed: true,
+      consumption: {
+        type: "high",
+        label: "Elevada",
+        value: parseFloat(formatConsumption()),
+      },
+      verification: {
+        type: "highConsumption",
+        details: {},
+        timestamp: new Date().toISOString(),
+      },
+    });
+
     // Close the dialog
     setShowHighConsumptionDialog(false);
 
-    // Proceed with confirming the reading
-    confirmAndNavigate();
+    // Store the current navigation callback
+    const currentNavigation = pendingNavigation;
+
+    // Reset navigation state
+    setPendingNavigation(null);
+    setNavigationHandledByChild(false);
+
+    // Execute navigation after a small delay to ensure state updates are processed
+    if (currentNavigation) {
+      setTimeout(() => {
+        currentNavigation();
+      }, 50);
+    }
   };
 
   // Add this handler function for the "Can't Read Meter" button
@@ -1180,45 +1227,44 @@ function MeterScreen({
 
   // Handler for confirming the estimated reading
   const handleConfirmEstimatedReading = () => {
-    // Create verification data
-    const verificationInfo = {
-      type: "cantRead",
-      details: {
-        reason: cantReadReason,
-        otherReason: cantReadReason === "other" ? otherReasonText : "",
-        estimatedReading: estimatedReading,
-      },
-      timestamp: new Date().toISOString(),
-    };
-
-    // Save to localStorage
-    localStorage.setItem(
-      `meter_${meter.ID}_verification`,
-      JSON.stringify(verificationInfo)
-    );
-
-    // Set the input value to the estimated reading
-    const estimatedValue = estimatedReading.toString();
-    setInputValue(estimatedValue);
-    onReadingChange(meter.ID, estimatedValue);
-    localStorage.setItem(readingKey, estimatedValue);
-
-    // Close dialog and confirm the reading
-    setShowCantReadDialog(false);
-
-    // Confirm the reading
+    // First, update the local state and parent state
     setLocalIsConfirmed(true);
-    localStorage.setItem(confirmedKey, "true");
     onConfirmationChange(meter.ID, true);
 
-    // Store the current pending navigation
+    // Store the estimated reading with verification data
+    storeMeterReading(meter.ID, {
+      reading: estimatedReading.toString(),
+      isConfirmed: true,
+      consumption: {
+        type: "estimated",
+        label: "Estimada",
+        value: parseFloat(estimatedReading.toString()),
+      },
+      verification: {
+        type: "cantRead",
+        details: {
+          reason: cantReadReason,
+          otherReason: cantReadReason === "other" ? otherReasonText : undefined,
+        },
+        timestamp: new Date().toISOString(),
+      },
+    });
+
+    // Update UI state
+    setInputValue(estimatedReading.toString());
+    setShowCantReadDialog(false);
+
+    // Update parent component
+    onReadingChange(meter.ID, estimatedReading.toString());
+
+    // Store the current navigation callback
     const currentNavigation = pendingNavigation;
 
     // Reset navigation state
     setPendingNavigation(null);
     setNavigationHandledByChild(false);
 
-    // If we had a pending navigation (came from navigation attempt), execute it
+    // Execute navigation after a small delay to ensure state updates are processed
     if (currentNavigation) {
       setTimeout(() => {
         currentNavigation();
@@ -1262,20 +1308,15 @@ function MeterScreen({
 
   // Update the handleEmptyCantReadMeter function to store the pending navigation
   const handleEmptyCantReadMeter = () => {
-    // Store the current pending navigation before closing the empty input dialog
-    const storedNavigation = pendingNavigation;
-
-    // First close the empty input dialog
+    // Close the empty input dialog
     setShowEmptyInputDialog(false);
-
-    // After a small delay to allow state updates to propagate
-    setTimeout(() => {
-      // Then open the can't read meter dialog
-      handleCantReadMeter();
-
-      // Restore the pending navigation
-      setPendingNavigation(() => storedNavigation);
-    }, 50);
+    // Close the navigation dialog if it's open
+    setIsNavigationDialogOpen(false);
+    // Open the can't read meter dialog
+    setShowCantReadDialog(true);
+    // Keep the navigation handled by child flag true since we're still handling it
+    setNavigationHandledByChild(true);
+    // Don't reset the pending navigation - we'll use it after confirming the estimated reading
   };
 
   const handleEmptyInputCancel = () => {
@@ -1283,6 +1324,33 @@ function MeterScreen({
     setPendingNavigation(null);
     setNavigationHandledByChild(false);
   };
+
+  // Add this useEffect to monitor for pending navigation
+  useEffect(() => {
+    if (
+      pendingNavigation &&
+      !showEmptyInputDialog &&
+      !showCantReadDialog &&
+      !showLowConsumptionDialog &&
+      !showHighConsumptionDialog &&
+      !showNegativeConsumptionDialog
+    ) {
+      // Only show navigation dialog if we're not in the process of confirming a reading
+      const meterData = getMeterReading(meter.ID);
+      if (!meterData?.isConfirmed) {
+        setIsNavigationDialogOpen(true);
+      }
+    }
+  }, [
+    pendingNavigation,
+    showEmptyInputDialog,
+    showCantReadDialog,
+    showLowConsumptionDialog,
+    showHighConsumptionDialog,
+    showNegativeConsumptionDialog,
+    localIsConfirmed,
+    meter.ID,
+  ]);
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>

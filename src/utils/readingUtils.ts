@@ -45,6 +45,40 @@ interface ReadingEntry {
   value: number | null;
 }
 
+export interface ConsumptionType {
+  type: "normal" | "low" | "high" | "negative" | "estimated";
+  label: string;
+  value: number;
+  threshold?: number; // For high consumption, stores the threshold that was used
+}
+
+export interface MeterReadingData {
+  reading: string;
+  isConfirmed: boolean;
+  timestamp: string;
+  previousReading?: string;
+  consumption?: ConsumptionType;
+  averageConsumption?: number;
+  historicalReadings?: any[];
+  verification?: {
+    type:
+      | "lowConsumption"
+      | "highConsumption"
+      | "negativeConsumption"
+      | "cantRead";
+    details: {
+      answeredDoor?: boolean;
+      hadIssues?: boolean;
+      issueDescription?: string;
+      residenceMonths?: string;
+      looksLivedIn?: boolean;
+      reason?: string;
+      otherReason?: string;
+    };
+    timestamp: string;
+  };
+}
+
 /**
  * Calculate monthly consumption from historical readings
  * @param {Object} readings - Object containing reading history
@@ -230,3 +264,75 @@ export const debounce = <T extends (...args: any[]) => void>(
 
   return debounced;
 };
+
+export function storeMeterReading(
+  meterId: string | number,
+  data: Partial<MeterReadingData>
+): void {
+  const key = `meter_${meterId}_data`;
+  const existingData = getMeterReading(meterId);
+  const newData = {
+    ...existingData,
+    ...data,
+    timestamp: new Date().toISOString(),
+  };
+  localStorage.setItem(key, JSON.stringify(newData));
+}
+
+export function getMeterReading(
+  meterId: string | number
+): MeterReadingData | null {
+  const key = `meter_${meterId}_data`;
+  const data = localStorage.getItem(key);
+  if (!data) return null;
+  try {
+    return JSON.parse(data) as MeterReadingData;
+  } catch (e) {
+    console.error(`Error parsing meter reading data for ${meterId}:`, e);
+    return null;
+  }
+}
+
+export function clearMeterReading(meterId: string | number): void {
+  const key = `meter_${meterId}_data`;
+  localStorage.removeItem(key);
+}
+
+export function determineConsumptionType(
+  currentReading: number,
+  previousReading: number,
+  averageConsumption: number
+): ConsumptionType {
+  const consumption = currentReading - previousReading;
+
+  if (consumption < 0) {
+    return {
+      type: "negative",
+      label: "Negativa",
+      value: consumption,
+    };
+  }
+
+  if (consumption < 4) {
+    return {
+      type: "low",
+      label: "Baja",
+      value: consumption,
+    };
+  }
+
+  if (averageConsumption > 0 && consumption > averageConsumption * 1.6) {
+    return {
+      type: "high",
+      label: "Elevada",
+      value: consumption,
+      threshold: averageConsumption * 1.6,
+    };
+  }
+
+  return {
+    type: "normal",
+    label: "Normal",
+    value: consumption,
+  };
+}
