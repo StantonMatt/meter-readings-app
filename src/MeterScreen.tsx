@@ -1096,11 +1096,20 @@ function MeterScreen({
     // Get existing data to preserve historical readings
     const existingData = getMeterReading(meter.ID);
 
+    // Calculate the current consumption type based on the input value
+    const currentReading = parseFloat(inputValue);
+    const previousValue = previousReadingEntries[0]?.value || 0;
+    const consumptionType = determineConsumptionType(
+      currentReading,
+      previousValue,
+      averageConsumption
+    );
+
     // Store the unconfirmed state while preserving the reading and historical data
     storeMeterReading(meter.ID, {
       reading: existingData?.reading || inputValue,
       isConfirmed: false,
-      consumption: undefined, // Clear consumption data
+      consumption: consumptionType, // Store the recalculated consumption type
       verification: undefined, // Clear verification data
       historicalReadings: existingData?.historicalReadings, // Preserve historical readings
       averageConsumption: existingData?.averageConsumption, // Preserve average consumption
