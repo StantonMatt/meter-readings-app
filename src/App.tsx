@@ -528,6 +528,19 @@ function App(): JSX.Element {
         };
       });
 
+      // Generate email content
+      const emailContent = generateEmailContent(combinedMeters, readingsState);
+
+      // Call the Firebase function to send email
+      const sendReadingsMail = httpsCallable(functions, "sendReadingsMail");
+      await sendReadingsMail({
+        readings: readingsToUpload,
+        emailContent,
+        month: months[selectedMonth],
+        year: selectedYear,
+        routeId: selectedRoute?.id || "unknown",
+      });
+
       const uploadedReadings = await initializeFirebaseData(
         auth,
         db,

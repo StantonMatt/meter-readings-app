@@ -17,6 +17,10 @@ import {
   ListItem,
   ListItemText,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   MeterData,
@@ -68,6 +72,8 @@ function SummaryScreen({
 
   // Add state for showing normal readings (near the top of the component)
   const [showNormalReadings, setShowNormalReadings] = useState<boolean>(false);
+  // Add state for finalize confirmation dialog
+  const [showFinalizeDialog, setShowFinalizeDialog] = useState<boolean>(false);
 
   // Calculate reading statistics
   const stats: SummaryStats = useMemo(() => {
@@ -219,6 +225,21 @@ function SummaryScreen({
     });
   }, [rows, showNormalReadings]);
 
+  // Add handler for finalizing
+  const handleFinalizeClick = () => {
+    if (stats.pending > 0) {
+      setShowFinalizeDialog(true);
+    } else {
+      onFinalize();
+    }
+  };
+
+  // Add handler for confirming finalization
+  const handleConfirmFinalize = () => {
+    setShowFinalizeDialog(false);
+    onFinalize();
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 4, position: "relative" }}>
       <Box sx={{ mb: 4 }}>
@@ -341,11 +362,7 @@ function SummaryScreen({
         <Button
           variant="contained"
           color="success"
-          onClick={() => {
-            if (stats.confirmed > 0) {
-              onFinalize();
-            }
-          }}
+          onClick={handleFinalizeClick}
           disabled={stats.confirmed === 0}
           sx={{
             boxShadow: 2,
@@ -654,6 +671,131 @@ function SummaryScreen({
           {rows.length - filteredRows.length} lecturas normales ocultas
         </Typography>
       )}
+
+      {/* Add the finalize confirmation dialog */}
+      <Dialog
+        open={showFinalizeDialog}
+        onClose={() => setShowFinalizeDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: `0 8px 24px ${alpha(
+              palette.neutral.text.primary,
+              0.12
+            )}`,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            borderBottom: 1,
+            borderColor: "divider",
+            backgroundColor: alpha(palette.semantic.warning.light, 0.1),
+            px: 3,
+            py: 2.5,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <WarningIcon color="warning" />
+            <Typography variant="h6">Lecturas Pendientes</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+              Hay {stats.pending} lecturas pendientes de confirmar
+            </Typography>
+            <Typography variant="body2">
+              ¿Está seguro que desea finalizar dejando estas lecturas sin
+              confirmar?
+            </Typography>
+          </Alert>
+
+          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+            Lecturas pendientes:
+          </Typography>
+
+          <Paper
+            elevation={0}
+            sx={{
+              maxHeight: 200,
+              overflow: "auto",
+              backgroundColor: alpha(palette.neutral.background, 0.5),
+              border: `1px solid ${palette.neutral.border}`,
+              borderRadius: 1,
+            }}
+          >
+            <List dense>
+              {rows
+                .filter((row) => !row.isConfirmed)
+                .map((row) => (
+                  <ListItem
+                    key={row.id}
+                    sx={{
+                      borderBottom: `1px solid ${alpha(
+                        palette.neutral.border,
+                        0.5
+                      )}`,
+                      "&:last-child": {
+                        borderBottom: "none",
+                      },
+                    }}
+                  >
+                    <ListItemText
+                      primary={`#${row.id}`}
+                      secondary={row.address}
+                      primaryTypographyProps={{
+                        fontWeight: 600,
+                      }}
+                      secondaryTypographyProps={{
+                        variant: "body2",
+                      }}
+                    />
+                    <Chip
+                      label="Pendiente"
+                      size="small"
+                      icon={<WarningIcon />}
+                      sx={{
+                        backgroundColor: palette.semantic.warning.background,
+                        color: palette.semantic.warning.main,
+                        fontWeight: 600,
+                      }}
+                    />
+                  </ListItem>
+                ))}
+            </List>
+          </Paper>
+        </DialogContent>
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2.5,
+            gap: 1,
+            borderTop: 1,
+            borderColor: "divider",
+          }}
+        >
+          <Button
+            onClick={() => setShowFinalizeDialog(false)}
+            variant="outlined"
+            color="inherit"
+            sx={{ minWidth: 100 }}
+          >
+            Volver y Editar
+          </Button>
+          <Button
+            onClick={handleConfirmFinalize}
+            variant="contained"
+            color="warning"
+            startIcon={<WarningIcon />}
+            sx={{ minWidth: 140 }}
+          >
+            Sí, Finalizar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
