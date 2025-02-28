@@ -606,7 +606,13 @@ function SummaryScreen({
                   <TableCell align="center">
                     <Button
                       size="small"
-                      onClick={() => onSelectMeter(index)}
+                      onClick={() => {
+                        // Find the original index in the meters array
+                        const originalIndex = meters.findIndex(
+                          (m) => m.ID === row.id
+                        );
+                        onSelectMeter(originalIndex);
+                      }}
                       color="primary"
                       variant="outlined"
                       sx={{
