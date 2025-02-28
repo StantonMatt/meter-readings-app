@@ -1,51 +1,153 @@
 // src/theme.ts
 import { createTheme, alpha } from "@mui/material/styles";
 
-// Modern darkish blue/grey theme
-const theme = createTheme({
-  palette: {
-    mode: "light",
-    primary: {
-      main: "#334155", // Slate blue-grey
-      light: "#475569",
-      dark: "#1e293b",
-      contrastText: "#ffffff",
-    },
-    secondary: {
-      main: "#0ea5e9", // A vibrant blue accent
-      light: "#38bdf8",
-      dark: "#0284c7",
-      contrastText: "#ffffff",
-    },
-    background: {
-      default: "#f1f5f9", // Very light grey
-      paper: "#ffffff",
-    },
+// Color palette definition
+const palette = {
+  // Primary colors
+  primary: {
+    main: "#334155", // Slate blue-grey
+    light: "#475569",
+    dark: "#1e293b",
+    100: "#f1f5f9",
+    200: "#e2e8f0",
+    300: "#cbd5e1",
+    400: "#94a3b8",
+    500: "#64748b",
+    600: "#475569",
+    700: "#334155",
+    800: "#1e293b",
+    900: "#0f172a",
+  },
+  // Secondary colors
+  secondary: {
+    main: "#0ea5e9", // Vibrant blue
+    light: "#38bdf8",
+    dark: "#0284c7",
+    100: "#e0f2fe",
+    200: "#bae6fd",
+    300: "#7dd3fc",
+    400: "#38bdf8",
+    500: "#0ea5e9",
+    600: "#0284c7",
+    700: "#0369a1",
+    800: "#075985",
+    900: "#0c4a6e",
+  },
+  // Semantic colors
+  semantic: {
     success: {
       main: "#10b981",
       light: "#34d399",
       dark: "#059669",
+      background: "#ecfdf5",
+      border: "#a7f3d0",
     },
     warning: {
       main: "#f59e0b",
       light: "#fbbf24",
       dark: "#d97706",
+      background: "#fffbeb",
+      border: "#fcd34d",
     },
     error: {
       main: "#ef4444",
       light: "#f87171",
       dark: "#dc2626",
+      background: "#fef2f2",
+      border: "#fecaca",
     },
     info: {
       main: "#3b82f6",
       light: "#60a5fa",
       dark: "#2563eb",
+      background: "#eff6ff",
+      border: "#bfdbfe",
     },
+  },
+  // Consumption status colors
+  consumption: {
+    normal: {
+      main: "#10b981",
+      background: "#ecfdf5",
+      border: "#a7f3d0",
+    },
+    low: {
+      main: "#3b82f6",
+      background: "#eff6ff",
+      border: "#bfdbfe",
+    },
+    high: {
+      main: "#64748b",
+      background: "#f8fafc",
+      border: "#e2e8f0",
+    },
+    negative: {
+      main: "#ef4444",
+      background: "#fef2f2",
+      border: "#fecaca",
+    },
+    estimated: {
+      main: "rgba(79, 70, 229, 0.9)",
+      background: "rgba(79, 70, 229, 0.1)",
+      border: "rgba(79, 70, 229, 0.3)",
+    },
+  },
+  // Neutral colors
+  neutral: {
+    white: "#ffffff",
+    background: "#f1f5f9",
+    paper: "#ffffff",
+    border: "#e2e8f0",
+    divider: "#e2e8f0",
     text: {
-      primary: "#334155", // Dark enough for contrast but not harsh
+      primary: "#334155",
       secondary: "#64748b",
       disabled: "rgba(0, 0, 0, 0.38)",
     },
+  },
+};
+
+// Create the theme
+const theme = createTheme({
+  palette: {
+    mode: "light",
+    primary: {
+      main: palette.primary.main,
+      light: palette.primary.light,
+      dark: palette.primary.dark,
+      contrastText: palette.neutral.white,
+    },
+    secondary: {
+      main: palette.secondary.main,
+      light: palette.secondary.light,
+      dark: palette.secondary.dark,
+      contrastText: palette.neutral.white,
+    },
+    background: {
+      default: palette.neutral.background,
+      paper: palette.neutral.paper,
+    },
+    success: {
+      main: palette.semantic.success.main,
+      light: palette.semantic.success.light,
+      dark: palette.semantic.success.dark,
+    },
+    warning: {
+      main: palette.semantic.warning.main,
+      light: palette.semantic.warning.light,
+      dark: palette.semantic.warning.dark,
+    },
+    error: {
+      main: palette.semantic.error.main,
+      light: palette.semantic.error.light,
+      dark: palette.semantic.error.dark,
+    },
+    info: {
+      main: palette.semantic.info.main,
+      light: palette.semantic.info.light,
+      dark: palette.semantic.info.dark,
+    },
+    text: palette.neutral.text,
   },
   typography: {
     fontFamily: ["Inter", "Roboto", "Helvetica", "Arial", "sans-serif"].join(
@@ -70,12 +172,12 @@ const theme = createTheme({
       fontWeight: 600,
     },
     button: {
-      textTransform: "none", // No ALL CAPS buttons
+      textTransform: "none",
       fontWeight: 500,
     },
   },
   shape: {
-    borderRadius: 12, // More modern, subtle rounding
+    borderRadius: 12,
   },
   components: {
     MuiButton: {
@@ -140,7 +242,7 @@ const theme = createTheme({
             borderRadius: 8,
             "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
               borderWidth: 2,
-              borderColor: "#334155",
+              borderColor: palette.primary.main,
             },
           },
         },
@@ -152,8 +254,8 @@ const theme = createTheme({
           borderRadius: 0,
           boxShadow: "0 0 20px rgba(0,0,0,0.08)",
           borderRight: "none",
-          backgroundColor: "#334155", // Darkish blue/grey for sidebar
-          color: "#fff",
+          backgroundColor: palette.primary.main,
+          color: palette.neutral.white,
         },
       },
     },
@@ -162,16 +264,16 @@ const theme = createTheme({
         root: {
           borderRadius: 8,
           margin: "4px 8px",
-          color: "rgba(255,255,255,0.85)",
+          color: alpha(palette.neutral.white, 0.85),
           "&.Mui-selected": {
-            backgroundColor: "rgba(255,255,255,0.12)",
-            color: "#fff",
+            backgroundColor: alpha(palette.neutral.white, 0.12),
+            color: palette.neutral.white,
             "&:hover": {
-              backgroundColor: "rgba(255,255,255,0.18)",
+              backgroundColor: alpha(palette.neutral.white, 0.18),
             },
           },
           "&:hover": {
-            backgroundColor: "rgba(255,255,255,0.08)",
+            backgroundColor: alpha(palette.neutral.white, 0.08),
           },
         },
       },
@@ -182,7 +284,7 @@ const theme = createTheme({
           fontWeight: 500,
         },
         secondary: {
-          color: "rgba(255,255,255,0.65)",
+          color: alpha(palette.neutral.white, 0.65),
         },
       },
     },
@@ -193,7 +295,7 @@ const theme = createTheme({
         },
         head: {
           fontWeight: 600,
-          backgroundColor: "#f8fafc",
+          backgroundColor: palette.neutral.background,
         },
       },
     },
@@ -208,4 +310,6 @@ const theme = createTheme({
   },
 });
 
+// Export both theme and palette for use in components
+export { palette };
 export default theme;

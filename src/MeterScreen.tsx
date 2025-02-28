@@ -57,6 +57,9 @@ import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import { findPreviousMonthReading } from "./utils/dateUtils";
 import { getPreviousReadings } from "./services/firebaseService";
 
+// Update the imports to include palette
+import { palette } from "./theme";
+
 interface VerificationData {
   type: string;
   details: {
@@ -1478,7 +1481,7 @@ function MeterScreen({
         sx={{
           borderRadius: 3,
           overflow: "visible",
-          boxShadow: "0 6px 20px rgba(0,0,0,0.07)",
+          boxShadow: `0 6px 20px ${alpha(palette.neutral.text.primary, 0.07)}`,
           mb: 3,
         }}
       >
@@ -1486,10 +1489,12 @@ function MeterScreen({
         <Box
           sx={{
             p: 3,
-            background: `linear-gradient(to right, ${
-              theme.palette.primary.main
-            }, ${alpha(theme.palette.primary.main, 0.8)})`,
-            color: "white",
+            background: (theme) =>
+              `linear-gradient(to right, ${theme.palette.primary.main}, ${alpha(
+                theme.palette.primary.main,
+                0.8
+              )})`,
+            color: palette.neutral.white,
             borderTopLeftRadius: 12,
             borderTopRightRadius: 12,
           }}
@@ -1511,7 +1516,7 @@ function MeterScreen({
               </Typography>
               <Typography
                 variant="h4"
-                sx={{ color: "white", mt: 1, opacity: 0.9 }}
+                sx={{ color: palette.neutral.white, mt: 1, opacity: 0.9 }}
               >
                 {meter.ADDRESS}
               </Typography>
@@ -1524,10 +1529,10 @@ function MeterScreen({
                   : "N/A"
               }`}
               sx={{
-                backgroundColor: "rgba(255,255,255,0.15)",
-                color: "white",
+                backgroundColor: alpha(palette.neutral.white, 0.15),
+                color: palette.neutral.white,
                 fontWeight: 500,
-                "& .MuiChip-icon": { color: "white" },
+                "& .MuiChip-icon": { color: palette.neutral.white },
               }}
             />
           </Box>
@@ -1558,8 +1563,8 @@ function MeterScreen({
                 elevation={0}
                 sx={{
                   p: 2,
-                  backgroundColor: alpha(theme.palette.background.default, 0.7),
-                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  backgroundColor: alpha(palette.neutral.background, 0.7),
+                  border: `1px solid ${alpha(palette.neutral.border, 0.5)}`,
                   borderRadius: 2,
                   height: "auto",
                   minHeight: 200,
@@ -1587,13 +1592,13 @@ function MeterScreen({
                             borderBottom:
                               index !== historicalReadings.length - 1
                                 ? `1px solid ${alpha(
-                                    theme.palette.divider,
+                                    palette.neutral.border,
                                     0.1
                                   )}`
                                 : "none",
                             "&:hover": {
                               backgroundColor: alpha(
-                                theme.palette.primary.light,
+                                palette.neutral.background,
                                 0.05
                               ),
                             },
@@ -1640,7 +1645,7 @@ function MeterScreen({
                                 ? "transparent"
                                 : index === 0
                                 ? alpha(theme.palette.primary.main, 0.08) // Lighter background
-                                : alpha(theme.palette.grey[100], 0.5),
+                                : alpha(palette.neutral.background, 0.5),
                               px: 2,
                               py: 0.75,
                               borderRadius: 1.5,
@@ -1760,11 +1765,8 @@ function MeterScreen({
                       p: 2,
                       height: "100%",
                       borderRadius: 2,
-                      backgroundColor: alpha("rgba(79, 70, 229, 0.7)", 0.08),
-                      border: `1px solid ${alpha(
-                        "rgba(79, 70, 229, 0.7)",
-                        0.15
-                      )}`,
+                      backgroundColor: palette.consumption.estimated.background,
+                      border: `1px solid ${palette.consumption.estimated.border}`,
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "center",
@@ -1775,7 +1777,7 @@ function MeterScreen({
                       sx={{
                         display: "block",
                         fontWeight: 500,
-                        color: "text.secondary",
+                        color: palette.consumption.estimated.main,
                         mb: 0.5,
                       }}
                     >
@@ -1784,7 +1786,7 @@ function MeterScreen({
                     <Typography
                       variant="h6"
                       fontWeight={600}
-                      color="rgba(79, 70, 229, 0.9)"
+                      color={palette.consumption.estimated.main}
                     >
                       {estimatedReading && estimatedReading !== "---"
                         ? `${estimatedReading} m³`
@@ -1832,13 +1834,16 @@ function MeterScreen({
                     fontSize: "1.2rem",
                     fontWeight: 500,
                     backgroundColor: localIsConfirmed
-                      ? alpha("#f5f5f5", 0.8)
-                      : "white",
+                      ? alpha(palette.neutral.background, 0.8)
+                      : palette.neutral.white,
                     opacity: localIsConfirmed ? 0.8 : 1,
                     "& input": {
-                      color: "text.primary",
+                      color: palette.neutral.text.primary,
                       WebkitTextFillColor: localIsConfirmed
-                        ? "rgba(0, 0, 0, 0.7) !important"
+                        ? `${alpha(
+                            palette.neutral.text.primary,
+                            0.7
+                          )} !important`
                         : undefined,
                       fontWeight: localIsConfirmed ? 600 : 500,
                     },
@@ -1847,16 +1852,23 @@ function MeterScreen({
                 sx={{
                   mb: 2,
                   "& .MuiOutlinedInput-root": {
-                    bgcolor: localIsConfirmed ? alpha("#f5f5f5", 0.8) : "white",
+                    bgcolor: localIsConfirmed
+                      ? alpha(palette.neutral.background, 0.8)
+                      : palette.neutral.white,
                     borderRadius: 2,
                   },
                   "& .MuiInputLabel-root": {
-                    color: localIsConfirmed ? "text.secondary" : undefined,
+                    color: localIsConfirmed
+                      ? palette.neutral.text.secondary
+                      : undefined,
                   },
                   "& .Mui-disabled": {
                     opacity: "0.9 !important",
-                    color: "text.primary !important",
-                    WebkitTextFillColor: "rgba(0, 0, 0, 0.8) !important",
+                    color: `${palette.neutral.text.primary} !important`,
+                    WebkitTextFillColor: `${alpha(
+                      palette.neutral.text.primary,
+                      0.8
+                    )} !important`,
                   },
                 }}
               />
@@ -1878,15 +1890,15 @@ function MeterScreen({
 
                         switch (meterData.consumption.type) {
                           case "estimated":
-                            return "rgba(79, 70, 229, 0.3)"; // Purple border for estimated
+                            return palette.consumption.estimated.border;
                           case "negative":
-                            return alpha(theme.palette.error.main, 0.3); // Red border
+                            return palette.consumption.negative.border;
                           case "low":
-                            return alpha(theme.palette.info.main, 0.3); // Blue border
+                            return palette.consumption.low.border;
                           case "high":
-                            return alpha(theme.palette.grey[500], 0.3); // Gray border
+                            return palette.consumption.high.border;
                           case "normal":
-                            return alpha(theme.palette.success.main, 0.3); // Green border
+                            return palette.consumption.normal.border;
                           default:
                             return alpha(theme.palette.grey[500], 0.15);
                         }
@@ -1898,15 +1910,15 @@ function MeterScreen({
 
                         switch (meterData.consumption.type) {
                           case "estimated":
-                            return "rgba(79, 70, 229, 0.05)"; // Light purple bg for estimated
+                            return palette.consumption.estimated.background;
                           case "negative":
-                            return alpha(theme.palette.error.main, 0.05); // Light red bg
+                            return palette.consumption.negative.background;
                           case "low":
-                            return alpha(theme.palette.info.main, 0.05); // Light blue bg
+                            return palette.consumption.low.background;
                           case "high":
-                            return alpha(theme.palette.grey[500], 0.05); // Light gray bg
+                            return palette.consumption.high.background;
                           case "normal":
-                            return alpha(theme.palette.success.main, 0.05); // Light green bg
+                            return palette.consumption.normal.background;
                           default:
                             return alpha(theme.palette.grey[500], 0.05);
                         }
@@ -1923,7 +1935,7 @@ function MeterScreen({
                         sx={{
                           display: "block",
                           fontWeight: 500,
-                          color: "text.secondary",
+                          color: palette.neutral.text.primary,
                           mb: 0.5,
                         }}
                       >
@@ -1937,18 +1949,18 @@ function MeterScreen({
                           color: (theme) => {
                             const meterData = getMeterReading(meter.ID);
                             if (meterData?.consumption?.type === "estimated") {
-                              return "rgba(79, 70, 229, 0.9)"; // Purple for estimated
+                              return palette.consumption.estimated.main;
                             }
                             if (meterData?.consumption?.type === "high") {
-                              return theme.palette.grey[700]; // Dark gray for high
+                              return palette.consumption.high.main;
                             }
                             if (meterData?.consumption?.type === "negative") {
-                              return theme.palette.error.main;
+                              return palette.consumption.negative.main;
                             }
                             if (meterData?.consumption?.type === "low") {
-                              return theme.palette.info.main;
+                              return palette.consumption.low.main;
                             }
-                            return theme.palette.success.main;
+                            return palette.consumption.normal.main;
                           },
                         }}
                       >
@@ -1965,9 +1977,10 @@ function MeterScreen({
                             icon={<InfoOutlinedIcon fontSize="small" />}
                             label="Consumo estimado"
                             sx={{
-                              backgroundColor: "rgba(79, 70, 229, 0.1)",
-                              color: "rgba(79, 70, 229, 0.9)",
-                              borderColor: "rgba(79, 70, 229, 0.3)",
+                              backgroundColor:
+                                palette.consumption.estimated.background,
+                              color: palette.consumption.estimated.main,
+                              borderColor: palette.consumption.estimated.border,
                               fontWeight: 600,
                             }}
                             size="small"
@@ -1981,12 +1994,10 @@ function MeterScreen({
                             icon={<WarningIcon fontSize="small" />}
                             label="Consumo elevado"
                             sx={{
-                              backgroundColor: alpha(
-                                theme.palette.grey[500],
-                                0.1
-                              ),
-                              color: theme.palette.grey[700],
-                              borderColor: alpha(theme.palette.grey[500], 0.3),
+                              backgroundColor:
+                                palette.consumption.high.background,
+                              color: palette.consumption.high.main,
+                              borderColor: palette.consumption.high.border,
                               fontWeight: 600,
                             }}
                             size="small"
@@ -2038,16 +2049,19 @@ function MeterScreen({
                   sx={{
                     ml: 1,
                     borderRadius: 2,
-                    borderColor: "rgba(79, 70, 229, 0.5)",
-                    color: "rgba(79, 70, 229, 0.9)",
+                    borderColor: palette.consumption.estimated.border,
+                    color: palette.consumption.estimated.main,
                     "&:hover": {
-                      backgroundColor: "rgba(79, 70, 229, 0.05)",
-                      borderColor: "rgba(79, 70, 229, 0.8)",
+                      backgroundColor: palette.consumption.estimated.background,
+                      borderColor: palette.consumption.estimated.border,
                     },
                     // Add opacity styling when disabled
                     "&.Mui-disabled": {
-                      borderColor: "rgba(79, 70, 229, 0.2)",
-                      color: "rgba(79, 70, 229, 0.4)",
+                      borderColor: alpha(
+                        palette.consumption.estimated.border,
+                        0.2
+                      ),
+                      color: alpha(palette.consumption.estimated.main, 0.4),
                     },
                   }}
                   // Disable when reading is confirmed
@@ -2077,9 +2091,9 @@ function MeterScreen({
                     ml: "auto",
                     mr: 1,
                     ...(localIsConfirmed && {
-                      backgroundColor: "#f59e0b", // Amber/yellow color
+                      backgroundColor: palette.semantic.warning.main,
                       "&:hover": {
-                        backgroundColor: "#d97706", // Darker amber on hover
+                        backgroundColor: palette.semantic.warning.dark,
                       },
                     }),
                   }}
@@ -2103,7 +2117,7 @@ function MeterScreen({
         sx={{
           p: 2,
           borderRadius: 3,
-          backgroundColor: alpha(theme.palette.background.paper, 0.8),
+          backgroundColor: alpha(palette.neutral.paper, 0.8),
           backdropFilter: "blur(8px)",
         }}
       >
@@ -2185,8 +2199,8 @@ function MeterScreen({
           id="navigation-dialog-title"
           sx={{
             borderBottom: 1,
-            borderColor: "divider",
-            backgroundColor: alpha(theme.palette.warning.light, 0.1),
+            borderColor: palette.neutral.divider,
+            backgroundColor: alpha(palette.semantic.warning.light, 0.1),
             px: 3,
             py: 2.5,
             "& .MuiTypography-root": {
@@ -2616,7 +2630,13 @@ function MeterScreen({
                       value={verificationData.issueDescription || ""}
                       onChange={handleIssueDescriptionChange}
                       variant="outlined"
-                      sx={{ backgroundColor: "white" }}
+                      sx={{
+                        mt: 2,
+                        backgroundColor: palette.neutral.white,
+                        "& .MuiOutlinedInput-root": {
+                          backgroundColor: palette.neutral.white,
+                        },
+                      }}
                     />
                   </Box>
                 )}
@@ -2636,7 +2656,13 @@ function MeterScreen({
                       <InputAdornment position="end">meses</InputAdornment>
                     ),
                   }}
-                  sx={{ backgroundColor: "white" }}
+                  sx={{
+                    mt: 2,
+                    backgroundColor: palette.neutral.white,
+                    "& .MuiOutlinedInput-root": {
+                      backgroundColor: palette.neutral.white,
+                    },
+                  }}
                 />
               </Box>
             </DialogContent>
@@ -2821,7 +2847,10 @@ function MeterScreen({
         PaperProps={{
           sx: {
             borderRadius: 2,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            boxShadow: `0 8px 24px ${alpha(
+              palette.neutral.text.primary,
+              0.12
+            )}`,
             overflow: "hidden",
             maxWidth: 500,
           },
@@ -2832,7 +2861,8 @@ function MeterScreen({
           sx={{
             borderBottom: 1,
             borderColor: "divider",
-            backgroundColor: alpha(theme.palette.error.light, 0.05),
+            backgroundColor: alpha(palette.neutral.background, 0.1),
+            color: palette.neutral.text.primary,
             px: 3,
             py: 2.5,
             "& .MuiTypography-root": {
@@ -3280,8 +3310,8 @@ function MeterScreen({
       >
         <DialogTitle
           sx={{
-            backgroundColor: "rgba(79, 70, 229, 0.1)",
-            color: "rgba(79, 70, 229, 0.9)",
+            backgroundColor: palette.consumption.estimated.background,
+            color: palette.consumption.estimated.main,
             fontWeight: 600,
             display: "flex",
             alignItems: "center",
@@ -3292,7 +3322,9 @@ function MeterScreen({
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <ErrorOutlineIcon sx={{ color: "rgba(79, 70, 229, 0.9)" }} />
+            <ErrorOutlineIcon
+              sx={{ color: palette.consumption.estimated.main }}
+            />
             <Typography>No se puede leer el medidor</Typography>
           </Box>
         </DialogTitle>
@@ -3303,8 +3335,8 @@ function MeterScreen({
               elevation={0}
               sx={{
                 p: 2,
-                backgroundColor: "rgba(79, 70, 229, 0.05)",
-                border: "1px solid rgba(79, 70, 229, 0.2)",
+                backgroundColor: palette.consumption.estimated.background,
+                border: `1px solid ${palette.consumption.estimated.border}`,
                 borderRadius: 1,
               }}
             >
@@ -3315,7 +3347,10 @@ function MeterScreen({
                   </Typography>
                   <Typography
                     variant="h4"
-                    sx={{ color: "rgba(79, 70, 229, 0.9)", fontWeight: 700 }}
+                    sx={{
+                      color: palette.consumption.estimated.main,
+                      fontWeight: 700,
+                    }}
                   >
                     {estimatedReading}
                   </Typography>
@@ -3334,10 +3369,10 @@ function MeterScreen({
             variant="outlined"
             sx={{
               mb: 3,
-              borderColor: "rgba(79, 70, 229, 0.5)",
-              backgroundColor: "rgba(79, 70, 229, 0.05)",
+              borderColor: palette.consumption.estimated.border,
+              backgroundColor: palette.consumption.estimated.background,
               "& .MuiAlert-icon": {
-                color: "rgba(79, 70, 229, 0.9)",
+                color: palette.consumption.estimated.main,
               },
               "& .MuiAlert-message": {
                 fontWeight: 500,
@@ -3437,7 +3472,7 @@ function MeterScreen({
             py: 2.5,
             gap: 1,
             borderTop: 1,
-            borderColor: "divider",
+            borderColor: palette.neutral.divider,
           }}
         >
           <Button
@@ -3453,10 +3488,10 @@ function MeterScreen({
             onClick={handleConfirmEstimatedReading}
             sx={{
               minWidth: 140,
-              backgroundColor: "rgba(79, 70, 229, 0.9)",
-              color: "white",
+              backgroundColor: palette.consumption.estimated.main,
+              color: palette.neutral.white,
               "&:hover": {
-                backgroundColor: "rgba(79, 70, 229, 1)",
+                backgroundColor: alpha(palette.consumption.estimated.main, 0.9),
               },
             }}
             disabled={
@@ -3546,11 +3581,11 @@ function MeterScreen({
             variant="outlined"
             sx={{
               minWidth: 200,
-              borderColor: "rgba(79, 70, 229, 0.5)",
-              color: "rgba(79, 70, 229, 0.9)",
+              borderColor: palette.consumption.estimated.border,
+              color: palette.consumption.estimated.main,
               "&:hover": {
-                backgroundColor: "rgba(79, 70, 229, 0.05)",
-                borderColor: "rgba(79, 70, 229, 0.8)",
+                backgroundColor: palette.consumption.estimated.background,
+                borderColor: palette.consumption.estimated.border,
               },
             }}
             startIcon={<ErrorOutlineIcon />}
