@@ -190,6 +190,10 @@ function MeterScreen({
   const [cantReadReason, setCantReadReason] = useState<string>("");
   const [otherReasonText, setOtherReasonText] = useState<string>("");
 
+  // First, add a new state for the empty input dialog
+  const [showEmptyInputDialog, setShowEmptyInputDialog] =
+    useState<boolean>(false);
+
   // Initialize input value and confirmation status when meter changes
   useEffect(() => {
     // Retrieve stored reading from localStorage
@@ -660,22 +664,28 @@ function MeterScreen({
 
   // Add this useEffect to monitor for pending navigation
   useEffect(() => {
-    if (pendingNavigation) {
+    if (pendingNavigation && !showEmptyInputDialog) {
       setIsNavigationDialogOpen(true);
     }
-  }, [pendingNavigation]);
+  }, [pendingNavigation, showEmptyInputDialog]);
 
   // Simplify navigation handling
   const handleNavigation = (type: string, navigationAction: () => void) => {
     setNavigationType(type as "prev" | "next" | "home" | "other" | "none");
 
-    // If there's a reading but it's not confirmed, show dialog
-    if (inputValue && !localIsConfirmed) {
+    // If there's no reading input, show the empty input dialog
+    if (!inputValue || inputValue.trim() === "") {
+      setShowEmptyInputDialog(true);
+      setNavigationHandledByChild(true);
+      setPendingNavigation(() => navigationAction);
+    }
+    // If there's a reading but it's not confirmed, show the confirmation dialog
+    else if (inputValue && !localIsConfirmed) {
       setIsNavigationDialogOpen(true);
       setNavigationHandledByChild(true);
       setPendingNavigation(() => navigationAction);
     } else {
-      // No unconfirmed reading, just navigate
+      // Reading is confirmed, just navigate
       navigationAction();
     }
   };
@@ -1205,11 +1215,34 @@ function MeterScreen({
               Promedio de consumo:{" "}
               {averageConsumption > 0 ? `${averageConsumption} m³` : "---"}
             </Typography>
-            <Typography variant="body2">
+            <Typography
+              variant="body2"
+              sx={{
+                color:
+                  estimatedReading && estimatedReading !== "---"
+                    ? "rgba(79, 70, 229, 0.9)"
+                    : "text.secondary",
+                fontWeight:
+                  estimatedReading && estimatedReading !== "---" ? 600 : 400,
+              }}
+            >
               Lectura estimada:{" "}
-              {estimatedReading && estimatedReading !== "---"
-                ? `${estimatedReading} m³`
-                : "--- m³"}
+              {estimatedReading && estimatedReading !== "---" ? (
+                <Box
+                  component="span"
+                  sx={{
+                    backgroundColor: "rgba(79, 70, 229, 0.1)",
+                    px: 1,
+                    py: 0.2,
+                    borderRadius: 1,
+                    border: "1px solid rgba(79, 70, 229, 0.2)",
+                  }}
+                >
+                  {estimatedReading} m³
+                </Box>
+              ) : (
+                "--- m³"
+              )}
             </Typography>
           </Grid>
         </Grid>
@@ -1495,6 +1528,42 @@ function MeterScreen({
       </Box>
     )}
   </Paper>;
+
+  // Add handlers for the new dialog
+  const handleEmptyInputContinue = () => {
+    setShowEmptyInputDialog(false);
+
+    // Execute the pending navigation
+    if (pendingNavigation) {
+      pendingNavigation();
+      setPendingNavigation(null);
+      setNavigationHandledByChild(false);
+    }
+  };
+
+  // Update the handleEmptyCantReadMeter function to properly clean up
+  const handleEmptyCantReadMeter = () => {
+    // First close the empty input dialog
+    setShowEmptyInputDialog(false);
+
+    // Clear the pending navigation to prevent the navigation dialog from showing
+    setPendingNavigation(null);
+
+    // Reset navigation handled flag
+    setNavigationHandledByChild(false);
+
+    // After a small delay to allow state updates to propagate
+    setTimeout(() => {
+      // Then open the can't read meter dialog
+      handleCantReadMeter();
+    }, 50);
+  };
+
+  const handleEmptyInputCancel = () => {
+    setShowEmptyInputDialog(false);
+    setPendingNavigation(null);
+    setNavigationHandledByChild(false);
+  };
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
@@ -1932,6 +2001,20 @@ function MeterScreen({
                       p: 2,
                       border: "1px solid",
                       borderColor: (consumption) => {
+                        // Check if this is an estimated reading
+                        const isEstimated = localStorage.getItem(
+                          `meter_${meter.ID}_verification`
+                        )
+                          ? JSON.parse(
+                              localStorage.getItem(
+                                `meter_${meter.ID}_verification`
+                              ) || "{}"
+                            ).type === "cantRead"
+                          : false;
+
+                        if (isEstimated)
+                          return alpha("rgba(79, 70, 229, 0.7)", 0.15); // Purple for estimated
+
                         const consumptionValue =
                           parseFloat(inputValue) -
                           parseFloat(
@@ -1947,6 +2030,20 @@ function MeterScreen({
                         return alpha(theme.palette.grey[500], 0.15);
                       },
                       backgroundColor: (consumption) => {
+                        // Check if this is an estimated reading
+                        const isEstimated = localStorage.getItem(
+                          `meter_${meter.ID}_verification`
+                        )
+                          ? JSON.parse(
+                              localStorage.getItem(
+                                `meter_${meter.ID}_verification`
+                              ) || "{}"
+                            ).type === "cantRead"
+                          : false;
+
+                        if (isEstimated)
+                          return alpha("rgba(79, 70, 229, 0.7)", 0.05); // Light purple for estimated
+
                         const consumptionValue =
                           parseFloat(inputValue) -
                           parseFloat(
@@ -1985,6 +2082,19 @@ function MeterScreen({
                         fontWeight={600}
                         sx={{
                           color: () => {
+                            // Check if this is an estimated reading
+                            const isEstimated = localStorage.getItem(
+                              `meter_${meter.ID}_verification`
+                            )
+                              ? JSON.parse(
+                                  localStorage.getItem(
+                                    `meter_${meter.ID}_verification`
+                                  ) || "{}"
+                                ).type === "cantRead"
+                              : false;
+
+                            if (isEstimated) return "rgba(79, 70, 229, 0.9)"; // Purple text for estimated
+
                             const consumptionValue =
                               parseFloat(inputValue) -
                               parseFloat(
@@ -2007,6 +2117,33 @@ function MeterScreen({
 
                     {/* Add a visual indicator of consumption trend */}
                     {(() => {
+                      // Check if this is an estimated reading
+                      const isEstimated = localStorage.getItem(
+                        `meter_${meter.ID}_verification`
+                      )
+                        ? JSON.parse(
+                            localStorage.getItem(
+                              `meter_${meter.ID}_verification`
+                            ) || "{}"
+                          ).type === "cantRead"
+                        : false;
+
+                      if (isEstimated) {
+                        return (
+                          <Chip
+                            icon={<InfoOutlinedIcon fontSize="small" />}
+                            label="Consumo estimado"
+                            sx={{
+                              backgroundColor: "rgba(79, 70, 229, 0.1)",
+                              color: "rgba(79, 70, 229, 0.9)",
+                              borderColor: "rgba(79, 70, 229, 0.3)",
+                              fontWeight: 600,
+                            }}
+                            size="small"
+                          />
+                        );
+                      }
+
                       const consumptionValue = parseFloat(formatConsumption());
                       if (isNaN(consumptionValue)) return null;
 
@@ -2067,7 +2204,14 @@ function MeterScreen({
                       backgroundColor: "rgba(79, 70, 229, 0.05)",
                       borderColor: "rgba(79, 70, 229, 0.8)",
                     },
+                    // Add opacity styling when disabled
+                    "&.Mui-disabled": {
+                      borderColor: "rgba(79, 70, 229, 0.2)",
+                      color: "rgba(79, 70, 229, 0.4)",
+                    },
                   }}
+                  // Disable when reading is confirmed
+                  disabled={localIsConfirmed}
                 >
                   No puedo leer el medidor
                 </Button>
@@ -2075,7 +2219,7 @@ function MeterScreen({
                 {/* Move Confirm button to the right */}
                 <Button
                   variant="contained"
-                  color={localIsConfirmed ? "error" : "success"}
+                  color={localIsConfirmed ? "warning" : "success"} // Changed from "error" to "warning"
                   onClick={() => {
                     if (localIsConfirmed) {
                       // Handle unconfirm action
@@ -2092,7 +2236,18 @@ function MeterScreen({
                     borderRadius: 2,
                     ml: "auto",
                     mr: 1,
+                    ...(localIsConfirmed && {
+                      backgroundColor: "#f59e0b", // Amber/yellow color
+                      "&:hover": {
+                        backgroundColor: "#d97706", // Darker amber on hover
+                      },
+                    }),
                   }}
+                  // Only disable when it's the confirm button AND the input is empty
+                  disabled={
+                    !localIsConfirmed &&
+                    (!inputValue || inputValue.trim() === "")
+                  }
                 >
                   {localIsConfirmed ? "Desconfirmar" : "Confirmar Lectura"}
                 </Button>
@@ -3461,6 +3616,103 @@ function MeterScreen({
             startIcon={<CheckCircleIcon />}
           >
             Confirmar Estimación
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Empty Input Navigation Dialog */}
+      <Dialog
+        open={showEmptyInputDialog}
+        onClose={handleEmptyInputCancel}
+        aria-labelledby="empty-input-dialog-title"
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle
+          id="empty-input-dialog-title"
+          sx={{
+            borderBottom: 1,
+            borderColor: "divider",
+            backgroundColor: alpha(theme.palette.warning.light, 0.1),
+            px: 3,
+            py: 2.5,
+            "& .MuiTypography-root": {
+              fontSize: "1.25rem",
+              fontWeight: 600,
+            },
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <WarningAmberIcon color="warning" />
+            <Typography>Lectura No Ingresada</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, py: 3 }}>
+          <Alert
+            severity="warning"
+            variant="outlined"
+            sx={{
+              mb: 3,
+              "& .MuiAlert-message": {
+                fontWeight: 500,
+              },
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              No ha ingresado ninguna lectura para este medidor.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Si no puede acceder al medidor o tiene dificultad para leerlo,
+              utilice la opción "No puedo leer el medidor" para registrar una
+              lectura estimada.
+            </Typography>
+          </Alert>
+
+          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+            ¿Qué desea hacer?
+          </Typography>
+        </DialogContent>
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2.5,
+            gap: 1,
+            borderTop: 1,
+            borderColor: "divider",
+          }}
+        >
+          <Button
+            onClick={handleEmptyInputCancel}
+            color="inherit"
+            variant="outlined"
+            sx={{ minWidth: 120 }}
+          >
+            Volver al Medidor
+          </Button>
+          <Button
+            onClick={handleEmptyCantReadMeter}
+            color="primary"
+            variant="outlined"
+            sx={{
+              minWidth: 200,
+              borderColor: "rgba(79, 70, 229, 0.5)",
+              color: "rgba(79, 70, 229, 0.9)",
+              "&:hover": {
+                backgroundColor: "rgba(79, 70, 229, 0.05)",
+                borderColor: "rgba(79, 70, 229, 0.8)",
+              },
+            }}
+            startIcon={<ErrorOutlineIcon />}
+          >
+            No Puedo Leer el Medidor
+          </Button>
+          <Button
+            onClick={handleEmptyInputContinue}
+            color="warning"
+            variant="contained"
+            sx={{ minWidth: 120 }}
+          >
+            Continuar Sin Lectura
           </Button>
         </DialogActions>
       </Dialog>
