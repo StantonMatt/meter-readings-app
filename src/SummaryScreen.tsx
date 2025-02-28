@@ -454,13 +454,13 @@ function SummaryScreen({
                           color={(() => {
                             switch (row.consumptionType.type) {
                               case "estimated":
-                                return undefined; // Use custom color
+                                return undefined; // Use custom color for high consumption
                               case "negative":
                                 return "error";
                               case "low":
                                 return "info";
                               case "high":
-                                return "warning";
+                                return undefined; // Use custom color for high consumption
                               default:
                                 return "success";
                             }
@@ -471,6 +471,19 @@ function SummaryScreen({
                                   backgroundColor: "rgba(79, 70, 229, 0.1)",
                                   color: "rgba(79, 70, 229, 0.9)",
                                   borderColor: "rgba(79, 70, 229, 0.3)",
+                                  fontWeight: 600,
+                                }
+                              : row.consumptionType.type === "high"
+                              ? {
+                                  backgroundColor: alpha(
+                                    theme.palette.grey[500],
+                                    0.1
+                                  ),
+                                  color: theme.palette.grey[700],
+                                  borderColor: alpha(
+                                    theme.palette.grey[500],
+                                    0.3
+                                  ),
                                   fontWeight: 600,
                                 }
                               : undefined
