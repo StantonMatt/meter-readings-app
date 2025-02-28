@@ -122,6 +122,21 @@ const SafeDisplay = ({ children }: { children: any }) => {
   return <>{children}</>;
 };
 
+// Helper function to format historical dates
+const formatHistoricalDate = (
+  dateString: string
+): { month: string; year: string } => {
+  try {
+    const [year, monthName] = dateString.split("-");
+    // Capitalize first letter only and use full month name
+    const formattedMonth =
+      monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
+    return { month: formattedMonth, year };
+  } catch (e) {
+    return { month: "---", year: "---" };
+  }
+};
+
 function MeterScreen({
   meter,
   currentIndex,
@@ -1108,176 +1123,6 @@ function MeterScreen({
     }
   };
 
-  // Update the renderHistoricalReadings function to handle placeholder entries
-  const renderHistoricalReadings = () => {
-    // Add detailed logging to debug the render process
-    console.log(
-      "Rendering historical readings:",
-      historicalReadings,
-      "hasPreviousReadings:",
-      hasPreviousReadings
-    );
-
-    if (!historicalReadings || historicalReadings.length === 0) {
-      return (
-        <Typography variant="body2" color="text.secondary">
-          No hay lecturas anteriores disponibles.
-        </Typography>
-      );
-    }
-
-    return (
-      <Box sx={{ mt: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>
-          Lecturas Anteriores:
-        </Typography>
-        <List dense>
-          {historicalReadings.map((item, index) => (
-            <ListItem key={index} disablePadding>
-              <ListItemText
-                primary={`${item.date}: ${
-                  item.isMissing ? "No hay datos" : `${item.value} m³`
-                }`}
-                primaryTypographyProps={{
-                  variant: "body2",
-                  style: {
-                    fontWeight: index === 0 ? "bold" : "normal",
-                    color: item.isMissing
-                      ? theme.palette.text.secondary
-                      : "inherit",
-                  },
-                }}
-              />
-            </ListItem>
-          ))}
-        </List>
-      </Box>
-    );
-  };
-
-  // Also update the dialog version
-  const renderHistoricalReadingsInDialog = () => {
-    if (!historicalReadings || historicalReadings.length === 0) {
-      return (
-        <Typography variant="body2" color="text.secondary">
-          No hay lecturas anteriores disponibles.
-        </Typography>
-      );
-    }
-
-    return (
-      <Box sx={{ mt: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>
-          Historial de Lecturas:
-        </Typography>
-        <List dense>
-          {historicalReadings.map((item, index) => (
-            <ListItem key={index} disablePadding>
-              <ListItemText
-                primary={`${item.date}: ${
-                  item.isMissing ? "No hay datos" : `${item.value} m³`
-                }`}
-                primaryTypographyProps={{
-                  variant: "body2",
-                  style: {
-                    fontWeight: index === 0 ? "bold" : "normal",
-                    color: item.isMissing
-                      ? theme.palette.text.secondary
-                      : "inherit",
-                  },
-                }}
-              />
-            </ListItem>
-          ))}
-        </List>
-      </Box>
-    );
-  };
-
-  // Update the renderMeterInfo function or similar that displays the meter details
-  const renderMeterInfo = () => {
-    return (
-      <Box sx={{ my: 2 }}>
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={6}>
-            <Typography variant="subtitle2" component="div">
-              Detalles del Medidor:
-            </Typography>
-            <Typography variant="body2">ID: {meter.ID}</Typography>
-            <Typography variant="body2">Dirección: {meter.ADDRESS}</Typography>
-            {/* Add additional meter details here if available */}
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Typography variant="subtitle2" component="div">
-              Estimaciones:
-            </Typography>
-            <Typography variant="body2">
-              Promedio de consumo:{" "}
-              {averageConsumption > 0 ? `${averageConsumption} m³` : "---"}
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color:
-                  estimatedReading && estimatedReading !== "---"
-                    ? "rgba(79, 70, 229, 0.9) !important"
-                    : "text.secondary",
-                fontWeight:
-                  estimatedReading && estimatedReading !== "---" ? 600 : 400,
-              }}
-            >
-              Lectura estimada:{" "}
-              {estimatedReading && estimatedReading !== "---" ? (
-                <Box
-                  component="span"
-                  sx={{
-                    backgroundColor: "rgba(79, 70, 229, 0.1) !important",
-                    px: 1,
-                    py: 0.2,
-                    borderRadius: 1,
-                    border: "1px solid rgba(79, 70, 229, 0.2) !important",
-                  }}
-                >
-                  {estimatedReading} m³
-                </Box>
-              ) : (
-                "--- m³"
-              )}
-            </Typography>
-          </Grid>
-        </Grid>
-      </Box>
-    );
-  };
-
-  // Also add console logging right before rendering to help debug
-  useEffect(() => {
-    console.log("Current estimatedReading value:", estimatedReading);
-    console.log("Current averageConsumption value:", averageConsumption);
-  }, [estimatedReading, averageConsumption]);
-
-  // Add this right before the return statement in your component
-  useEffect(() => {
-    // Fallback calculation for estimated reading if it's not being set
-    if (
-      (!estimatedReading || estimatedReading === "---") &&
-      previousReadingEntries.length > 0 &&
-      averageConsumption > 0
-    ) {
-      // Use the most recent reading (index 0) since we sorted newest first
-      const lastReading = previousReadingEntries[0].value;
-      const manualEstimate = Math.round(lastReading + averageConsumption);
-
-      console.log("Manual estimated reading calculation:");
-      console.log("- Last reading:", lastReading);
-      console.log("- Average consumption:", averageConsumption);
-      console.log("- Calculated estimate:", manualEstimate);
-
-      // Set the estimated reading explicitly
-      setEstimatedReading(manualEstimate);
-    }
-  }, [previousReadingEntries, averageConsumption, estimatedReading]);
-
   // Add these handlers for negative consumption dialog
   const handleCancelNegativeConsumptionDialog = () => {
     setShowNegativeConsumptionDialog(false);
@@ -1392,142 +1237,6 @@ function MeterScreen({
       return { month: "---", year: "---" };
     }
   };
-
-  // Then replace the historical readings Paper component with this improved version
-  <Paper
-    elevation={0}
-    sx={{
-      p: 2,
-      backgroundColor: alpha(theme.palette.background.default, 0.7),
-      border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-      borderRadius: 2,
-      height: "auto",
-      minHeight: 200,
-      overflow: "visible", // Explicitly set to visible to prevent scrolling
-    }}
-  >
-    {historicalReadings && historicalReadings.length > 0 ? (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        {historicalReadings.map((item, index) => {
-          const { month, year } = formatHistoricalDate(item.date);
-          return (
-            <Box
-              key={index}
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                p: 1.5,
-                borderRadius: 1,
-                backgroundColor: "transparent", // Remove background color
-                borderBottom:
-                  index !== historicalReadings.length - 1
-                    ? `1px solid ${alpha(theme.palette.divider, 0.1)}`
-                    : "none",
-                "&:hover": {
-                  backgroundColor: alpha(theme.palette.primary.light, 0.05),
-                },
-                // Use a left border instead of background for highlighting the most recent
-                borderLeft:
-                  index === 0
-                    ? `3px solid ${theme.palette.primary.main}`
-                    : "3px solid transparent",
-                // Add subtle padding to compensate for the border
-                pl: 2,
-                // Remove shadow
-                boxShadow: "none",
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center" }}>
-                {/* Remove the circular container and display month and year together */}
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontWeight: index === 0 ? 700 : 600,
-                    color:
-                      index === 0
-                        ? theme.palette.primary.main
-                        : theme.palette.text.primary,
-                    mr: 1,
-                  }}
-                >
-                  {month}
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontWeight: index === 0 ? 600 : 500,
-                    color:
-                      index === 0
-                        ? theme.palette.primary.main
-                        : theme.palette.text.secondary,
-                  }}
-                >
-                  {year}
-                </Typography>
-              </Box>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  backgroundColor: item.isMissing
-                    ? "transparent"
-                    : index === 0
-                    ? alpha(theme.palette.primary.main, 0.08) // Lighter background
-                    : alpha(theme.palette.grey[100], 0.5),
-                  px: 2,
-                  py: 0.75,
-                  borderRadius: 1.5,
-                  minWidth: 80,
-                  justifyContent: "center",
-                  // Remove border
-                  border: "none",
-                }}
-              >
-                <Typography
-                  variant="body2"
-                  sx={{
-                    fontWeight: index === 0 ? 700 : 600,
-                    color: item.isMissing
-                      ? theme.palette.text.secondary
-                      : index === 0
-                      ? theme.palette.primary.main
-                      : theme.palette.text.primary,
-                    fontSize: index === 0 ? "1rem" : "0.85rem",
-                  }}
-                >
-                  {item.isMissing ? "—" : item.value}
-                  {!item.isMissing && (
-                    <Box
-                      component="span"
-                      sx={{
-                        fontSize: index === 0 ? "0.8rem" : "0.75rem",
-                        ml: 0.5,
-                      }}
-                    >
-                      m³
-                    </Box>
-                  )}
-                </Typography>
-              </Box>
-            </Box>
-          );
-        })}
-      </Box>
-    ) : (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100%",
-        }}
-      >
-        <Typography variant="body2" color="text.secondary">
-          No hay lecturas anteriores disponibles
-        </Typography>
-      </Box>
-    )}
-  </Paper>;
 
   // Add handlers for the new dialog
   const handleEmptyInputContinue = () => {
@@ -1770,13 +1479,15 @@ function MeterScreen({
                               backgroundColor: item.isMissing
                                 ? "transparent"
                                 : index === 0
-                                ? alpha(theme.palette.primary.main, 0.08)
+                                ? alpha(theme.palette.primary.main, 0.08) // Lighter background
                                 : alpha(theme.palette.grey[100], 0.5),
                               px: 2,
                               py: 0.75,
                               borderRadius: 1.5,
                               minWidth: 80,
                               justifyContent: "center",
+                              // Remove border
+                              border: "none",
                             }}
                           >
                             <Typography
