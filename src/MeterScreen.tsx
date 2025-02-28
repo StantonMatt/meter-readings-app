@@ -2222,7 +2222,7 @@ function MeterScreen({
             <Paper
               elevation={0}
               sx={{
-                p: 1,
+                p: 2,
                 backgroundColor: alpha(theme.palette.background.default, 0.7),
                 border: 1,
                 borderColor: "divider",
