@@ -1098,8 +1098,15 @@ function MeterScreen({
     });
   };
 
-  // Update formatConsumption to calculate actual consumption
+  // Update formatConsumption to use stored consumption data
   const formatConsumption = () => {
+    // First check if we have stored consumption data
+    const meterData = getMeterReading(meter.ID);
+    if (meterData?.consumption) {
+      return meterData.consumption.value.toFixed(1);
+    }
+
+    // If no stored data, calculate it
     if (
       !inputValue ||
       !previousReadingEntries.length ||
@@ -1117,6 +1124,18 @@ function MeterScreen({
 
     const consumption = currentReading - previousReading;
     return consumption.toFixed(1);
+  };
+
+  // Add helper function to check if reading is estimated
+  const isEstimatedReading = () => {
+    const verification = localStorage.getItem(`meter_${meter.ID}_verification`);
+    if (!verification) return false;
+    try {
+      const data = JSON.parse(verification);
+      return data.type === "cantRead";
+    } catch {
+      return false;
+    }
   };
 
   // Add these handlers for negative consumption dialog
@@ -1242,14 +1261,20 @@ function MeterScreen({
     setLocalIsConfirmed(true);
     onConfirmationChange(meter.ID, true);
 
+    // Calculate the consumption value for the estimated reading
+    const previousValue = previousReadingEntries[0]?.value || 0;
+    const estimatedValue = parseFloat(estimatedReading.toString());
+    const consumptionValue = estimatedValue - parseFloat(String(previousValue));
+
     // Store the estimated reading with verification data
     storeMeterReading(meter.ID, {
       reading: estimatedReading.toString(),
       isConfirmed: true,
+      previousReading: String(previousValue),
       consumption: {
         type: "estimated",
         label: "Estimada",
-        value: parseFloat(estimatedReading.toString()),
+        value: consumptionValue,
       },
       verification: {
         type: "cantRead",
@@ -1801,63 +1826,45 @@ function MeterScreen({
                       mb: 3,
                       p: 2,
                       border: "1px solid",
-                      borderColor: (consumption) => {
-                        // Check if this is an estimated reading
-                        const isEstimated = localStorage.getItem(
-                          `meter_${meter.ID}_verification`
-                        )
-                          ? JSON.parse(
-                              localStorage.getItem(
-                                `meter_${meter.ID}_verification`
-                              ) || "{}"
-                            ).type === "cantRead"
-                          : false;
+                      borderColor: (theme) => {
+                        const meterData = getMeterReading(meter.ID);
+                        if (!meterData?.consumption)
+                          return alpha(theme.palette.grey[500], 0.15);
 
-                        if (isEstimated)
-                          return alpha("rgba(79, 70, 229, 0.7)", 0.15); // Purple for estimated
-
-                        const consumptionValue =
-                          parseFloat(inputValue) -
-                          parseFloat(
-                            String(previousReadingEntries[0]?.value || "0")
-                          );
-
-                        if (consumptionValue > 0)
-                          return alpha(theme.palette.success.main, 0.15);
-
-                        if (consumptionValue < 0)
-                          return alpha(theme.palette.error.main, 0.15);
-
-                        return alpha(theme.palette.grey[500], 0.15);
+                        switch (meterData.consumption.type) {
+                          case "estimated":
+                            return "rgba(79, 70, 229, 0.3)"; // Purple border for estimated
+                          case "negative":
+                            return alpha(theme.palette.error.main, 0.3); // Red border
+                          case "low":
+                            return alpha(theme.palette.info.main, 0.3); // Blue border
+                          case "high":
+                            return alpha(theme.palette.grey[500], 0.3); // Gray border
+                          case "normal":
+                            return alpha(theme.palette.success.main, 0.3); // Green border
+                          default:
+                            return alpha(theme.palette.grey[500], 0.15);
+                        }
                       },
-                      backgroundColor: (consumption) => {
-                        // Check if this is an estimated reading
-                        const isEstimated = localStorage.getItem(
-                          `meter_${meter.ID}_verification`
-                        )
-                          ? JSON.parse(
-                              localStorage.getItem(
-                                `meter_${meter.ID}_verification`
-                              ) || "{}"
-                            ).type === "cantRead"
-                          : false;
+                      bgcolor: (theme) => {
+                        const meterData = getMeterReading(meter.ID);
+                        if (!meterData?.consumption)
+                          return alpha(theme.palette.grey[500], 0.05);
 
-                        if (isEstimated)
-                          return alpha("rgba(79, 70, 229, 0.7)", 0.05); // Light purple for estimated
-
-                        const consumptionValue =
-                          parseFloat(inputValue) -
-                          parseFloat(
-                            String(previousReadingEntries[0]?.value || "0")
-                          );
-
-                        if (consumptionValue > 0)
-                          return alpha(theme.palette.success.main, 0.05);
-
-                        if (consumptionValue < 0)
-                          return alpha(theme.palette.error.main, 0.05);
-
-                        return alpha(theme.palette.grey[500], 0.05);
+                        switch (meterData.consumption.type) {
+                          case "estimated":
+                            return "rgba(79, 70, 229, 0.05)"; // Light purple bg for estimated
+                          case "negative":
+                            return alpha(theme.palette.error.main, 0.05); // Light red bg
+                          case "low":
+                            return alpha(theme.palette.info.main, 0.05); // Light blue bg
+                          case "high":
+                            return alpha(theme.palette.grey[500], 0.05); // Light gray bg
+                          case "normal":
+                            return alpha(theme.palette.success.main, 0.05); // Light green bg
+                          default:
+                            return alpha(theme.palette.grey[500], 0.05);
+                        }
                       },
                       borderRadius: 2,
                       display: "flex",
@@ -1882,33 +1889,21 @@ function MeterScreen({
                         variant="h6"
                         fontWeight={600}
                         sx={{
-                          color: () => {
-                            // Check if this is an estimated reading
-                            const isEstimated = localStorage.getItem(
-                              `meter_${meter.ID}_verification`
-                            )
-                              ? JSON.parse(
-                                  localStorage.getItem(
-                                    `meter_${meter.ID}_verification`
-                                  ) || "{}"
-                                ).type === "cantRead"
-                              : false;
-
-                            if (isEstimated) return "rgba(79, 70, 229, 0.9)"; // Purple text for estimated
-
-                            const consumptionValue =
-                              parseFloat(inputValue) -
-                              parseFloat(
-                                String(previousReadingEntries[0]?.value || "0")
-                              );
-
-                            if (consumptionValue > 0)
-                              return theme.palette.success.main;
-
-                            if (consumptionValue < 0)
+                          color: (theme) => {
+                            const meterData = getMeterReading(meter.ID);
+                            if (meterData?.consumption?.type === "estimated") {
+                              return "rgba(79, 70, 229, 0.9)"; // Purple for estimated
+                            }
+                            if (meterData?.consumption?.type === "high") {
+                              return theme.palette.grey[700]; // Dark gray for high
+                            }
+                            if (meterData?.consumption?.type === "negative") {
                               return theme.palette.error.main;
-
-                            return theme.palette.grey[600];
+                            }
+                            if (meterData?.consumption?.type === "low") {
+                              return theme.palette.info.main;
+                            }
+                            return theme.palette.success.main;
                           },
                         }}
                       >
@@ -1918,18 +1913,8 @@ function MeterScreen({
 
                     {/* Add a visual indicator of consumption trend */}
                     {(() => {
-                      // Check if this is an estimated reading
-                      const isEstimated = localStorage.getItem(
-                        `meter_${meter.ID}_verification`
-                      )
-                        ? JSON.parse(
-                            localStorage.getItem(
-                              `meter_${meter.ID}_verification`
-                            ) || "{}"
-                          ).type === "cantRead"
-                        : false;
-
-                      if (isEstimated) {
+                      const meterData = getMeterReading(meter.ID);
+                      if (meterData?.consumption?.type === "estimated") {
                         return (
                           <Chip
                             icon={<InfoOutlinedIcon fontSize="small" />}
@@ -1945,19 +1930,26 @@ function MeterScreen({
                         );
                       }
 
-                      const consumptionValue = parseFloat(formatConsumption());
-                      if (isNaN(consumptionValue)) return null;
-
-                      if (consumptionValue > averageConsumption * 1.3) {
+                      if (meterData?.consumption?.type === "high") {
                         return (
                           <Chip
                             icon={<WarningIcon fontSize="small" />}
                             label="Consumo elevado"
-                            color="warning"
+                            sx={{
+                              backgroundColor: alpha(
+                                theme.palette.grey[500],
+                                0.1
+                              ),
+                              color: theme.palette.grey[700],
+                              borderColor: alpha(theme.palette.grey[500], 0.3),
+                              fontWeight: 600,
+                            }}
                             size="small"
                           />
                         );
-                      } else if (consumptionValue < 0) {
+                      }
+
+                      if (meterData?.consumption?.type === "negative") {
                         return (
                           <Chip
                             icon={<ErrorOutlineIcon fontSize="small" />}
@@ -1966,7 +1958,9 @@ function MeterScreen({
                             size="small"
                           />
                         );
-                      } else if (consumptionValue < 4) {
+                      }
+
+                      if (meterData?.consumption?.type === "low") {
                         return (
                           <Chip
                             icon={<InfoOutlinedIcon fontSize="small" />}
@@ -1975,16 +1969,16 @@ function MeterScreen({
                             size="small"
                           />
                         );
-                      } else {
-                        return (
-                          <Chip
-                            icon={<CheckCircleIcon fontSize="small" />}
-                            label="Consumo normal"
-                            color="success"
-                            size="small"
-                          />
-                        );
                       }
+
+                      return (
+                        <Chip
+                          icon={<CheckCircleIcon fontSize="small" />}
+                          label="Consumo normal"
+                          color="success"
+                          size="small"
+                        />
+                      );
                     })()}
                   </Paper>
                 )}
