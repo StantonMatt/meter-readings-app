@@ -1220,7 +1220,7 @@ function MeterScreen({
               sx={{
                 color:
                   estimatedReading && estimatedReading !== "---"
-                    ? "rgba(79, 70, 229, 0.9)"
+                    ? "rgba(79, 70, 229, 0.9) !important"
                     : "text.secondary",
                 fontWeight:
                   estimatedReading && estimatedReading !== "---" ? 600 : 400,
@@ -1231,11 +1231,11 @@ function MeterScreen({
                 <Box
                   component="span"
                   sx={{
-                    backgroundColor: "rgba(79, 70, 229, 0.1)",
+                    backgroundColor: "rgba(79, 70, 229, 0.1) !important",
                     px: 1,
                     py: 0.2,
                     borderRadius: 1,
-                    border: "1px solid rgba(79, 70, 229, 0.2)",
+                    border: "1px solid rgba(79, 70, 229, 0.2) !important",
                   }}
                 >
                   {estimatedReading} m³
@@ -1889,9 +1889,9 @@ function MeterScreen({
                       p: 2,
                       height: "100%",
                       borderRadius: 2,
-                      backgroundColor: alpha(theme.palette.warning.main, 0.08),
+                      backgroundColor: alpha("rgba(79, 70, 229, 0.7)", 0.08),
                       border: `1px solid ${alpha(
-                        theme.palette.warning.main,
+                        "rgba(79, 70, 229, 0.7)",
                         0.15
                       )}`,
                       display: "flex",
@@ -1913,7 +1913,7 @@ function MeterScreen({
                     <Typography
                       variant="h6"
                       fontWeight={600}
-                      color="warning.main"
+                      color="rgba(79, 70, 229, 0.9)"
                     >
                       {estimatedReading && estimatedReading !== "---"
                         ? `${estimatedReading} m³`
@@ -3652,6 +3652,7 @@ function MeterScreen({
             severity="warning"
             variant="outlined"
             sx={{
+              mt: 2,
               mb: 3,
               "& .MuiAlert-message": {
                 fontWeight: 500,

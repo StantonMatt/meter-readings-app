@@ -83,12 +83,13 @@ function SummaryScreen({
 
     return meters.map((meter) => {
       const reading = readingsState[meter.ID];
-      const readingValue = reading?.reading || meter.currentReading || "---";
-      const isConfirmed = reading?.isConfirmed || meter.isConfirmed || false;
+      const readingValue =
+        reading?.reading || (meter as any).currentReading || "---";
+      const isConfirmed =
+        reading?.isConfirmed || (meter as any).isConfirmed || false;
 
-      // Use the previousReading and consumption directly from the meter object if available
-      const previousReading = meter.previousReading || "---";
-      const consumption = meter.consumption || "---";
+      const previousReading = (meter as any).previousReading || "---";
+      const consumption = (meter as any).consumption || "---";
 
       return {
         id: meter.ID,
@@ -163,11 +164,11 @@ function SummaryScreen({
       .map((row) =>
         row.consumption !== "---" ? parseFloat(row.consumption) : null
       )
-      .filter((value) => value !== null && value > 0);
+      .filter((value): value is number => value !== null && value > 0);
 
     // Calculate average if we have values
     if (consumptionValues.length > 0) {
-      const sum = consumptionValues.reduce((acc, val) => acc + (val || 0), 0);
+      const sum = consumptionValues.reduce((acc, val) => acc + val, 0);
       return sum / consumptionValues.length;
     }
 
