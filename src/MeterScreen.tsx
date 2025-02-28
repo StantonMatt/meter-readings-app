@@ -2198,7 +2198,7 @@ function MeterScreen({
         <DialogTitle
           id="navigation-dialog-title"
           sx={{
-            borderBottom: 1,
+            borderBottom: 2,
             borderColor: palette.neutral.divider,
             backgroundColor: alpha(palette.semantic.warning.light, 0.1),
             px: 3,
