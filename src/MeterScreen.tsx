@@ -1098,13 +1098,25 @@ function MeterScreen({
     });
   };
 
-  // Update formatConsumption to use stored data instead of recalculating
+  // Update formatConsumption to calculate actual consumption
   const formatConsumption = () => {
-    const meterData = getMeterReading(meter.ID);
-    if (meterData?.consumption) {
-      return meterData.consumption.value.toFixed(1);
+    if (
+      !inputValue ||
+      !previousReadingEntries.length ||
+      !previousReadingEntries[0]?.value
+    ) {
+      return "---";
     }
-    return "---";
+
+    const currentReading = parseFloat(inputValue);
+    const previousReading = parseFloat(String(previousReadingEntries[0].value));
+
+    if (isNaN(currentReading) || isNaN(previousReading)) {
+      return "---";
+    }
+
+    const consumption = currentReading - previousReading;
+    return consumption.toFixed(1);
   };
 
   // Add these handlers for negative consumption dialog
