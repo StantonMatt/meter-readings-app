@@ -16,13 +16,15 @@ interface LoginScreenProps {
   // but we define the interface for future extensibility
 }
 
-function LoginScreen({}: LoginScreenProps): JSX.Element {
+function LoginScreen(_props: LoginScreenProps): JSX.Element {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleLogin = async (
+    e: React.FormEvent<HTMLFormElement>
+  ): Promise<void> => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
@@ -73,7 +75,9 @@ function LoginScreen({}: LoginScreenProps): JSX.Element {
             type="email"
             fullWidth
             value={email}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setEmail(e.target.value)
+            }
             margin="normal"
             required
             autoFocus
@@ -84,7 +88,9 @@ function LoginScreen({}: LoginScreenProps): JSX.Element {
             type="password"
             fullWidth
             value={password}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setPassword(e.target.value)
+            }
             margin="normal"
             required
           />
