@@ -579,18 +579,18 @@ const Layout: React.FC<LayoutProps> = ({
             md: showSidebar ? `calc(100% - ${drawerWidth}px)` : "100%",
           },
           padding: theme.spacing(3),
-          marginTop: "64px", // Height of AppBar
-          marginLeft: { xs: 0, md: showSidebar ? `${drawerWidth}px` : 0 }, // Add margin to account for sidebar
+          marginTop: "64px",
+          marginLeft: { xs: 0, md: showSidebar ? `${drawerWidth}px` : 0 },
           backgroundColor: theme.palette.background.default,
           overflowX: "hidden",
           display: "flex",
-          justifyContent: "center", // Always center horizontally
+          justifyContent: "center",
         }}
       >
         <Box
           sx={{
             width: "100%",
-            maxWidth: "800px", // Always maintain max-width for readability
+            maxWidth: "800px",
           }}
         >
           {children}

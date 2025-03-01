@@ -69,7 +69,7 @@ const TopBar: React.FC<TopBarProps> = ({
             edge="start"
             onClick={onMenuClick}
             sx={{
-              display: { sm: "none" },
+              display: { md: "none" },
               mr: 2,
               backgroundColor: alpha("#fff", 0.1),
               "&:hover": {
@@ -117,7 +117,7 @@ const TopBar: React.FC<TopBarProps> = ({
               py: 1,
               ml: "auto",
               mr: 3,
-              display: { xs: "none", sm: "flex" },
+              display: { xs: "none", md: "flex" },
               backgroundColor: alpha("#fff", 0.08),
               "&:hover": {
                 backgroundColor: alpha("#fff", 0.15),
