@@ -18,6 +18,9 @@ import TopBar from "./TopBar";
 import { MeterData, ReadingsState } from "./utils/readingUtils";
 import { FixedSizeList, ListChildComponentProps } from "react-window";
 import { startTransition } from "react";
+import { getMeterReading } from "./utils/readingUtils";
+import { alpha } from "@mui/material/styles";
+import { palette } from "./theme";
 
 const drawerWidth = 300;
 
@@ -88,6 +91,7 @@ const MeterRow = React.memo(
   }: ListChildComponentProps & {
     data: MeterRowData;
   }) => {
+    const theme = useTheme();
     const {
       items,
       currentIndex,
@@ -102,20 +106,50 @@ const MeterRow = React.memo(
     const reading = readingsState[meter.ID];
     const isConfirmed = reading?.isConfirmed;
     const hasReading = reading?.reading;
+    const meterData = getMeterReading(meter.ID);
+    const consumptionType = meterData?.consumption?.type;
 
-    let statusColor = "text.secondary";
-    let statusBgColor = "transparent";
-    let statusBadge = null;
+    // Determine color based on consumption type
+    const getReadingColor = () => {
+      if (!hasReading) return theme.palette.text.secondary;
+      if (!isConfirmed) return palette.semantic.warning.main;
 
-    if (hasReading && isConfirmed) {
-      statusColor = "success.main";
-      statusBgColor = "rgba(16, 185, 129, 0.1)";
-      statusBadge = "Confirmado";
-    } else if (hasReading) {
-      statusColor = "warning.main";
-      statusBgColor = "rgba(245, 158, 11, 0.1)";
-      statusBadge = "Pendiente";
-    }
+      switch (consumptionType) {
+        case "normal":
+          return palette.consumption.normal.main;
+        case "low":
+          return palette.consumption.low.main;
+        case "high":
+          return palette.consumption.high.main;
+        case "negative":
+          return palette.consumption.negative.main;
+        case "estimated":
+          return palette.consumption.estimated.main;
+        default:
+          return palette.consumption.normal.main;
+      }
+    };
+
+    // Determine background color based on consumption type
+    const getReadingBackgroundColor = () => {
+      if (!hasReading) return "transparent";
+      if (!isConfirmed) return alpha(palette.semantic.warning.main, 0.12);
+
+      switch (consumptionType) {
+        case "normal":
+          return alpha(palette.consumption.normal.main, 0.12);
+        case "low":
+          return alpha(palette.consumption.low.main, 0.12);
+        case "high":
+          return alpha(palette.consumption.high.main, 0.12);
+        case "negative":
+          return alpha(palette.consumption.negative.main, 0.12);
+        case "estimated":
+          return alpha(palette.consumption.estimated.main, 0.12);
+        default:
+          return alpha(palette.consumption.normal.main, 0.12);
+      }
+    };
 
     const handleClick = () => {
       if (isSelected) return;
@@ -129,23 +163,34 @@ const MeterRow = React.memo(
         disablePadding
         style={{
           ...style,
-          paddingTop: 2,
-          paddingBottom: 2,
+          height: 80,
+          position: "absolute",
+          top: style.top,
+          left: 0,
+          width: "100%",
+          transform: "translateY(-1px)",
         }}
         sx={{
           backgroundColor: isSelected
             ? "rgba(255, 255, 255, 0.08)"
             : "transparent",
           transition: "background-color 0.2s ease",
+          padding: 0,
+          margin: 0,
+          borderBottom: "1px solid rgba(255, 255, 255, 0.04)",
+          "&:last-child": {
+            borderBottom: "none",
+          },
         }}
       >
         <ListItemButton
           sx={{
-            py: 1,
-            px: 2,
             transition: "all 0.15s ease-in-out",
             borderRadius: 0,
             margin: 0,
+            padding: "12px 16px",
+            height: "100%",
+            width: "100%",
             borderLeft: isSelected ? "2px solid" : "2px solid transparent",
             borderLeftColor: isSelected ? "#ffffff" : "transparent",
             "&:hover": {
@@ -160,93 +205,88 @@ const MeterRow = React.memo(
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",
-                  alignItems: "center",
+                  alignItems: "flex-start",
+                  minHeight: "48px",
                 }}
               >
-                <Typography
-                  variant="body1"
-                  component="span"
-                  sx={{
-                    fontWeight: isSelected ? 600 : 500,
-                    color: isSelected ? "#ffffff" : "rgba(255,255,255,0.9)",
-                    fontSize: "0.9rem",
-                    letterSpacing: "0.01em",
-                  }}
-                >
-                  {meter.ID}
-                </Typography>
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="body1"
+                    component="span"
+                    sx={{
+                      fontWeight: isSelected ? 600 : 500,
+                      color: isSelected ? "#ffffff" : "rgba(255,255,255,0.9)",
+                      fontSize: "0.9rem",
+                      letterSpacing: "0.01em",
+                      display: "block",
+                      mb: 0.5,
+                    }}
+                  >
+                    {meter.ID}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    component="span"
+                    sx={{
+                      color: "rgba(255,255,255,0.65)",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      maxWidth: "100%",
+                      fontSize: "0.75rem",
+                      display: "block",
+                    }}
+                  >
+                    {meter.ADDRESS}
+                  </Typography>
+                </Box>
                 {hasReading && (
                   <Box
                     sx={{
-                      backgroundColor: isConfirmed
-                        ? "rgba(16, 185, 129, 0.12)"
-                        : "rgba(245, 158, 11, 0.12)",
-                      borderRadius: "2px",
-                      px: 1,
-                      py: 0.25,
                       display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
-                      ml: 1,
+                      justifyContent: "center",
+                      border: "1px solid",
+                      borderColor: alpha(getReadingColor(), 0.08),
+                      background: `linear-gradient(${alpha(
+                        getReadingColor(),
+                        0.2
+                      )}, ${alpha(getReadingColor(), 0.3)}), #FFFFFF`,
+                      borderRadius: "13px",
+                      px: 1.5,
+                      py: 0.75,
+                      minWidth: "80px",
+                      ml: 1.5,
+                      alignSelf: "center",
                     }}
                   >
                     <Typography
                       variant="body2"
                       component="span"
                       sx={{
-                        color: isConfirmed ? "#10b981" : "#f59e0b",
-                        fontWeight: 500,
-                        fontSize: "0.7rem",
+                        color: getReadingColor(),
+                        fontWeight: 700,
+                        fontSize: "0.85rem",
+                        lineHeight: 1.2,
+                        textAlign: "center",
                       }}
                     >
                       {reading.reading}
                     </Typography>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: alpha(getReadingColor(), 0.9),
+                        fontWeight: 600,
+                        fontSize: "0.65rem",
+                        lineHeight: 1.2,
+                        textAlign: "center",
+                      }}
+                    >
+                      {isConfirmed ? "Confirmado" : "Pendiente"}
+                    </Typography>
                   </Box>
-                )}
-              </Box>
-            }
-            secondary={
-              <Box
-                component="span"
-                sx={{
-                  mt: 0.25,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <Typography
-                  variant="body2"
-                  component="span"
-                  sx={{
-                    color: "rgba(255,255,255,0.65)",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    maxWidth: statusBadge ? "70%" : "100%",
-                    fontSize: "0.75rem",
-                  }}
-                >
-                  {meter.ADDRESS}
-                </Typography>
-                {statusBadge && (
-                  <Typography
-                    variant="caption"
-                    component="span"
-                    sx={{
-                      backgroundColor: isConfirmed
-                        ? "rgba(16, 185, 129, 0.12)"
-                        : "rgba(245, 158, 11, 0.12)",
-                      color: isConfirmed ? "#10b981" : "#f59e0b",
-                      borderRadius: "2px",
-                      px: 0.75,
-                      py: 0.1,
-                      fontSize: "0.6rem",
-                      fontWeight: 600,
-                      ml: 0.5,
-                    }}
-                  >
-                    {statusBadge}
-                  </Typography>
                 )}
               </Box>
             }
@@ -392,7 +432,7 @@ function MeterList({
           <FixedSizeList
             height={listHeight}
             width="100%"
-            itemSize={64}
+            itemSize={80}
             itemCount={filteredMeters.length}
             itemData={listData as MeterRowData}
             overscanCount={8}
