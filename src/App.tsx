@@ -504,10 +504,6 @@ function App(): JSX.Element {
 
       // Calculate consumption statistics from the actual readings
       const validReadings = readingsToUpload.filter((reading) => {
-        // Only include readings that:
-        // 1. Have a valid consumption value
-        // 2. Are confirmed (have verification)
-        // 3. Have a consumption value that is not NaN
         return (
           reading.consumption !== 0 &&
           reading.verification !== null &&
@@ -573,21 +569,33 @@ function App(): JSX.Element {
         appCheckInitialized
       );
 
-      // Clear all readings from localStorage
-      combinedMeters.forEach((meter) => {
-        const readingKey = `meter_${String(meter.ID)}_reading`;
-        const confirmedKey = `meter_${String(meter.ID)}_confirmed`;
-        const verificationKey = `meter_${String(meter.ID)}_verification`;
-
-        localStorage.removeItem(readingKey);
-        localStorage.removeItem(confirmedKey);
-        localStorage.removeItem(verificationKey);
-      });
-
-      // Reset readings state
-      setReadingsState({});
+      // Set current index to final screen
       setCurrentIndex(combinedMeters.length);
+
+      // Store the uploaded readings for reference
       setSubmittedReadings([uploadedReadings]);
+
+      // Only clear the readings state and localStorage when navigating away from the summary screen
+      const clearReadingsData = () => {
+        // Clear all readings from localStorage
+        combinedMeters.forEach((meter) => {
+          const readingKey = `meter_${String(meter.ID)}_reading`;
+          const confirmedKey = `meter_${String(meter.ID)}_confirmed`;
+          const verificationKey = `meter_${String(meter.ID)}_verification`;
+
+          localStorage.removeItem(readingKey);
+          localStorage.removeItem(confirmedKey);
+          localStorage.removeItem(verificationKey);
+        });
+
+        // Reset readings state
+        setReadingsState({});
+      };
+
+      // Add event listener to clear data when user navigates away
+      window.addEventListener("beforeunload", clearReadingsData, {
+        once: true,
+      });
     } catch (error) {
       console.error("Detailed error:", error);
       setError("Error uploading readings: " + (error as Error).message);
@@ -944,8 +952,8 @@ function App(): JSX.Element {
                 pendingNavigation={pendingNavigation}
                 setPendingNavigation={setPendingNavigation}
                 setNavigationHandledByChild={setNavigationHandledByChild}
-                reading={readingsState[String(currentMeter.ID)]?.reading || ""}
-                isConfirmed={
+                _reading={readingsState[String(currentMeter.ID)]?.reading || ""}
+                _isConfirmed={
                   readingsState[String(currentMeter.ID)]?.isConfirmed || false
                 }
                 selectedMonth={selectedMonth}
