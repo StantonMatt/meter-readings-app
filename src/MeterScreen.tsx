@@ -1446,7 +1446,17 @@ function MeterScreen({
   ]);
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container
+      maxWidth={false}
+      sx={{
+        py: 4,
+        px: { xs: 2, sm: 3 },
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       {/* Header with meter info and navigation pills */}
       <Box
         sx={{
@@ -1455,6 +1465,8 @@ function MeterScreen({
           alignItems: "center",
           mb: 1,
           mt: 4,
+          flexWrap: { xs: "wrap", sm: "nowrap" },
+          gap: 2,
         }}
       >
         <Box
@@ -1465,6 +1477,8 @@ function MeterScreen({
             borderRadius: 2,
             px: 2,
             py: 1,
+            width: { xs: "100%", sm: "auto" },
+            justifyContent: { xs: "center", sm: "flex-start" },
           }}
         >
           <HomeOutlinedIcon
@@ -1478,7 +1492,13 @@ function MeterScreen({
 
         <Typography
           variant="h6"
-          sx={{ pr: 1, fontWeight: 800, color: _theme.palette.text.secondary }}
+          sx={{
+            pr: 1,
+            fontWeight: 800,
+            color: _theme.palette.text.secondary,
+            width: { xs: "100%", sm: "auto" },
+            textAlign: { xs: "center", sm: "right" },
+          }}
         >
           {months[selectedMonth]} - {selectedYear}
         </Typography>
@@ -1492,6 +1512,7 @@ function MeterScreen({
           overflow: "visible",
           boxShadow: `0 6px 20px ${alpha(palette.neutral.text.primary, 0.07)}`,
           mb: 3,
+          width: "100%",
         }}
       >
         {/* Header Section */}
@@ -3188,10 +3209,10 @@ function MeterScreen({
                       color: _theme.palette.warning.dark,
                     }}
                   >
-                    {currentConsumptionRef.current !== null
-                      ? currentConsumptionRef.current
-                      : "?"}{" "}
-                    m³
+                    {currentConsumptionRef.current !== null &&
+                    currentConsumptionRef.current !== undefined
+                      ? `${currentConsumptionRef.current} m³`
+                      : "? m³"}
                   </Typography>
                 </Grid>
                 <Grid item xs={12}>
@@ -3201,6 +3222,7 @@ function MeterScreen({
                       El consumo actual es{" "}
                       <Box component="span" sx={{ fontWeight: 600 }}>
                         {currentConsumptionRef.current !== null &&
+                        currentConsumptionRef.current !== undefined &&
                         averageConsumption > 0
                           ? (
                               currentConsumptionRef.current / averageConsumption

@@ -437,7 +437,7 @@ const Layout: React.FC<LayoutProps> = ({
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const theme = useTheme();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down("sm"));
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down("md"));
   const [searchTerm, setSearchTerm] = useState("");
 
   // Now currentIndex and meters will be properly defined
@@ -519,7 +519,7 @@ const Layout: React.FC<LayoutProps> = ({
         onHomeClick={() => {
           handleNavigationAttempt(() => onHomeClick());
         }}
-        showMenuButton={true}
+        showMenuButton={showSidebar}
         showButtons={true}
         isMobile={isSmallScreen}
       />
@@ -527,7 +527,7 @@ const Layout: React.FC<LayoutProps> = ({
       {/* Sidebar Drawer - only show if showSidebar is true */}
       {showSidebar && (
         <>
-          {/* Mobile drawer */}
+          {/* Mobile/Narrow Screen drawer */}
           <Drawer
             variant="temporary"
             open={mobileOpen}
@@ -536,11 +536,11 @@ const Layout: React.FC<LayoutProps> = ({
               keepMounted: true, // Better mobile performance
             }}
             sx={{
-              display: { xs: "block", sm: "none" },
+              display: { xs: "block", md: "none" },
               "& .MuiDrawer-paper": {
                 boxSizing: "border-box",
                 width: drawerWidth,
-                backgroundColor: "primary.main", // Darkish blue/grey
+                backgroundColor: "primary.main",
               },
             }}
           >
@@ -551,7 +551,7 @@ const Layout: React.FC<LayoutProps> = ({
           <Drawer
             variant="permanent"
             sx={{
-              display: { xs: "none", sm: "block" },
+              display: { xs: "none", md: "block" },
               "& .MuiDrawer-paper": {
                 boxSizing: "border-box",
                 width: drawerWidth,
@@ -560,6 +560,7 @@ const Layout: React.FC<LayoutProps> = ({
                 background: "primary.main",
                 borderRadius: 0,
               },
+              flexShrink: 0,
             }}
             open
           >
@@ -574,15 +575,26 @@ const Layout: React.FC<LayoutProps> = ({
         sx={{
           flexGrow: 1,
           width: {
-            sm: showSidebar ? `calc(100% - ${drawerWidth}px)` : "100%",
+            xs: "100%",
+            md: showSidebar ? `calc(100% - ${drawerWidth}px)` : "100%",
           },
           padding: theme.spacing(3),
           marginTop: "64px", // Height of AppBar
-          backgroundColor: theme.palette.background.default, // Light grey background
+          marginLeft: { xs: 0, md: showSidebar ? `${drawerWidth}px` : 0 }, // Add margin to account for sidebar
+          backgroundColor: theme.palette.background.default,
           overflowX: "hidden",
+          display: "flex",
+          justifyContent: "center", // Always center horizontally
         }}
       >
-        {children}
+        <Box
+          sx={{
+            width: "100%",
+            maxWidth: "800px", // Always maintain max-width for readability
+          }}
+        >
+          {children}
+        </Box>
       </Box>
     </Box>
   );
