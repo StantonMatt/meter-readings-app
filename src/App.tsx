@@ -987,6 +987,14 @@ function App(): JSX.Element {
                 onContinue={handleContinue}
                 onViewSummary={onViewSummary}
                 onFinish={handleFinish}
+                onClearData={() => {
+                  // Clear all state
+                  setReadingsState({});
+                  setSubmittedReadings([]);
+                  setCurrentIndex(null);
+                  setPreviousReadingsData({});
+                  setLastViewedMeterIndex(0);
+                }}
               />
             </Layout>
           );
