@@ -7,67 +7,13 @@ import {
   doc,
   setDoc,
   getDoc,
-  query,
-  where,
-  DocumentReference,
   Firestore,
-  Query,
-  QuerySnapshot,
-  DocumentData,
-  Timestamp,
-  updateDoc,
   serverTimestamp,
   writeBatch,
 } from "firebase/firestore";
-import { httpsCallable, Functions } from "firebase/functions";
 import { Auth } from "firebase/auth";
-import { getPreviousMonthYear } from "../utils/dateUtils";
-import {
-  generateCSV,
-  MeterData,
-  ReadingsState,
-  Reading,
-} from "../utils/readingUtils";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../firebase-config";
-
-// REMOVE ALL MOCK DATA - Delete these sections entirely
-// No more mockReadingsData or any other hard-coded data
-
-interface Verification {
-  meterId: string;
-  address: string;
-  type: string;
-  timestamp: string;
-  [key: string]: any;
-}
-
-interface ReadingToUpload {
-  ID: string | number;
-  Reading: string;
-  verification: Verification | null;
-}
-
-interface RouteData {
-  id: string;
-  name: string;
-  meters: any[];
-  totalMeters: number;
-  lastUpdated?: Timestamp;
-}
-
-interface ReadingData {
-  ID: string;
-  ADDRESS: string;
-  reading: string;
-  timestamp: Timestamp;
-  photoURL?: string;
-  notes?: string;
-  user?: string;
-  routeId?: string;
-  month?: string;
-  year?: string;
-}
 
 // Add this at the top level of the file (outside any function)
 const readingsCache: { [key: string]: any } = {};

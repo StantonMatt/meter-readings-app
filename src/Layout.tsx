@@ -17,7 +17,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import TopBar from "./TopBar";
 import { MeterData, ReadingsState } from "./utils/readingUtils";
 import { FixedSizeList, ListChildComponentProps } from "react-window";
-import { useDeferredValue, startTransition } from "react";
+import { startTransition } from "react";
 
 const drawerWidth = 300;
 
@@ -270,7 +270,6 @@ function MeterList({
   readingsState,
   searchTerm,
   onSearchChange,
-  isMobile,
   onNavigationAttempt,
   meters,
   isMeterScreen,
@@ -300,9 +299,6 @@ function MeterList({
     window.addEventListener("resize", updateHeight);
     return () => window.removeEventListener("resize", updateHeight);
   }, [isMeterScreen]);
-
-  // Create a deferred value for search term to prevent UI freeze
-  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   // Use debounce with startTransition for search input
   const debouncedSearchChange = useDebounce((value: string) => {
@@ -432,9 +428,6 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({
   children,
   showSidebar = true,
-  title,
-  subtitle,
-  onFinishClick,
   readingsState,
   onNavigationAttempt,
   meters,

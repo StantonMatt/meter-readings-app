@@ -24,8 +24,6 @@ import {
   Paper,
 } from "@mui/material";
 import { MeterData } from "./utils/readingUtils";
-import { initializeFirebaseData } from "./services/firebaseService";
-import { auth, db, appCheckInitialized } from "./firebase-config";
 import TopBar from "./TopBar";
 
 interface RouteData {

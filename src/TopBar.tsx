@@ -31,7 +31,6 @@ const TopBar: React.FC<TopBarProps> = ({
   showButtons,
   onMenuClick,
   showMenuButton,
-  isMobile,
 }) => {
   const theme = useTheme();
 

@@ -32,7 +32,14 @@ module.exports = {
     "@typescript-eslint/ban-ts-comment": "warn",
     "react/jsx-uses-react": "off",
     "react/react-in-jsx-scope": "off",
-    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        ignoreRestSiblings: true,
+      },
+    ],
     "react/prop-types": "off",
     "react/display-name": "off",
     "react-hooks/exhaustive-deps": "off",

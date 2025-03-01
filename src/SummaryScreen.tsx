@@ -16,7 +16,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  Divider,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -31,8 +30,6 @@ import { alpha } from "@mui/material/styles";
 import { useTheme } from "@mui/material/styles";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
-import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import WarningIcon from "@mui/icons-material/Warning";
 import CalculateOutlinedIcon from "@mui/icons-material/CalculateOutlined";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
@@ -61,7 +58,6 @@ interface SummaryStats {
 function SummaryScreen({
   meters,
   readingsState,
-  setReadingsState,
   onFinalize,
   onBack,
   onSelectMeter,
@@ -160,21 +156,6 @@ function SummaryScreen({
     console.log("Generated Rows:", rows);
   }, [meters, readingsState, rows]);
 
-  // Simplify the reset function to act immediately without confirmation
-  const handleResetReading = (meterId: string | number) => {
-    if (!setReadingsState) return;
-
-    // Directly reset the reading without showing a confirmation dialog
-    const newReadingsState = { ...readingsState };
-    delete newReadingsState[meterId];
-    setReadingsState(newReadingsState);
-
-    // Also remove from localStorage
-    localStorage.removeItem(`meter_${meterId}_reading`);
-    localStorage.removeItem(`meter_${meterId}_confirmed`);
-    localStorage.removeItem(`meter_${meterId}_verification`);
-  };
-
   // Format the month name
   const getMonthName = (monthIndex?: number): string => {
     if (monthIndex === undefined) return "";
@@ -195,25 +176,6 @@ function SummaryScreen({
     ];
     return months[monthIndex];
   };
-
-  // Calculate average consumption from the data
-  const averageConsumption = useMemo(() => {
-    // Get all valid consumption values
-    const consumptionValues = rows
-      .map((row) =>
-        row.consumption !== "---" ? parseFloat(row.consumption) : null
-      )
-      .filter((value): value is number => value !== null && value > 0);
-
-    // Calculate average if we have values
-    if (consumptionValues.length > 0) {
-      const sum = consumptionValues.reduce((acc, val) => acc + val, 0);
-      return sum / consumptionValues.length;
-    }
-
-    // Default value if no data
-    return 15;
-  }, [rows]);
 
   // Add a function to filter rows
   const filteredRows = useMemo(() => {
@@ -433,7 +395,7 @@ function SummaryScreen({
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredRows.map((row, index) => {
+            {filteredRows.map((row) => {
               return (
                 <TableRow
                   key={row.id}

@@ -13,38 +13,22 @@ import MeterScreen from "./MeterScreen";
 import FinalCheckScreen from "./FinalCheckScreen";
 import SummaryScreen from "./SummaryScreen";
 import LoginScreen from "./LoginScreen";
-import RoutesScreen from "./RoutesScreen";
-// Remove imports for non-existent files
-// import EmailPreview from "./EmailPreview";
-// import EmailPreviewTable from "./EmailPreviewTable";
 
 // Data and Config
 import routeData from "./data/routes/sl-pp/ruta_sl-pp.json";
-import {
-  db,
-  storage,
-  auth,
-  functions,
-  appCheck,
-  appCheckInitialized,
-} from "./firebase-config";
+import { db, auth, functions, appCheckInitialized } from "./firebase-config";
 
 // Utilities
-import { months, getPreviousMonthYear } from "./utils/dateUtils";
+import { months } from "./utils/dateUtils";
 import {
   calculateMonthlyConsumption,
   findFirstPendingMeter,
-  generateCSV,
   MeterData,
   ReadingsState,
   getMeterReading,
 } from "./utils/readingUtils";
 import { generateEmailContent } from "./utils/emailUtils";
-import {
-  loadPreviousReadings,
-  initializeFirebaseData,
-  getPreviousReadings,
-} from "./services/firebaseService";
+import { initializeFirebaseData } from "./services/firebaseService";
 
 interface RouteData {
   id: string;
@@ -72,12 +56,10 @@ function App(): JSX.Element {
   const [submittedReadings, setSubmittedReadings] = useState<any[]>([]);
   const [availableRoutes, setAvailableRoutes] = useState<RouteData[]>([]);
   const [selectedRoute, setSelectedRoute] = useState<RouteData | null>(null);
-  const [previousReadings, setPreviousReadings] = useState<any[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [readingsData, setReadingsData] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
-  const [authChecked, setAuthChecked] = useState<boolean>(false);
   const [isAuthStateReady, setIsAuthStateReady] = useState<boolean>(false);
 
   // UI state
@@ -469,35 +451,6 @@ function App(): JSX.Element {
       localStorage.setItem(adminSetupKey, "true");
     }
   }, [user]);
-
-  // Handler for date changes
-  const handleDateChange = (month: number, year: number): void => {
-    setSelectedMonth(month);
-    setSelectedYear(year);
-  };
-
-  // Handler for starting the readings process
-  const handleStartClick = async (): Promise<void> => {
-    try {
-      setIsLoading(true);
-
-      // Load all 5 months of readings
-      const result = await loadPreviousReadings();
-      const readingsData = result.readings || [];
-      setReadingsData(readingsData);
-
-      // Update state
-      setPreviousReadings(readingsData);
-      // Use the saved meter index if available, otherwise start at 0
-      setCurrentIndex(lastViewedMeterIndex || 0);
-    } catch (error) {
-      console.error("Error in handleStartClick:", error);
-      setError("Failed to load route data. Using local data.");
-      setCurrentIndex(lastViewedMeterIndex || 0);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Handler for uploading readings
   const handleUploadReadings = async (): Promise<void> => {
@@ -998,9 +951,6 @@ function App(): JSX.Element {
                 selectedMonth={selectedMonth}
                 selectedYear={selectedYear}
                 routeId={selectedRoute?.id || ""}
-                onUpdateReadings={(updatedReadings) => {
-                  console.log("Updated readings:", updatedReadings);
-                }}
                 onPreviousReadingsUpdate={handlePreviousReadingsUpdate}
                 readingsState={readingsState}
               />
@@ -1064,17 +1014,5 @@ function App(): JSX.Element {
     </BrowserRouter>
   );
 }
-
-// Also add a function to clear the saved state when logging out
-const handleLogout = async () => {
-  try {
-    await signOut(auth);
-    // Clear saved state
-    localStorage.removeItem("appState");
-    console.log("Cleared saved app state on logout");
-  } catch (error) {
-    console.error("Error signing out:", error);
-  }
-};
 
 export default App;

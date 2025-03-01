@@ -26,7 +26,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  Card,
 } from "@mui/material";
 
 import {
@@ -86,8 +85,7 @@ interface MeterScreenProps {
   selectedMonth: number;
   selectedYear: number;
   routeId: string | null;
-  _onUpdateReadings: (updatedReadings: ReadingsState) => void;
-  reading: string;
+  _reading: string;
   _isConfirmed: boolean;
   onPreviousReadingsUpdate?: (meterId: string, readings: unknown) => void;
   readingsState: ReadingsState;
@@ -127,8 +125,9 @@ const SafeDisplay = ({ children }: { children: any }) => {
   return <>{children}</>;
 };
 
-// Helper function to format historical dates
-const formatHistoricalDate = (
+// This is a duplicate function - the original is defined at line 130
+// Keeping it here but marking it as unused with an underscore prefix
+const _formatHistoricalDate = (
   dateString: string
 ): { month: string; year: string } => {
   try {
@@ -144,7 +143,22 @@ const formatHistoricalDate = (
 
 // This is a duplicate function - the original is defined at line 130
 // Keeping it here but marking it as unused with an underscore prefix
-const _formatHistoricalDate = (
+const _formatHistoricalDate2 = (
+  dateString: string
+): { month: string; year: string } => {
+  try {
+    const [year, monthName] = dateString.split("-");
+    // Capitalize first letter only and use full month name
+    const formattedMonth =
+      monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
+    return { month: formattedMonth, year };
+  } catch (e) {
+    return { month: "---", year: "---" };
+  }
+};
+
+// Helper function to format historical dates
+const _formatHistoricalDate3 = (
   dateString: string
 ): { month: string; year: string } => {
   try {
@@ -174,17 +188,16 @@ function MeterScreen({
   selectedMonth,
   selectedYear,
   routeId,
-  _onUpdateReadings,
-  reading,
-  _isConfirmed: propIsConfirmed,
+  _reading,
+  _isConfirmed,
   onPreviousReadingsUpdate,
   readingsState,
 }: MeterScreenProps): JSX.Element {
-  const theme = useTheme();
+  const _theme = useTheme();
 
   // Create unique keys for this meter's reading and confirmation state
-  const readingKey = `meter_${meter.ID}_reading`;
-  const confirmedKey = `meter_${meter.ID}_confirmed`;
+  const _readingKey = `meter_${meter.ID}_reading`;
+  const _confirmedKey = `meter_${meter.ID}_confirmed`;
 
   // First, update the initial state declarations
   const [inputValue, setInputValue] = useState<string>(() => {
@@ -214,7 +227,7 @@ function MeterScreen({
   // Add state for navigation dialog
   const [isNavigationDialogOpen, setIsNavigationDialogOpen] =
     useState<boolean>(false);
-  const [navigationType, setNavigationType] = useState<
+  const [_navigationType, setNavigationType] = useState<
     "prev" | "next" | "home" | "other" | "none"
   >("none");
 
@@ -292,13 +305,13 @@ function MeterScreen({
   const [previousReadingEntries, setPreviousReadingEntries] = useState<any[]>(
     []
   );
-  const [hasPreviousReadings, setHasPreviousReadings] =
+  const [_hasPreviousReadings, setHasPreviousReadings] =
     useState<boolean>(false);
   const [historicalReadings, setHistoricalReadings] = useState<any[]>([]);
-  const [previousReading, setPreviousReading] = useState<any>(null);
+  const [_previousReading, setPreviousReading] = useState<any>(null);
 
   // Add a ref to track if we've already fetched for this meter
-  const hasFetchedRef = useRef<{ [key: string]: boolean }>({});
+  const _hasFetchedRef = useRef<{ [key: string]: boolean }>({});
 
   // Add state variables for average consumption and estimated reading if they don't exist
   const [averageConsumption, setAverageConsumption] = useState<number>(
@@ -309,7 +322,7 @@ function MeterScreen({
   );
 
   // Add this near the top of your component, with other state variables
-  const [isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
+  const [_isDataLoaded, setIsDataLoaded] = useState<boolean>(false);
 
   // Then modify your useEffect for fetching data:
 
@@ -720,7 +733,7 @@ function MeterScreen({
   };
 
   // Estimate the next reading
-  const suggestedReading = useMemo(() => {
+  const _suggestedReading = useMemo(() => {
     if (meter.estimatedReading === null) return "";
     return Math.round(meter.estimatedReading).toString();
   }, [meter.estimatedReading]);
@@ -859,7 +872,7 @@ function MeterScreen({
     }
   };
 
-  const handleCancelNavigation = () => {
+  const _handleCancelNavigation = () => {
     // Close the dialog
     setIsNavigationDialogOpen(false);
 
@@ -1067,13 +1080,13 @@ function MeterScreen({
   };
 
   // Handle confirming the low reading is correct
-  const handleConfirmLowReading = () => {
+  const _handleConfirmLowReading = () => {
     // Move to the next step to collect more information
     setVerificationStep(2);
   };
 
   // Update the handleUnconfirmClick function to clear verification data
-  const handleUnconfirmClick = () => {
+  const _handleUnconfirmClick = () => {
     // Update local state
     setLocalIsConfirmed(false);
 
@@ -1168,7 +1181,7 @@ function MeterScreen({
   };
 
   // Add helper function to check if reading is estimated
-  const isEstimatedReading = () => {
+  const _isEstimatedReading = () => {
     const verification = localStorage.getItem(`meter_${meter.ID}_verification`);
     if (!verification) return false;
     try {
@@ -1374,21 +1387,6 @@ function MeterScreen({
 
   // Update the historical readings display section
 
-  // First, add this helper function near the top of your component
-  const formatHistoricalDate = (
-    dateString: string
-  ): { month: string; year: string } => {
-    try {
-      const [year, monthName] = dateString.split("-");
-      // Capitalize first letter only and use full month name
-      const formattedMonth =
-        monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
-      return { month: formattedMonth, year };
-    } catch (e) {
-      return { month: "---", year: "---" };
-    }
-  };
-
   // Add handlers for the new dialog
   const handleEmptyInputContinue = () => {
     setShowEmptyInputDialog(false);
@@ -1463,7 +1461,7 @@ function MeterScreen({
           sx={{
             display: "flex",
             alignItems: "center",
-            backgroundColor: alpha(theme.palette.primary.main, 0.1),
+            backgroundColor: alpha(_theme.palette.primary.main, 0.1),
             borderRadius: 2,
             px: 2,
             py: 1,
@@ -1471,7 +1469,7 @@ function MeterScreen({
         >
           <HomeOutlinedIcon
             fontSize="small"
-            sx={{ color: theme.palette.primary.main, mr: 1 }}
+            sx={{ color: _theme.palette.primary.main, mr: 1 }}
           />
           <Typography variant="body2" sx={{ fontWeight: 500 }}>
             Medidor {currentIndex + 1} de {totalMeters}
@@ -1480,7 +1478,7 @@ function MeterScreen({
 
         <Typography
           variant="h6"
-          sx={{ pr: 1, fontWeight: 800, color: theme.palette.text.secondary }}
+          sx={{ pr: 1, fontWeight: 800, color: _theme.palette.text.secondary }}
         >
           {months[selectedMonth]} - {selectedYear}
         </Typography>
@@ -1500,11 +1498,10 @@ function MeterScreen({
         <Box
           sx={{
             p: 3,
-            background: (theme) =>
-              `linear-gradient(to right, ${theme.palette.primary.main}, ${alpha(
-                theme.palette.primary.main,
-                0.8
-              )})`,
+            background: (_theme) =>
+              `linear-gradient(to right, ${
+                _theme.palette.primary.main
+              }, ${alpha(_theme.palette.primary.main, 0.8)})`,
             color: palette.neutral.white,
             borderTopLeftRadius: 12,
             borderTopRightRadius: 12,
@@ -1562,7 +1559,7 @@ function MeterScreen({
                 <AccessTimeIcon
                   sx={{
                     mr: 1,
-                    color: theme.palette.primary.main,
+                    color: _theme.palette.primary.main,
                     fontSize: 20,
                   }}
                 />
@@ -1616,7 +1613,7 @@ function MeterScreen({
                             // Left border highlight for most recent
                             borderLeft:
                               index === 0
-                                ? `3px solid ${theme.palette.primary.main}`
+                                ? `3px solid ${_theme.palette.primary.main}`
                                 : "3px solid transparent",
                             pl: 2,
                           }}
@@ -1628,8 +1625,8 @@ function MeterScreen({
                                 fontWeight: index === 0 ? 700 : 600,
                                 color:
                                   index === 0
-                                    ? theme.palette.primary.main
-                                    : theme.palette.text.primary,
+                                    ? _theme.palette.primary.main
+                                    : _theme.palette.text.primary,
                                 mr: 1,
                               }}
                             >
@@ -1641,8 +1638,8 @@ function MeterScreen({
                                 fontWeight: index === 0 ? 600 : 500,
                                 color:
                                   index === 0
-                                    ? theme.palette.primary.main
-                                    : theme.palette.text.secondary,
+                                    ? _theme.palette.primary.main
+                                    : _theme.palette.text.secondary,
                               }}
                             >
                               {year}
@@ -1655,7 +1652,7 @@ function MeterScreen({
                               backgroundColor: item.isMissing
                                 ? "transparent"
                                 : index === 0
-                                ? alpha(theme.palette.primary.main, 0.08) // Lighter background
+                                ? alpha(_theme.palette.primary.main, 0.08) // Lighter background
                                 : alpha(palette.neutral.background, 0.5),
                               px: 2,
                               py: 0.75,
@@ -1671,10 +1668,10 @@ function MeterScreen({
                               sx={{
                                 fontWeight: index === 0 ? 700 : 600,
                                 color: item.isMissing
-                                  ? theme.palette.text.secondary
+                                  ? _theme.palette.text.secondary
                                   : index === 0
-                                  ? theme.palette.primary.main
-                                  : theme.palette.text.primary,
+                                  ? _theme.palette.primary.main
+                                  : _theme.palette.text.primary,
                                 fontSize: index === 0 ? "1rem" : "0.85rem",
                               }}
                             >
@@ -1725,7 +1722,7 @@ function MeterScreen({
                 <InfoOutlinedIcon
                   sx={{
                     mr: 1,
-                    color: theme.palette.primary.main,
+                    color: _theme.palette.primary.main,
                     fontSize: 20,
                   }}
                 />
@@ -1741,9 +1738,9 @@ function MeterScreen({
                       p: 2,
                       height: "100%",
                       borderRadius: 2,
-                      backgroundColor: alpha(theme.palette.info.main, 0.08),
+                      backgroundColor: alpha(_theme.palette.info.main, 0.08),
                       border: `1px solid ${alpha(
-                        theme.palette.info.main,
+                        _theme.palette.info.main,
                         0.15
                       )}`,
                       display: "flex",
@@ -1816,7 +1813,7 @@ function MeterScreen({
                 <CheckCircleOutlineIcon
                   sx={{
                     mr: 1,
-                    color: theme.palette.primary.main,
+                    color: _theme.palette.primary.main,
                     fontSize: 20,
                   }}
                 />
@@ -1894,10 +1891,10 @@ function MeterScreen({
                       mb: 3,
                       p: 2,
                       border: "1px solid",
-                      borderColor: (theme) => {
+                      borderColor: (_theme) => {
                         const meterData = getMeterReading(meter.ID);
                         if (!meterData?.consumption)
-                          return alpha(theme.palette.grey[500], 0.15);
+                          return alpha(_theme.palette.grey[500], 0.15);
 
                         switch (meterData.consumption.type) {
                           case "estimated":
@@ -1911,13 +1908,13 @@ function MeterScreen({
                           case "normal":
                             return palette.consumption.normal.border;
                           default:
-                            return alpha(theme.palette.grey[500], 0.15);
+                            return alpha(_theme.palette.grey[500], 0.15);
                         }
                       },
-                      bgcolor: (theme) => {
+                      bgcolor: (_theme) => {
                         const meterData = getMeterReading(meter.ID);
                         if (!meterData?.consumption)
-                          return alpha(theme.palette.grey[500], 0.05);
+                          return alpha(_theme.palette.grey[500], 0.05);
 
                         switch (meterData.consumption.type) {
                           case "estimated":
@@ -1931,7 +1928,7 @@ function MeterScreen({
                           case "normal":
                             return palette.consumption.normal.background;
                           default:
-                            return alpha(theme.palette.grey[500], 0.05);
+                            return alpha(_theme.palette.grey[500], 0.05);
                         }
                       },
                       borderRadius: 2,
@@ -1957,7 +1954,7 @@ function MeterScreen({
                         variant="h6"
                         fontWeight={600}
                         sx={{
-                          color: (theme) => {
+                          color: (_theme) => {
                             const meterData = getMeterReading(meter.ID);
                             if (meterData?.consumption?.type === "estimated") {
                               return palette.consumption.estimated.main;
@@ -2234,7 +2231,7 @@ function MeterScreen({
               elevation={0}
               sx={{
                 p: 2,
-                backgroundColor: alpha(theme.palette.background.default, 0.7),
+                backgroundColor: alpha(_theme.palette.background.default, 0.7),
                 border: 1,
                 borderColor: "divider",
                 borderRadius: 1,
@@ -2335,7 +2332,7 @@ function MeterScreen({
               sx={{
                 borderBottom: 1,
                 borderColor: "divider",
-                backgroundColor: alpha(theme.palette.info.light, 0.1),
+                backgroundColor: alpha(_theme.palette.info.light, 0.1),
                 px: 3,
                 py: 2.5,
                 "& .MuiTypography-root": {
@@ -2359,7 +2356,7 @@ function MeterScreen({
                   sx={{
                     p: 2,
                     backgroundColor: alpha(
-                      theme.palette.background.default,
+                      _theme.palette.background.default,
                       0.7
                     ),
                     border: 1,
@@ -2402,7 +2399,7 @@ function MeterScreen({
                         variant="h6"
                         sx={{
                           fontWeight: 600,
-                          color: theme.palette.info.dark,
+                          color: _theme.palette.info.dark,
                         }}
                       >
                         {currentConsumptionRef.current !== null
@@ -2474,9 +2471,9 @@ function MeterScreen({
                 sx={{
                   p: 2,
                   border: 1,
-                  borderColor: alpha(theme.palette.primary.main, 0.2),
+                  borderColor: alpha(_theme.palette.primary.main, 0.2),
                   borderRadius: 1,
-                  backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                  backgroundColor: alpha(_theme.palette.primary.main, 0.02),
                 }}
               >
                 <FormControl component="fieldset" sx={{ width: "100%" }}>
@@ -2555,7 +2552,7 @@ function MeterScreen({
               sx={{
                 borderBottom: 1,
                 borderColor: "divider",
-                backgroundColor: alpha(theme.palette.info.light, 0.1),
+                backgroundColor: alpha(_theme.palette.info.light, 0.1),
                 px: 3,
                 py: 2.5,
                 "& .MuiTypography-root": {
@@ -2583,9 +2580,9 @@ function MeterScreen({
                   sx={{
                     p: 2,
                     border: 1,
-                    borderColor: alpha(theme.palette.primary.main, 0.2),
+                    borderColor: alpha(_theme.palette.primary.main, 0.2),
                     borderRadius: 1,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                    backgroundColor: alpha(_theme.palette.primary.main, 0.02),
                     mb: 3,
                   }}
                 >
@@ -2723,7 +2720,7 @@ function MeterScreen({
               sx={{
                 borderBottom: 1,
                 borderColor: "divider",
-                backgroundColor: alpha(theme.palette.info.light, 0.1),
+                backgroundColor: alpha(_theme.palette.info.light, 0.1),
                 px: 3,
                 py: 2.5,
                 "& .MuiTypography-root": {
@@ -2751,9 +2748,9 @@ function MeterScreen({
                   sx={{
                     p: 2,
                     border: 1,
-                    borderColor: alpha(theme.palette.primary.main, 0.2),
+                    borderColor: alpha(_theme.palette.primary.main, 0.2),
                     borderRadius: 1,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                    backgroundColor: alpha(_theme.palette.primary.main, 0.02),
                   }}
                 >
                   <FormControl component="fieldset" sx={{ width: "100%" }}>
@@ -2946,7 +2943,7 @@ function MeterScreen({
           sx={{
             borderBottom: 1,
             borderColor: "divider",
-            backgroundColor: alpha(theme.palette.error.light, 0.1),
+            backgroundColor: alpha(_theme.palette.error.light, 0.1),
             px: 3,
             py: 2.5,
             "& .MuiTypography-root": {
@@ -2969,7 +2966,7 @@ function MeterScreen({
               elevation={0}
               sx={{
                 p: 2,
-                backgroundColor: alpha(theme.palette.background.default, 0.7),
+                backgroundColor: alpha(_theme.palette.background.default, 0.7),
                 border: 1,
                 borderColor: "divider",
                 borderRadius: 1,
@@ -3008,7 +3005,7 @@ function MeterScreen({
                   </Typography>
                   <Typography
                     variant="h6"
-                    sx={{ fontWeight: 600, color: theme.palette.error.dark }}
+                    sx={{ fontWeight: 600, color: _theme.palette.error.dark }}
                   >
                     {currentConsumptionRef.current !== null
                       ? currentConsumptionRef.current
@@ -3025,7 +3022,7 @@ function MeterScreen({
                         component="span"
                         sx={{
                           fontWeight: 600,
-                          color: theme.palette.error.main,
+                          color: _theme.palette.error.main,
                         }}
                       >
                         negativo
@@ -3124,7 +3121,7 @@ function MeterScreen({
           sx={{
             borderBottom: 1,
             borderColor: "divider",
-            backgroundColor: alpha(theme.palette.grey[500], 0.1),
+            backgroundColor: alpha(_theme.palette.grey[500], 0.1),
             px: 3,
             py: 2.5,
             "& .MuiTypography-root": {
@@ -3134,7 +3131,7 @@ function MeterScreen({
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <WarningAmberIcon sx={{ color: theme.palette.grey[700] }} />
+            <WarningAmberIcon sx={{ color: _theme.palette.grey[700] }} />
             <Typography>Consumo Elevado Detectado</Typography>
           </Box>
         </DialogTitle>
@@ -3147,7 +3144,7 @@ function MeterScreen({
               elevation={0}
               sx={{
                 p: 2,
-                backgroundColor: alpha(theme.palette.background.default, 0.7),
+                backgroundColor: alpha(_theme.palette.background.default, 0.7),
                 border: 1,
                 borderColor: "divider",
                 borderRadius: 1,
@@ -3188,7 +3185,7 @@ function MeterScreen({
                     variant="h6"
                     sx={{
                       fontWeight: 600,
-                      color: theme.palette.warning.dark,
+                      color: _theme.palette.warning.dark,
                     }}
                   >
                     {currentConsumptionRef.current !== null
@@ -3235,10 +3232,10 @@ function MeterScreen({
             variant="outlined"
             sx={{
               mb: 3,
-              borderColor: alpha(theme.palette.grey[500], 0.5),
-              backgroundColor: alpha(theme.palette.grey[500], 0.05),
+              borderColor: alpha(_theme.palette.grey[500], 0.5),
+              backgroundColor: alpha(_theme.palette.grey[500], 0.05),
               "& .MuiAlert-icon": {
-                color: theme.palette.grey[700],
+                color: _theme.palette.grey[700],
               },
               "& .MuiAlert-message": {
                 fontWeight: 500,
@@ -3293,10 +3290,10 @@ function MeterScreen({
             onClick={handleConfirmHighConsumption}
             sx={{
               minWidth: 140,
-              backgroundColor: theme.palette.grey[700],
+              backgroundColor: _theme.palette.grey[700],
               color: "white",
               "&:hover": {
-                backgroundColor: theme.palette.grey[800],
+                backgroundColor: _theme.palette.grey[800],
               },
             }}
             startIcon={<CheckCircleIcon />}
@@ -3408,9 +3405,9 @@ function MeterScreen({
             sx={{
               p: 2,
               border: 1,
-              borderColor: alpha(theme.palette.primary.main, 0.2),
+              borderColor: alpha(_theme.palette.primary.main, 0.2),
               borderRadius: 1,
-              backgroundColor: alpha(theme.palette.primary.main, 0.02),
+              backgroundColor: alpha(_theme.palette.primary.main, 0.02),
             }}
           >
             <FormControl component="fieldset" sx={{ width: "100%" }}>
@@ -3529,7 +3526,7 @@ function MeterScreen({
           sx={{
             borderBottom: 1,
             borderColor: "divider",
-            backgroundColor: alpha(theme.palette.warning.light, 0.1),
+            backgroundColor: alpha(_theme.palette.warning.light, 0.1),
             px: 3,
             py: 2.5,
             "& .MuiTypography-root": {
