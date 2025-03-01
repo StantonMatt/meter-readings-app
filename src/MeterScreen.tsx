@@ -1469,6 +1469,20 @@ function MeterScreen({
           gap: 2,
         }}
       >
+        <Typography
+          variant="h6"
+          sx={{
+            pr: 1,
+            fontWeight: 800,
+            color: _theme.palette.text.secondary,
+            width: { xs: "100%", sm: "auto" },
+            textAlign: { xs: "center", sm: "right" },
+            order: { xs: 1, sm: 2 }, // Add order to control stacking
+          }}
+        >
+          {months[selectedMonth]} - {selectedYear}
+        </Typography>
+
         <Box
           sx={{
             display: "flex",
@@ -1479,6 +1493,7 @@ function MeterScreen({
             py: 1,
             width: { xs: "100%", sm: "auto" },
             justifyContent: { xs: "center", sm: "flex-start" },
+            order: { xs: 2, sm: 1 }, // Add order to control stacking
           }}
         >
           <HomeOutlinedIcon
@@ -1489,19 +1504,6 @@ function MeterScreen({
             Medidor {currentIndex + 1} de {totalMeters}
           </Typography>
         </Box>
-
-        <Typography
-          variant="h6"
-          sx={{
-            pr: 1,
-            fontWeight: 800,
-            color: _theme.palette.text.secondary,
-            width: { xs: "100%", sm: "auto" },
-            textAlign: { xs: "center", sm: "right" },
-          }}
-        >
-          {months[selectedMonth]} - {selectedYear}
-        </Typography>
       </Box>
 
       {/* Main Card with improved layout */}
@@ -1532,17 +1534,41 @@ function MeterScreen({
             sx={{
               display: "flex",
               justifyContent: "space-between",
-              alignItems: "center",
+              alignItems: "flex-start",
             }}
           >
-            <Box>
-              <Typography
-                variant="h5"
-                fontWeight="600"
-                sx={{ letterSpacing: 0.5 }}
+            <Box sx={{ width: "100%" }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between", // Add this to push chip to the right
+                  width: "100%", // Ensure the box takes full width
+                }}
               >
-                #{meter.ID}
-              </Typography>
+                <Typography
+                  variant="h5"
+                  fontWeight="600"
+                  sx={{ letterSpacing: 0.5 }}
+                >
+                  #{meter.ID}
+                </Typography>
+                <Chip
+                  icon={<AccessTimeIcon fontSize="small" />}
+                  label={`Última lectura: ${
+                    previousReadingEntries.length > 0
+                      ? formatMonthOnly(previousReadingEntries[0]?.date)
+                      : "N/A"
+                  }`}
+                  sx={{
+                    backgroundColor: alpha(palette.neutral.white, 0.15),
+                    color: palette.neutral.white,
+                    fontWeight: 500,
+                    height: "32px",
+                    "& .MuiChip-icon": { color: palette.neutral.white },
+                  }}
+                />
+              </Box>
               <Typography
                 variant="h4"
                 sx={{ color: palette.neutral.white, mt: 1, opacity: 0.9 }}
@@ -1550,20 +1576,6 @@ function MeterScreen({
                 {meter.ADDRESS}
               </Typography>
             </Box>
-            <Chip
-              icon={<AccessTimeIcon fontSize="small" />}
-              label={`Última lectura: ${
-                previousReadingEntries.length > 0
-                  ? formatMonthOnly(previousReadingEntries[0]?.date)
-                  : "N/A"
-              }`}
-              sx={{
-                backgroundColor: alpha(palette.neutral.white, 0.15),
-                color: palette.neutral.white,
-                fontWeight: 500,
-                "& .MuiChip-icon": { color: palette.neutral.white },
-              }}
-            />
           </Box>
         </Box>
 
