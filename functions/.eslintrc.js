@@ -7,7 +7,7 @@ module.exports = {
   extends: ["eslint:recommended", "google"],
   rules: {
     "quotes": ["error", "double"],
-    "max-len": ["error", { code: 120 }],
+    "max-len": ["error", { code: 165 }],
     "indent": ["error", 2],
     "object-curly-spacing": ["error", "always"],
     "require-jsdoc": 0,
