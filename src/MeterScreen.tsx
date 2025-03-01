@@ -1569,9 +1569,30 @@ function MeterScreen({
 
         {/* Content Section with Grid Layout */}
         <Box sx={{ p: 3 }}>
-          <Grid container spacing={3}>
+          <Grid
+            container
+            spacing={3}
+            sx={{
+              width: "100%",
+              margin: 0, // Reset margin
+              "& > .MuiGrid-item": {
+                width: "100%", // Ensure items take full width
+                padding: _theme.spacing(1.5), // Fix theme reference
+              },
+            }}
+          >
             {/* Left Column - Previous Readings */}
-            <Grid item xs={12} md={5}>
+            <Grid
+              item
+              xs={12}
+              lg={5} // Change breakpoint from md to lg
+              sx={{
+                width: "100%",
+                "& .MuiPaper-root": {
+                  width: "100%", // Make Paper take full width
+                },
+              }}
+            >
               <Typography
                 variant="subtitle1"
                 fontWeight="600"
@@ -1597,123 +1618,132 @@ function MeterScreen({
                   borderRadius: 2,
                   height: "auto",
                   minHeight: 200,
-                  overflow: "visible", // Explicitly prevent scrolling
+                  overflow: "hidden", // Prevent content from spilling
                 }}
               >
                 {historicalReadings && historicalReadings.length > 0 ? (
                   <Box
-                    sx={{ display: "flex", flexDirection: "column", gap: 1 }}
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1,
+                      width: "100%", // Ensure full width
+                    }}
                   >
-                    {historicalReadings.map((item, index) => {
-                      const [year, monthName] = item.date.split("-");
-                      const month =
-                        monthName.charAt(0).toUpperCase() + monthName.slice(1);
-
-                      return (
+                    {historicalReadings.map((item, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          p: 1.5,
+                          borderRadius: 1,
+                          backgroundColor: "transparent",
+                          borderBottom:
+                            index !== historicalReadings.length - 1
+                              ? `1px solid ${alpha(
+                                  palette.neutral.border,
+                                  0.1
+                                )}`
+                              : "none",
+                          "&:hover": {
+                            backgroundColor: alpha(
+                              palette.neutral.background,
+                              0.05
+                            ),
+                          },
+                          borderLeft:
+                            index === 0
+                              ? `3px solid ${_theme.palette.primary.main}`
+                              : "3px solid transparent",
+                          pl: 2,
+                          width: "100%", // Ensure full width
+                          minWidth: 0, // Allow content to shrink if needed
+                        }}
+                      >
                         <Box
-                          key={index}
                           sx={{
                             display: "flex",
-                            justifyContent: "space-between",
-                            p: 1.5,
-                            borderRadius: 1,
-                            backgroundColor: "transparent",
-                            borderBottom:
-                              index !== historicalReadings.length - 1
-                                ? `1px solid ${alpha(
-                                    palette.neutral.border,
-                                    0.1
-                                  )}`
-                                : "none",
-                            "&:hover": {
-                              backgroundColor: alpha(
-                                palette.neutral.background,
-                                0.05
-                              ),
-                            },
-                            // Left border highlight for most recent
-                            borderLeft:
-                              index === 0
-                                ? `3px solid ${_theme.palette.primary.main}`
-                                : "3px solid transparent",
-                            pl: 2,
+                            alignItems: "center",
+                            minWidth: 0, // Allow content to shrink
+                            flex: 1, // Take available space
                           }}
                         >
-                          <Box sx={{ display: "flex", alignItems: "center" }}>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                fontWeight: index === 0 ? 700 : 600,
-                                color:
-                                  index === 0
-                                    ? _theme.palette.primary.main
-                                    : _theme.palette.text.primary,
-                                mr: 1,
-                              }}
-                            >
-                              {month}
-                            </Typography>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                fontWeight: index === 0 ? 600 : 500,
-                                color:
-                                  index === 0
-                                    ? _theme.palette.primary.main
-                                    : _theme.palette.text.secondary,
-                              }}
-                            >
-                              {year}
-                            </Typography>
-                          </Box>
-                          <Box
+                          <Typography
+                            variant="body2"
                             sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              backgroundColor: item.isMissing
-                                ? "transparent"
-                                : index === 0
-                                ? alpha(_theme.palette.primary.main, 0.08) // Lighter background
-                                : alpha(palette.neutral.background, 0.5),
-                              px: 2,
-                              py: 0.75,
-                              borderRadius: 1.5,
-                              minWidth: 80,
-                              justifyContent: "center",
-                              // Remove border
-                              border: "none",
-                            }}
-                          >
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                fontWeight: index === 0 ? 700 : 600,
-                                color: item.isMissing
-                                  ? _theme.palette.text.secondary
-                                  : index === 0
+                              fontWeight: index === 0 ? 700 : 600,
+                              color:
+                                index === 0
                                   ? _theme.palette.primary.main
                                   : _theme.palette.text.primary,
-                                fontSize: index === 0 ? "1rem" : "0.85rem",
-                              }}
-                            >
-                              {item.isMissing ? "—" : item.value}
-                              {!item.isMissing && (
-                                <Box
-                                  component="span"
-                                  sx={{
-                                    fontSize:
-                                      index === 0 ? "0.8rem" : "0.75rem",
-                                    ml: 0.5,
-                                  }}
-                                >
-                                  m³
-                                </Box>
-                              )}
-                            </Typography>
-                          </Box>
+                              mr: 1,
+                              whiteSpace: "nowrap", // Prevent month from wrapping
+                            }}
+                          >
+                            {item.date.split("-")[1].charAt(0).toUpperCase() +
+                              item.date.split("-")[1].slice(1)}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: index === 0 ? 600 : 500,
+                              color:
+                                index === 0
+                                  ? _theme.palette.primary.main
+                                  : _theme.palette.text.secondary,
+                              whiteSpace: "nowrap", // Prevent year from wrapping
+                            }}
+                          >
+                            {item.date.split("-")[0]}
+                          </Typography>
                         </Box>
-                      );
-                    })}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            backgroundColor: item.isMissing
+                              ? "transparent"
+                              : index === 0
+                              ? alpha(_theme.palette.primary.main, 0.08)
+                              : alpha(palette.neutral.background, 0.5),
+                            px: 2,
+                            py: 0.75,
+                            borderRadius: 1.5,
+                            minWidth: "80px", // Ensure consistent width for readings
+                            justifyContent: "center",
+                            ml: 1, // Add margin to separate from date
+                          }}
+                        >
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: index === 0 ? 700 : 600,
+                              color: item.isMissing
+                                ? _theme.palette.text.secondary
+                                : index === 0
+                                ? _theme.palette.primary.main
+                                : _theme.palette.text.primary,
+                              fontSize: index === 0 ? "1rem" : "0.85rem",
+                              whiteSpace: "nowrap", // Prevent reading from wrapping
+                            }}
+                          >
+                            {item.isMissing ? "—" : item.value}
+                            {!item.isMissing && (
+                              <Box
+                                component="span"
+                                sx={{
+                                  fontSize: index === 0 ? "0.8rem" : "0.75rem",
+                                  ml: 0.5,
+                                }}
+                              >
+                                m³
+                              </Box>
+                            )}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    ))}
                   </Box>
                 ) : (
                   <Box
@@ -1733,7 +1763,14 @@ function MeterScreen({
             </Grid>
 
             {/* Right Column - Consumption Summary and Current Reading */}
-            <Grid item xs={12} md={7}>
+            <Grid
+              item
+              xs={12}
+              lg={7} // Change breakpoint from md to lg
+              sx={{
+                width: "100%",
+              }}
+            >
               {/* Consumption Summary */}
               <Typography
                 variant="subtitle1"
