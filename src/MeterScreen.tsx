@@ -125,53 +125,6 @@ const SafeDisplay = ({ children }: { children: any }) => {
   return <>{children}</>;
 };
 
-// This is a duplicate function - the original is defined at line 130
-// Keeping it here but marking it as unused with an underscore prefix
-const _formatHistoricalDate = (
-  dateString: string
-): { month: string; year: string } => {
-  try {
-    const [year, monthName] = dateString.split("-");
-    // Capitalize first letter only and use full month name
-    const formattedMonth =
-      monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
-    return { month: formattedMonth, year };
-  } catch (e) {
-    return { month: "---", year: "---" };
-  }
-};
-
-// This is a duplicate function - the original is defined at line 130
-// Keeping it here but marking it as unused with an underscore prefix
-const _formatHistoricalDate2 = (
-  dateString: string
-): { month: string; year: string } => {
-  try {
-    const [year, monthName] = dateString.split("-");
-    // Capitalize first letter only and use full month name
-    const formattedMonth =
-      monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
-    return { month: formattedMonth, year };
-  } catch (e) {
-    return { month: "---", year: "---" };
-  }
-};
-
-// Helper function to format historical dates
-const _formatHistoricalDate3 = (
-  dateString: string
-): { month: string; year: string } => {
-  try {
-    const [year, monthName] = dateString.split("-");
-    // Capitalize first letter only and use full month name
-    const formattedMonth =
-      monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
-    return { month: formattedMonth, year };
-  } catch (e) {
-    return { month: "---", year: "---" };
-  }
-};
-
 function MeterScreen({
   meter,
   currentIndex,
