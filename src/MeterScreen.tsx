@@ -10,13 +10,10 @@ import {
   FormControlLabel,
   RadioGroup,
   Radio,
-  FormLabel,
   FormControl,
   Grid,
   Chip,
   Divider,
-  Card,
-  CardContent,
   alpha,
   useTheme,
   Dialog,
@@ -29,6 +26,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  Card,
 } from "@mui/material";
 
 import {
@@ -36,12 +34,10 @@ import {
   ReadingsState,
   storeMeterReading,
   getMeterReading,
-  clearMeterReading,
   determineConsumptionType,
-  ConsumptionType,
-  MeterReadingData,
 } from "./utils/readingUtils";
 import { months } from "./utils/dateUtils";
+import { getPreviousReadings } from "./services/firebaseService";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -54,10 +50,6 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningIcon from "@mui/icons-material/Warning";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 
-import { findPreviousMonthReading } from "./utils/dateUtils";
-import { getPreviousReadings } from "./services/firebaseService";
-
-// Update the imports to include palette
 import { palette } from "./theme";
 
 interface VerificationData {
@@ -67,10 +59,10 @@ interface VerificationData {
     hadIssues?: boolean;
     residenceMonths?: number;
     looksLivedIn?: boolean;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   timestamp: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface MeterScreenProps {
@@ -97,7 +89,7 @@ interface MeterScreenProps {
   onUpdateReadings: (updatedReadings: ReadingsState) => void;
   reading: string;
   isConfirmed: boolean;
-  onPreviousReadingsUpdate?: (meterId: string, readings: any) => void;
+  onPreviousReadingsUpdate?: (meterId: string, readings: unknown) => void;
   readingsState: ReadingsState;
 }
 
@@ -1476,7 +1468,7 @@ function MeterScreen({
       </Box>
 
       {/* Main Card with improved layout */}
-      <Card
+      <Paper
         elevation={3}
         sx={{
           borderRadius: 3,
@@ -2109,7 +2101,7 @@ function MeterScreen({
             </Grid>
           </Grid>
         </Box>
-      </Card>
+      </Paper>
 
       {/* Navigation Buttons - Improved Layout */}
       <Paper
@@ -3549,8 +3541,8 @@ function MeterScreen({
             </Typography>
             <Typography variant="body2" sx={{ mt: 1 }}>
               Si no puede acceder al medidor o tiene dificultad para leerlo,
-              utilice la opción "No puedo leer el medidor" para registrar una
-              lectura estimada.
+              utilice la opción &quot;No puedo leer el medidor&quot; para
+              registrar una lectura estimada.
             </Typography>
           </Alert>
 

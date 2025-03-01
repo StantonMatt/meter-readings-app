@@ -2,7 +2,9 @@
   "name": "functions",
   "description": "Cloud Functions for Firebase",
   "scripts": {
-    "lint": "eslint .",
+    "lint": "eslint . --no-ignore",
+    "lint:fix": "eslint . --no-ignore --fix",
+    "build": "echo \"No build required\"",
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",
     "start": "npm run shell",
@@ -14,7 +16,7 @@
   },
   "main": "index.js",
   "dependencies": {
-    "firebase-admin": "^11.11.1",
+    "firebase-admin": "^13.1.0",
     "firebase-functions": "^6.3.2",
     "nodemailer": "^6.9.7"
   },

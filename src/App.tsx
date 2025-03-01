@@ -51,6 +51,7 @@ import {
   generateCSV,
   MeterData,
   ReadingsState,
+  getMeterReading,
 } from "./utils/readingUtils";
 import { generateEmailContent } from "./utils/emailUtils";
 import {
@@ -520,18 +521,95 @@ function App(): JSX.Element {
 
       // Upload readings to Firebase
       const readingsToUpload = combinedMeters.map((meter) => {
+        const meterData = getMeterReading(meter.ID);
+        const reading = readingsState[String(meter.ID)];
+        const currentReading = reading?.reading || "---";
+        const previousReading = meterData?.previousReading || "---";
+        const consumption = meterData?.consumption || null;
+        const verification = meterData?.verification || null;
+
+        // Calculate consumption value if we have valid readings
+        let consumptionValue = 0;
+        if (currentReading !== "---" && previousReading !== "---") {
+          const current = parseFloat(currentReading);
+          const previous = parseFloat(previousReading);
+          if (!isNaN(current) && !isNaN(previous)) {
+            consumptionValue = current - previous;
+          }
+        }
+
         return {
           ADDRESS: meter.ADDRESS,
-          ...meter.readings,
-          currentReading: readingsState[String(meter.ID)]?.reading || "---",
           ID: String(meter.ID),
+          Reading: currentReading,
+          previousReading,
+          currentReading,
+          consumption: consumptionValue,
+          verification: verification
+            ? {
+                ...verification,
+                consumption: consumptionValue,
+                currentReading,
+                previousReading,
+                average: meter.averageConsumption,
+                percentageAboveAverage:
+                  consumptionValue && meter.averageConsumption
+                    ? ((consumptionValue - meter.averageConsumption) /
+                        meter.averageConsumption) *
+                      100
+                    : 0,
+              }
+            : null,
         };
+      });
+
+      // Calculate consumption statistics from the actual readings
+      const validReadings = readingsToUpload.filter((reading) => {
+        // Only include readings that:
+        // 1. Have a valid consumption value
+        // 2. Are confirmed (have verification)
+        // 3. Have a consumption value that is not NaN
+        return (
+          reading.consumption !== 0 &&
+          reading.verification !== null &&
+          !isNaN(reading.consumption) &&
+          reading.currentReading !== "---" &&
+          reading.previousReading !== "---"
+        );
+      });
+
+      console.log("Valid readings for statistics:", validReadings);
+
+      const consumptionValues = validReadings
+        .map((r) => r.consumption)
+        .filter((c) => !isNaN(c) && c !== null);
+
+      console.log("Consumption values:", consumptionValues);
+
+      const totalConsumption = consumptionValues.reduce(
+        (sum, val) => sum + val,
+        0
+      );
+      const avgConsumption =
+        consumptionValues.length > 0
+          ? totalConsumption / consumptionValues.length
+          : 0;
+      const maxConsumption =
+        consumptionValues.length > 0 ? Math.max(...consumptionValues) : 0;
+      const minConsumption =
+        consumptionValues.length > 0 ? Math.min(...consumptionValues) : 0;
+
+      console.log("Calculated statistics:", {
+        totalConsumption,
+        avgConsumption,
+        maxConsumption,
+        minConsumption,
       });
 
       // Generate email content
       const emailContent = generateEmailContent(combinedMeters, readingsState);
 
-      // Call the Firebase function to send email
+      // Call the Firebase function to send email with updated statistics
       const sendReadingsMail = httpsCallable(functions, "sendReadingsMail");
       await sendReadingsMail({
         readings: readingsToUpload,
@@ -539,6 +617,15 @@ function App(): JSX.Element {
         month: months[selectedMonth],
         year: selectedYear,
         routeId: selectedRoute?.id || "unknown",
+        statistics: {
+          totalConsumption: Math.round(totalConsumption * 10) / 10,
+          avgConsumption: Math.round(avgConsumption * 10) / 10,
+          maxConsumption: Math.round(maxConsumption * 10) / 10,
+          minConsumption: Math.round(minConsumption * 10) / 10,
+          totalMeters: combinedMeters.length,
+          completedMeters: validReadings.length,
+          skippedMeters: combinedMeters.length - validReadings.length,
+        },
       });
 
       const uploadedReadings = await initializeFirebaseData(

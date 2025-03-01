@@ -249,20 +249,18 @@ export const debounce = <T extends (...args: any[]) => void>(
 ): T => {
   let timeout: ReturnType<typeof setTimeout> | null = null;
 
-  const debounced = function (this: any, ...args: Parameters<T>) {
-    const context = this;
-
+  const debounced = (...args: Parameters<T>) => {
     if (timeout) {
       clearTimeout(timeout);
     }
 
     timeout = setTimeout(() => {
-      func.apply(context, args);
       timeout = null;
+      func(...args);
     }, wait);
-  } as T;
+  };
 
-  return debounced;
+  return debounced as T;
 };
 
 export function storeMeterReading(

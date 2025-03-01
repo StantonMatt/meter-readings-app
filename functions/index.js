@@ -48,47 +48,9 @@ exports.sendReadingsMail = onCall(
         throw new Error("Invalid document structure");
       }
 
-      // Enhanced statistics
-      const totalMeters = readingsData.readings.length;
-      const readings = readingsData.readings.map((meter) => {
-        const sortedReadings = Object.entries(meter)
-          .filter(([key]) => key !== "ID" && key !== "ADDRESS")
-          .sort((a, b) => b[0].localeCompare(a[0]));
-        return {
-          current: sortedReadings[0]?.[1] || "---",
-          previous: sortedReadings[1]?.[1] || "---",
-          isSkipped: sortedReadings[0]?.[1] === "---",
-        };
-      });
-
-      const skippedMeters = readings.filter((r) => r.isSkipped).length;
-      const completedMeters = totalMeters - skippedMeters;
-
-      // Calculate consumption stats
-      const consumptionData = readings
-        .filter((r) => !r.isSkipped && r.previous !== "---")
-        .map((r) => ({
-          consumption: Number(r.current) - Number(r.previous),
-          current: Number(r.current),
-          previous: Number(r.previous),
-        }));
-
-      const totalConsumption = consumptionData.reduce(
-        (sum, r) => sum + r.consumption,
-        0
-      );
-      const avgConsumption =
-        consumptionData.length > 0
-          ? Math.round(totalConsumption / consumptionData.length)
-          : 0;
-      const maxConsumption =
-        consumptionData.length > 0
-          ? Math.max(...consumptionData.map((r) => r.consumption))
-          : 0;
-      const minConsumption =
-        consumptionData.length > 0
-          ? Math.min(...consumptionData.map((r) => r.consumption))
-          : 0;
+      // Use statistics from the request
+      const stats = readingsData.statistics || {};
+      console.log("Using statistics:", stats);
 
       // Group verifications by type
       const verificationsByType = readingsData.readings.reduce(
@@ -107,7 +69,9 @@ exports.sendReadingsMail = onCall(
       const generateVerificationCard = (reading, type) => {
         const verification = reading.verification;
         const truncateAddress = (address, maxLength = 25) => {
-          return address.length > maxLength ? address.substring(0, maxLength) + '...' : address;
+          return address.length > maxLength
+            ? address.substring(0, maxLength) + "..."
+            : address;
         };
 
         // Switch to table-based card layout
@@ -115,12 +79,24 @@ exports.sendReadingsMail = onCall(
           <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:15px;background:#fff;border:1px solid #edf2f7;border-radius:4px;">
             <tr>
               <td style="padding:15px;">
-                <div style="margin-bottom:8px;font-size:13px;"><strong>CLIENTE:</strong> ${reading.ID}</div>
-                <div style="margin-bottom:8px;font-size:13px;"><strong>DIRECCIÓN:</strong> ${truncateAddress(reading.ADDRESS || "")}</div>
-                <div style="margin-bottom:8px;font-size:13px;"><strong>Lectura Anterior:</strong> ${verification.previousReading || "---"}</div>
-                <div style="margin-bottom:8px;font-size:13px;"><strong>Lectura Actual:</strong> ${verification.currentReading || reading.Reading}</div>
-                ${type === "lowConsumption" ? `
-                  <div style="margin-bottom:8px;font-size:13px;"><strong>CONSUMO:</strong> ${verification.consumption} m³</div>
+                <div style="margin-bottom:8px;font-size:13px;"><strong>CLIENTE:</strong> ${
+                  reading.ID
+                }</div>
+                <div style="margin-bottom:8px;font-size:13px;"><strong>DIRECCIÓN:</strong> ${truncateAddress(
+                  reading.ADDRESS || ""
+                )}</div>
+                <div style="margin-bottom:8px;font-size:13px;"><strong>Lectura Anterior:</strong> ${
+                  verification.previousReading || "---"
+                }</div>
+                <div style="margin-bottom:8px;font-size:13px;"><strong>Lectura Actual:</strong> ${
+                  verification.currentReading || reading.Reading
+                }</div>
+                ${
+                  type === "lowConsumption"
+                    ? `
+                  <div style="margin-bottom:8px;font-size:13px;"><strong>CONSUMO:</strong> ${
+                    verification.consumption
+                  } m³</div>
                   <div style="
                     margin-top:15px;
                     padding:15px;
@@ -132,30 +108,52 @@ exports.sendReadingsMail = onCall(
                     overflow-y:auto;
                   ">
                     <strong style="display:block;margin-bottom:10px;letter-spacing:0.5px;">VERIFICACIÓN DE BAJO CONSUMO</strong>
-                    • Atendió el cliente: ${verification.details.answeredDoor ? "Sí" : "No"}<br>
-                    ${verification.details.answeredDoor ? `
-                      • Reportó problemas con el agua: ${verification.details.hadIssues ? "Sí" : "No"}<br>
-                      • Tiempo viviendo en la casa: ${verification.details.residenceMonths} meses
-                    ` : `
-                      • Casa parece habitada: ${verification.details.looksLivedIn ? "Sí" : "No"}
-                    `}
+                    • Atendió el cliente: ${
+                      verification.details.answeredDoor ? "Sí" : "No"
+                    }<br>
+                    ${
+                      verification.details.answeredDoor
+                        ? `
+                      • Reportó problemas con el agua: ${
+                        verification.details.hadIssues ? "Sí" : "No"
+                      }<br>
+                      • Tiempo viviendo en la casa: ${
+                        verification.details.residenceMonths
+                      } meses
+                    `
+                        : `
+                      • Casa parece habitada: ${
+                        verification.details.looksLivedIn ? "Sí" : "No"
+                      }
+                    `
+                    }
                   </div>
-                ` : type === "negativeConsumption" ? `
+                `
+                    : type === "negativeConsumption"
+                    ? `
                   <div style="margin-bottom:8px;font-size:13px;"><strong>CONSUMO:</strong> <span style="color:#dc2626;">${verification.consumption} m³</span></div>
                   <div style="margin-top:15px;padding:15px;background:#fef2f2;border-left:3px solid #dc2626;font-size:12px;line-height:1.5;">
                     <strong style="display:block;margin-bottom:10px;letter-spacing:0.5px;">CONSUMO NEGATIVO VERIFICADO</strong>
                     • Diferencia: ${verification.consumption} m³<br>
                     • Verificado y confirmado por el lector
                   </div>
-                ` : `
-                  <div style="margin-bottom:8px;font-size:13px;"><strong>CONSUMO:</strong> <span style="color:#0d47a1;">${verification.consumption} m³</span></div>
+                `
+                    : `
+                  <div style="margin-bottom:8px;font-size:13px;"><strong>CONSUMO:</strong> <span style="color:#0d47a1;">${
+                    verification.consumption
+                  } m³</span></div>
                   <div style="margin-top:15px;padding:15px;background:#f0f9ff;border-left:3px solid #0d47a1;font-size:12px;line-height:1.5;">
                     <strong style="display:block;margin-bottom:10px;letter-spacing:0.5px;">ALTO CONSUMO VERIFICADO</strong>
-                    • Consumo promedio: ${verification.average.toFixed(1)} m³<br>
-                    • Porcentaje sobre promedio: ${verification.percentageAboveAverage.toFixed(1)}%<br>
+                    • Consumo promedio: ${verification.average.toFixed(
+                      1
+                    )} m³<br>
+                    • Porcentaje sobre promedio: ${verification.percentageAboveAverage.toFixed(
+                      1
+                    )}%<br>
                     • Verificado y confirmado por el lector
                   </div>
-                `}
+                `
+                }
               </td>
             </tr>
           </table>
@@ -215,29 +213,23 @@ exports.sendReadingsMail = onCall(
         "ID,Direccion,Lectura Anterior,Lectura Actual,Estado,Consumo\n",
       ];
       readingsData.readings.forEach((meter) => {
-        const readings = Object.entries(meter)
-          .filter(([key]) => key !== "ID" && key !== "ADDRESS")
-          .sort((a, b) => b[0].localeCompare(a[0]));
-
-        const currentReading = readings[0]?.[1] || "---";
-        const lastReading = readings[1]?.[1] || "---";
+        const currentReading = meter.currentReading || "---";
+        const previousReading = meter.previousReading || "---";
         const status = currentReading === "---" ? "Omitido" : "Confirmado";
-        const consumption =
-          currentReading !== "---" && lastReading !== "---"
-            ? parseInt(currentReading) - parseInt(lastReading)
-            : "---";
+        const consumption = meter.consumption || "---";
 
         csvRows.push(
           `${meter.ID},"${
             meter.ADDRESS || ""
-          }",${lastReading},${currentReading},${status},${consumption}\n`
+          }",${previousReading},${currentReading},${status},${consumption}\n`
         );
       });
 
       const csvContent = csvRows.join("");
 
       // Use the public URL for the logo
-      const logoUrl = "https://firebasestorage.googleapis.com/v0/b/meter-readings-app.appspot.com/o/coab_logo.png?alt=media&token=63c9e784-4e18-40b3-b196-43a924afc7b2";
+      const logoUrl =
+        "https://firebasestorage.googleapis.com/v0/b/meter-readings-app.appspot.com/o/coab_logo.png?alt=media&token=63c9e784-4e18-40b3-b196-43a924afc7b2";
 
       // Update the HTML content with table-based layout
       const htmlContent = `
@@ -259,8 +251,12 @@ exports.sendReadingsMail = onCall(
                               <img src="${logoUrl}" alt="COAB Logo" style="max-width:105px;height:auto;display:block;">
                             </td>
                             <td style="text-align:left;vertical-align:middle;">
-                              <h2 style="margin:0;font-size:42px;color:#2d3748;font-weight:600;line-height:1.2;">Lecturas: ${readingsData.month} ${readingsData.year}</h2>
-                              <p style="margin:5px 0 0;color:#64748b;font-size:16px;line-height:1.2;">Ruta: ${readingsData.routeId}</p>
+                              <h2 style="margin:0;font-size:42px;color:#2d3748;font-weight:600;line-height:1.2;">Lecturas: ${
+                                readingsData.month
+                              } ${readingsData.year}</h2>
+                              <p style="margin:5px 0 0;color:#64748b;font-size:16px;line-height:1.2;">Ruta: ${
+                                readingsData.routeId
+                              }</p>
                             </td>
                           </tr>
                         </table>
@@ -295,7 +291,9 @@ exports.sendReadingsMail = onCall(
                                       text-align:center;
                                     ">
                                       <div style="font-size:14px;color:#666;margin-bottom:5px;font-weight:600;">Total Medidores</div>
-                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${totalMeters}</div>
+                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${
+                                        stats.totalMeters
+                                      }</div>
                                     </div>
                                   </td>
                                   <td width="25%" style="padding:10px;">
@@ -307,7 +305,9 @@ exports.sendReadingsMail = onCall(
                                       text-align:center;
                                     ">
                                       <div style="font-size:14px;color:#666;margin-bottom:5px;font-weight:600;">Completadas</div>
-                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${completedMeters}</div>
+                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${
+                                        stats.completedMeters
+                                      }</div>
                                     </div>
                                   </td>
                                   <td width="25%" style="padding:10px;">
@@ -319,7 +319,9 @@ exports.sendReadingsMail = onCall(
                                       text-align:center;
                                     ">
                                       <div style="font-size:14px;color:#666;margin-bottom:5px;font-weight:600;">Omitidas</div>
-                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${skippedMeters}</div>
+                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${
+                                        stats.skippedMeters
+                                      }</div>
                                     </div>
                                   </td>
                                   <td width="25%" style="padding:10px;">
@@ -332,7 +334,9 @@ exports.sendReadingsMail = onCall(
                                     ">
                                       <div style="font-size:14px;color:#666;margin-bottom:5px;font-weight:600;">Porcentaje</div>
                                       <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${Math.round(
-                                        (completedMeters / totalMeters) * 100
+                                        (stats.completedMeters /
+                                          stats.totalMeters) *
+                                          100
                                       )}%</div>
                                     </div>
                                   </td>
@@ -344,7 +348,7 @@ exports.sendReadingsMail = onCall(
                       </td>
                     </tr>
 
-                    <!-- Stats Section -->
+                    <!-- Consumption Stats Section -->
                     <tr>
                       <td style="padding-top:30px;">
                         <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fff;border-radius:4px;border:1px solid #edf2f7;">
@@ -372,7 +376,9 @@ exports.sendReadingsMail = onCall(
                                       text-align:center;
                                     ">
                                       <div style="font-size:14px;color:#666;margin-bottom:5px;font-weight:600;">Consumo Total</div>
-                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${totalConsumption} m³</div>
+                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${
+                                        stats.totalConsumption
+                                      } m³</div>
                                     </div>
                                   </td>
                                   <td width="25%" style="padding:10px;">
@@ -384,7 +390,9 @@ exports.sendReadingsMail = onCall(
                                       text-align:center;
                                     ">
                                       <div style="font-size:14px;color:#666;margin-bottom:5px;font-weight:600;">Promedio</div>
-                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${avgConsumption} m³</div>
+                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${
+                                        stats.avgConsumption
+                                      } m³</div>
                                     </div>
                                   </td>
                                   <td width="25%" style="padding:10px;">
@@ -396,7 +404,9 @@ exports.sendReadingsMail = onCall(
                                       text-align:center;
                                     ">
                                       <div style="font-size:14px;color:#666;margin-bottom:5px;font-weight:600;">Máximo</div>
-                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${maxConsumption} m³</div>
+                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${
+                                        stats.maxConsumption
+                                      } m³</div>
                                     </div>
                                   </td>
                                   <td width="25%" style="padding:10px;">
@@ -408,7 +418,9 @@ exports.sendReadingsMail = onCall(
                                       text-align:center;
                                     ">
                                       <div style="font-size:14px;color:#666;margin-bottom:5px;font-weight:600;">Mínimo</div>
-                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${minConsumption} m³</div>
+                                      <div style="font-size:24px;font-weight:bold;color:#1c2c64;">${
+                                        stats.minConsumption
+                                      } m³</div>
                                     </div>
                                   </td>
                                 </tr>
@@ -440,10 +452,18 @@ exports.sendReadingsMail = onCall(
                                     ">
                                       Bajo Consumo
                                     </div>
-                                    ${verificationsByType.lowConsumption?.length > 0 
-                                      ? verificationsByType.lowConsumption.map(reading => 
-                                          generateVerificationCard(reading, "lowConsumption")).join("")
-                                      : '<p style="text-align:center;color:#666;padding:20px;">No hay lecturas con bajo consumo</p>'
+                                    ${
+                                      verificationsByType.lowConsumption
+                                        ?.length > 0
+                                        ? verificationsByType.lowConsumption
+                                            .map((reading) =>
+                                              generateVerificationCard(
+                                                reading,
+                                                "lowConsumption"
+                                              )
+                                            )
+                                            .join("")
+                                        : '<p style="text-align:center;color:#666;padding:20px;">No hay lecturas con bajo consumo</p>'
                                     }
                                   </td>
                                 </tr>
@@ -466,10 +486,18 @@ exports.sendReadingsMail = onCall(
                                     ">
                                       Consumo Negativo
                                     </div>
-                                    ${verificationsByType.negativeConsumption?.length > 0 
-                                      ? verificationsByType.negativeConsumption.map(reading => 
-                                          generateVerificationCard(reading, "negativeConsumption")).join("")
-                                      : '<p style="text-align:center;color:#666;padding:20px;">No hay lecturas con consumo negativo</p>'
+                                    ${
+                                      verificationsByType.negativeConsumption
+                                        ?.length > 0
+                                        ? verificationsByType.negativeConsumption
+                                            .map((reading) =>
+                                              generateVerificationCard(
+                                                reading,
+                                                "negativeConsumption"
+                                              )
+                                            )
+                                            .join("")
+                                        : '<p style="text-align:center;color:#666;padding:20px;">No hay lecturas con consumo negativo</p>'
                                     }
                                   </td>
                                 </tr>
@@ -492,10 +520,18 @@ exports.sendReadingsMail = onCall(
                                     ">
                                       Alto Consumo
                                     </div>
-                                    ${verificationsByType.highConsumption?.length > 0 
-                                      ? verificationsByType.highConsumption.map(reading => 
-                                          generateVerificationCard(reading, "highConsumption")).join("")
-                                      : '<p style="text-align:center;color:#666;padding:20px;">No hay lecturas con alto consumo</p>'
+                                    ${
+                                      verificationsByType.highConsumption
+                                        ?.length > 0
+                                        ? verificationsByType.highConsumption
+                                            .map((reading) =>
+                                              generateVerificationCard(
+                                                reading,
+                                                "highConsumption"
+                                              )
+                                            )
+                                            .join("")
+                                        : '<p style="text-align:center;color:#666;padding:20px;">No hay lecturas con alto consumo</p>'
                                     }
                                   </td>
                                 </tr>
@@ -510,7 +546,10 @@ exports.sendReadingsMail = onCall(
                     <tr>
                       <td style="padding-top:40px;text-align:center;border-top:1px solid #edf2f7;">
                         <p style="margin:0;color:#666;font-size:12px;">Este es un correo automático. Por favor no responder.</p>
-                        <p style="margin:0;color:#666;font-size:12px;">Generado el ${new Date().toLocaleString("es-CL", { timeZone: "America/Santiago" })}</p>
+                        <p style="margin:0;color:#666;font-size:12px;">Generado el ${new Date().toLocaleString(
+                          "es-CL",
+                          { timeZone: "America/Santiago" }
+                        )}</p>
                       </td>
                     </tr>
                   </table>
@@ -538,17 +577,17 @@ exports.sendReadingsMail = onCall(
         `Lecturas: ${readingsData.month} ${readingsData.year}\n\n` +
         `Ruta: ${readingsData.routeId}\n\n` +
         `Resumen:\n` +
-        `- Total de Medidores: ${totalMeters}\n` +
-        `- Lecturas Completadas: ${completedMeters}\n` +
-        `- Lecturas Omitidas: ${skippedMeters}\n` +
+        `- Total de Medidores: ${stats.totalMeters}\n` +
+        `- Lecturas Completadas: ${stats.completedMeters}\n` +
+        `- Lecturas Omitidas: ${stats.skippedMeters}\n` +
         `- Porcentaje Completado: ${Math.round(
-          (completedMeters / totalMeters) * 100
+          (stats.completedMeters / stats.totalMeters) * 100
         )}%\n\n` +
         `Estadísticas de Consumo:\n` +
-        `- Consumo Total: ${totalConsumption} m³\n` +
-        `- Consumo Promedio: ${avgConsumption} m³\n` +
-        `- Consumo Máximo: ${maxConsumption} m³\n` +
-        `- Consumo Mínimo: ${minConsumption} m³\n\n` +
+        `- Consumo Total: ${stats.totalConsumption} m³\n` +
+        `- Consumo Promedio: ${stats.avgConsumption} m³\n` +
+        `- Consumo Máximo: ${stats.maxConsumption} m³\n` +
+        `- Consumo Mínimo: ${stats.minConsumption} m³\n\n` +
         `Lecturas con Verificación:\n\n${readingsData.emailContent
           .split("----------------------------------------")
           .filter((section) => section.trim())
