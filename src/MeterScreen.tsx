@@ -1124,7 +1124,10 @@ function MeterScreen({
   const formatConsumption = () => {
     // First check if we have stored consumption data
     const meterData = getMeterReading(meter.ID);
-    if (meterData?.consumption) {
+    if (
+      meterData?.consumption?.value !== null &&
+      meterData?.consumption?.value !== undefined
+    ) {
       return meterData.consumption.value.toFixed(1);
     }
 

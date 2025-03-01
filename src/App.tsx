@@ -6,6 +6,9 @@ import {
   Route,
   useNavigate,
   useLocation,
+  createRoutesFromChildren,
+  createBrowserRouter,
+  RouterProvider,
 } from "react-router-dom";
 import { onAuthStateChanged, getAuth, signOut } from "firebase/auth";
 import {
@@ -883,7 +886,9 @@ function App(): JSX.Element {
 
   // Only render the app content when we're absolutely sure the state is ready
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+    >
       {(() => {
         // Show login screen when auth is required
         if (appState === ("auth-required" as AppState)) {
