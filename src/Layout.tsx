@@ -1,19 +1,12 @@
 // Layout.tsx
-import React, { useState, useCallback, useMemo, ReactNode } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
-  AppBar,
-  Toolbar,
   Typography,
-  Button,
   Drawer,
   Box,
-  Card,
-  CardContent,
   TextField,
   InputAdornment,
   useMediaQuery,
-  IconButton,
-  List,
   ListItem,
   ListItemButton,
   ListItemText,
@@ -21,7 +14,6 @@ import {
   CssBaseline,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import MenuIcon from "@mui/icons-material/Menu";
 import TopBar from "./TopBar";
 import { MeterData, ReadingsState } from "./utils/readingUtils";
 import { FixedSizeList, ListChildComponentProps } from "react-window";
@@ -319,7 +311,7 @@ function MeterList({
     });
   }, 150);
 
-  const handleSearchChange = useCallback(
+  const handleSearchChange = React.useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       debouncedSearchChange(value);

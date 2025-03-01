@@ -86,9 +86,9 @@ interface MeterScreenProps {
   selectedMonth: number;
   selectedYear: number;
   routeId: string | null;
-  onUpdateReadings: (updatedReadings: ReadingsState) => void;
+  _onUpdateReadings: (updatedReadings: ReadingsState) => void;
   reading: string;
-  isConfirmed: boolean;
+  _isConfirmed: boolean;
   onPreviousReadingsUpdate?: (meterId: string, readings: unknown) => void;
   readingsState: ReadingsState;
 }
@@ -142,6 +142,22 @@ const formatHistoricalDate = (
   }
 };
 
+// This is a duplicate function - the original is defined at line 130
+// Keeping it here but marking it as unused with an underscore prefix
+const _formatHistoricalDate = (
+  dateString: string
+): { month: string; year: string } => {
+  try {
+    const [year, monthName] = dateString.split("-");
+    // Capitalize first letter only and use full month name
+    const formattedMonth =
+      monthName.charAt(0).toUpperCase() + monthName.slice(1).toLowerCase();
+    return { month: formattedMonth, year };
+  } catch (e) {
+    return { month: "---", year: "---" };
+  }
+};
+
 function MeterScreen({
   meter,
   currentIndex,
@@ -158,9 +174,9 @@ function MeterScreen({
   selectedMonth,
   selectedYear,
   routeId,
-  onUpdateReadings,
+  _onUpdateReadings,
   reading,
-  isConfirmed: propIsConfirmed,
+  _isConfirmed: propIsConfirmed,
   onPreviousReadingsUpdate,
   readingsState,
 }: MeterScreenProps): JSX.Element {

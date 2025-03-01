@@ -1,25 +1,8 @@
 // App.tsx
-import React, { useState, useCallback, useEffect, useMemo } from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  useNavigate,
-  useLocation,
-  createRoutesFromChildren,
-  createBrowserRouter,
-  RouterProvider,
-} from "react-router-dom";
-import { onAuthStateChanged, getAuth, signOut } from "firebase/auth";
-import {
-  collection,
-  getDocs,
-  doc,
-  getDoc,
-  query,
-  where,
-  setDoc,
-} from "firebase/firestore";
+import { useState, useCallback, useEffect, useMemo } from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { collection, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { Box, CircularProgress, Typography } from "@mui/material";
 
