@@ -325,6 +325,7 @@ function MeterList({
   meters,
   isMeterScreen,
   onDrawerClose,
+  isMobile,
 }: MeterListProps) {
   // Create a ref for the container
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -374,7 +375,7 @@ function MeterList({
     readingsState: readingsState || {},
     meters,
     onNavigationAttempt,
-    isMobile: false,
+    isMobile,
     onDrawerClose,
   };
 
