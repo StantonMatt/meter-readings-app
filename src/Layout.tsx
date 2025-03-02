@@ -614,7 +614,6 @@ const Layout: React.FC<LayoutProps> = ({
                 backgroundColor: "primary.main",
                 height: "100%",
                 marginTop: 0,
-                paddingTop: "64px", // Account for AppBar height
               },
             }}
           >
@@ -653,10 +652,7 @@ const Layout: React.FC<LayoutProps> = ({
             md: showSidebar ? `calc(100% - ${drawerWidth}px)` : "100%",
           },
           padding: theme.spacing(3),
-          marginTop: {
-            xs: "0px",
-            lg: "64px",
-          },
+          marginTop: "64px",
           marginLeft: { xs: 0, md: showSidebar ? `${drawerWidth}px` : 0 },
           backgroundColor: theme.palette.background.default,
           overflowX: "hidden",

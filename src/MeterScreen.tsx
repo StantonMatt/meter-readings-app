@@ -1409,13 +1409,13 @@ function MeterScreen({
     <Container
       maxWidth={false}
       sx={{
-        py: { xs: 4, sm: 2 },
         px: { xs: 0, sm: 3 },
         width: "100%",
-        height: "100%",
         display: "flex",
         flexDirection: "column",
-        justifyContent: "center", // Add vertical centering
+        justifyContent: "center", // Center content vertically
+        height: "100%", // Full viewport height minus top bar
+        overflow: "auto",
       }}
     >
       {/* Header with meter info and navigation pills - Only visible on larger screens */}
@@ -1424,12 +1424,15 @@ function MeterScreen({
           display: { xs: "none", lg: "flex" },
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 1,
-          mt: 0,
           flexWrap: "nowrap",
           gap: 2,
           pl: 2,
           pr: 2,
+          position: "absolute", // Take header out of flex flow
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1,
         }}
       >
         {/* Remove this section since we're moving the content inside the card */}
@@ -1442,15 +1445,15 @@ function MeterScreen({
           borderRadius: 3,
           overflow: "visible",
           boxShadow: `0 6px 20px ${alpha(palette.neutral.text.primary, 0.07)}`,
-          mb: { xs: 1.5, sm: 3 },
           width: "100%",
-          mt: { xs: 4, lg: 0 },
         }}
       >
         {/* Header Section */}
         <Box
           sx={{
-            p: { xs: 2, sm: 3 },
+            px: { xs: 2, sm: 2 },
+            pt: { xs: 2, sm: 2 },
+            pb: { xs: 1, sm: 1 },
             background: (_theme) =>
               `linear-gradient(to right, ${
                 _theme.palette.primary.main
@@ -1465,7 +1468,7 @@ function MeterScreen({
               display: "flex",
               flexDirection: "column",
               width: "100%",
-              gap: { xs: 1, sm: 2 },
+              gap: { xs: 0, sm: 0 },
             }}
           >
             {/* First row: ID and Date */}
@@ -1533,7 +1536,7 @@ function MeterScreen({
                   color: palette.neutral.white,
                   opacity: 0.9,
                   fontSize: { xs: "1rem", sm: "2rem" },
-                  lineHeight: { xs: 1.2, sm: 1.5 },
+                  lineHeight: { xs: 1.2, sm: 1.2 },
                   flex: 1,
                   mr: 2,
                 }}
@@ -1575,7 +1578,12 @@ function MeterScreen({
         </Box>
 
         {/* Content Section with Grid Layout */}
-        <Box sx={{ p: { xs: 1, sm: 3 } }}>
+        <Box
+          sx={{
+            px: { xs: 1, sm: 3 },
+            py: { xs: 0.5, sm: 0.5 },
+          }}
+        >
           <Grid
             container
             spacing={3}
@@ -2497,6 +2505,7 @@ function MeterScreen({
           borderRadius: 3,
           backgroundColor: alpha(palette.neutral.paper, 0.8),
           backdropFilter: "blur(8px)",
+          mt: 3, // Add margin top to separate from main content
         }}
       >
         <Grid container spacing={2}>
