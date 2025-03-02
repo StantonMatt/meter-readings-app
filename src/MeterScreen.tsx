@@ -1424,7 +1424,7 @@ function MeterScreen({
           justifyContent: "space-between",
           alignItems: "center",
           mb: 1,
-          mt: 4,
+          mt: { xs: 0, sm: 4 },
           flexWrap: { xs: "wrap", sm: "nowrap" },
           gap: 2,
           pl: 2,
@@ -1540,14 +1540,14 @@ function MeterScreen({
           borderRadius: 3,
           overflow: "visible",
           boxShadow: `0 6px 20px ${alpha(palette.neutral.text.primary, 0.07)}`,
-          mb: 3,
+          mb: { xs: 1.5, sm: 3 },
           width: "100%",
         }}
       >
         {/* Header Section */}
         <Box
           sx={{
-            p: 3,
+            p: { xs: 2, sm: 3 },
             background: (_theme) =>
               `linear-gradient(to right, ${
                 _theme.palette.primary.main
@@ -1569,14 +1569,18 @@ function MeterScreen({
                 sx={{
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "space-between", // Add this to push chip to the right
-                  width: "100%", // Ensure the box takes full width
+                  justifyContent: "space-between",
+                  width: "100%",
                 }}
               >
                 <Typography
                   variant="h5"
                   fontWeight="600"
-                  sx={{ letterSpacing: 0.5 }}
+                  sx={{
+                    letterSpacing: 0.5,
+                    fontSize: { xs: "1rem", sm: "1.5rem" },
+                    mb: { xs: 0.5, sm: 1 },
+                  }}
                 >
                   #{meter.ID}
                 </Typography>
@@ -1585,10 +1589,10 @@ function MeterScreen({
                 variant="h4"
                 sx={{
                   color: palette.neutral.white,
-                  mt: 1,
+                  mt: { xs: 0.5, sm: 1 },
                   opacity: 0.9,
-                  fontSize: { xs: "1.25rem", sm: "2rem" },
-                  lineHeight: { xs: 1.3, sm: 1.5 },
+                  fontSize: { xs: "1rem", sm: "2rem" },
+                  lineHeight: { xs: 1.2, sm: 1.5 },
                 }}
               >
                 {meter.ADDRESS}
@@ -1598,7 +1602,7 @@ function MeterScreen({
         </Box>
 
         {/* Content Section with Grid Layout */}
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: { xs: 1, sm: 3 } }}>
           <Grid
             container
             spacing={3}
@@ -1653,7 +1657,7 @@ function MeterScreen({
                   overflow: "hidden",
                   backgroundColor: alpha(palette.neutral.background, 0.7),
                   border: `1px solid ${alpha(palette.neutral.border, 0.5)}`,
-                  borderRadius: 2,
+                  borderRadius: 1,
                 }}
               >
                 {historicalReadings && historicalReadings.length > 0 ? (
@@ -1672,7 +1676,7 @@ function MeterScreen({
                         sx={{
                           display: "flex",
                           justifyContent: "space-between",
-                          py: { xs: 0.75, lg: 1.2 },
+                          py: { xs: 0.5, lg: 1.2 },
                           px: 1.5,
                           borderRadius: 1,
                           backgroundColor: "transparent",
@@ -1846,7 +1850,7 @@ function MeterScreen({
                   <Paper
                     elevation={0}
                     sx={{
-                      p: 2,
+                      p: { xs: 1.5, sm: 2 },
                       height: "100%",
                       borderRadius: 2,
                       backgroundColor: alpha(_theme.palette.info.main, 0.08),
@@ -1865,7 +1869,8 @@ function MeterScreen({
                         display: "block",
                         fontWeight: 500,
                         color: "text.secondary",
-                        mb: 0.5,
+                        mb: { xs: 0.25, sm: 0.5 },
+                        fontSize: { xs: "0.7rem", sm: "0.75rem" },
                       }}
                     >
                       <Box sx={{ display: { xs: "none", sm: "block" } }}>
@@ -1875,7 +1880,15 @@ function MeterScreen({
                         Promedio
                       </Box>
                     </Typography>
-                    <Typography variant="h6" fontWeight={600} color="info.main">
+                    <Typography
+                      variant="h6"
+                      fontWeight={600}
+                      color="info.main"
+                      sx={{
+                        fontSize: { xs: "1.1rem", sm: "1.25rem" },
+                        lineHeight: { xs: 1.2, sm: 1.5 },
+                      }}
+                    >
                       {averageConsumption.toFixed(1) || "---"} m³
                     </Typography>
                   </Paper>
@@ -1886,7 +1899,7 @@ function MeterScreen({
                   <Paper
                     elevation={0}
                     sx={{
-                      p: 2,
+                      p: { xs: 1.5, sm: 2 },
                       height: "100%",
                       borderRadius: 2,
                       backgroundColor: palette.consumption.estimated.background,
@@ -1902,7 +1915,8 @@ function MeterScreen({
                         display: "block",
                         fontWeight: 500,
                         color: palette.consumption.estimated.main,
-                        mb: 0.5,
+                        mb: { xs: 0.25, sm: 0.5 },
+                        fontSize: { xs: "0.7rem", sm: "0.75rem" },
                       }}
                     >
                       Lectura Estimada
@@ -1911,6 +1925,10 @@ function MeterScreen({
                       variant="h6"
                       fontWeight={600}
                       color={palette.consumption.estimated.main}
+                      sx={{
+                        fontSize: { xs: "1.1rem", sm: "1.25rem" },
+                        lineHeight: { xs: 1.2, sm: 1.5 },
+                      }}
                     >
                       {estimatedReading && estimatedReading !== "---"
                         ? `${estimatedReading} m³`
@@ -2103,14 +2121,59 @@ function MeterScreen({
                       if (meterData?.consumption?.type === "estimated") {
                         return (
                           <Chip
-                            icon={<InfoOutlinedIcon fontSize="small" />}
-                            label="Consumo estimado"
+                            icon={
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  height: "100%",
+                                }}
+                              >
+                                <InfoOutlinedIcon
+                                  sx={{
+                                    fontSize: { xs: "1.25rem", sm: "1rem" },
+                                  }}
+                                />
+                              </Box>
+                            }
+                            label={
+                              <>
+                                <Box
+                                  sx={{
+                                    display: { xs: "flex", sm: "none" },
+                                    flexDirection: "column",
+                                    alignItems: "flex-start",
+                                  }}
+                                >
+                                  <span>Consumo</span>
+                                  <span>estimado</span>
+                                </Box>
+                                <Box
+                                  sx={{
+                                    display: { xs: "none", sm: "block" },
+                                  }}
+                                >
+                                  Consumo estimado
+                                </Box>
+                              </>
+                            }
                             sx={{
                               backgroundColor:
                                 palette.consumption.estimated.background,
                               color: palette.consumption.estimated.main,
                               borderColor: palette.consumption.estimated.border,
+                              border: "1px solid",
                               fontWeight: 600,
+                              height: { xs: "auto", sm: 24 },
+                              py: { xs: 0.75, sm: 0 },
+                              "& .MuiChip-label": {
+                                display: "block",
+                                px: { xs: 1, sm: 1.5 },
+                              },
+                              "& .MuiChip-icon": {
+                                ml: { xs: 1, sm: 0.75 },
+                                mr: { xs: 0, sm: -0.5 },
+                              },
                             }}
                             size="small"
                           />
@@ -2120,14 +2183,57 @@ function MeterScreen({
                       if (meterData?.consumption?.type === "high") {
                         return (
                           <Chip
-                            icon={<WarningIcon fontSize="small" />}
-                            label="Consumo elevado"
+                            icon={
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  height: "100%",
+                                }}
+                              >
+                                <WarningIcon
+                                  sx={{
+                                    fontSize: { xs: "1.25rem", sm: "1rem" },
+                                  }}
+                                />
+                              </Box>
+                            }
+                            label={
+                              <>
+                                <Box
+                                  sx={{
+                                    display: { xs: "flex", sm: "none" },
+                                    flexDirection: "column",
+                                    alignItems: "flex-start",
+                                  }}
+                                >
+                                  <span>Consumo</span>
+                                  <span>elevado</span>
+                                </Box>
+                                <Box
+                                  sx={{ display: { xs: "none", sm: "block" } }}
+                                >
+                                  Consumo elevado
+                                </Box>
+                              </>
+                            }
                             sx={{
                               backgroundColor:
                                 palette.consumption.high.background,
                               color: palette.consumption.high.main,
                               borderColor: palette.consumption.high.border,
+                              border: "1px solid",
                               fontWeight: 600,
+                              height: { xs: "auto", sm: 24 },
+                              py: { xs: 0.75, sm: 0 },
+                              "& .MuiChip-label": {
+                                display: "block",
+                                px: { xs: 1, sm: 1.5 },
+                              },
+                              "& .MuiChip-icon": {
+                                ml: { xs: 1, sm: 0.75 },
+                                mr: { xs: 0, sm: -0.5 },
+                              },
                             }}
                             size="small"
                           />
@@ -2137,9 +2243,58 @@ function MeterScreen({
                       if (meterData?.consumption?.type === "negative") {
                         return (
                           <Chip
-                            icon={<ErrorOutlineIcon fontSize="small" />}
-                            label="Consumo negativo"
-                            color="error"
+                            icon={
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  height: "100%",
+                                }}
+                              >
+                                <WarningIcon
+                                  sx={{
+                                    fontSize: { xs: "1.25rem", sm: "1rem" },
+                                  }}
+                                />
+                              </Box>
+                            }
+                            label={
+                              <>
+                                <Box
+                                  sx={{
+                                    display: { xs: "flex", sm: "none" },
+                                    flexDirection: "column",
+                                    alignItems: "flex-start",
+                                  }}
+                                >
+                                  <span>Consumo</span>
+                                  <span>negativo</span>
+                                </Box>
+                                <Box
+                                  sx={{ display: { xs: "none", sm: "block" } }}
+                                >
+                                  Consumo negativo
+                                </Box>
+                              </>
+                            }
+                            sx={{
+                              backgroundColor:
+                                palette.consumption.negative.background,
+                              color: palette.consumption.negative.main,
+                              borderColor: palette.consumption.negative.border,
+                              border: "1px solid",
+                              fontWeight: 600,
+                              height: { xs: "auto", sm: 24 },
+                              py: { xs: 0.75, sm: 0 },
+                              "& .MuiChip-label": {
+                                display: "block",
+                                px: { xs: 1, sm: 1.5 },
+                              },
+                              "& .MuiChip-icon": {
+                                ml: { xs: 1, sm: 0.75 },
+                                mr: { xs: 0, sm: -0.5 },
+                              },
+                            }}
                             size="small"
                           />
                         );
@@ -2148,9 +2303,58 @@ function MeterScreen({
                       if (meterData?.consumption?.type === "low") {
                         return (
                           <Chip
-                            icon={<InfoOutlinedIcon fontSize="small" />}
-                            label="Consumo bajo"
-                            color="info"
+                            icon={
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  height: "100%",
+                                }}
+                              >
+                                <InfoOutlinedIcon
+                                  sx={{
+                                    fontSize: { xs: "1.25rem", sm: "1rem" },
+                                  }}
+                                />
+                              </Box>
+                            }
+                            label={
+                              <>
+                                <Box
+                                  sx={{
+                                    display: { xs: "flex", sm: "none" },
+                                    flexDirection: "column",
+                                    alignItems: "flex-start",
+                                  }}
+                                >
+                                  <span>Consumo</span>
+                                  <span>bajo</span>
+                                </Box>
+                                <Box
+                                  sx={{ display: { xs: "none", sm: "block" } }}
+                                >
+                                  Consumo bajo
+                                </Box>
+                              </>
+                            }
+                            sx={{
+                              backgroundColor:
+                                palette.consumption.low.background,
+                              color: palette.consumption.low.main,
+                              borderColor: palette.consumption.low.border,
+                              border: "1px solid",
+                              fontWeight: 600,
+                              height: { xs: "auto", sm: 24 },
+                              py: { xs: 0.75, sm: 0 },
+                              "& .MuiChip-label": {
+                                display: "block",
+                                px: { xs: 1, sm: 1.5 },
+                              },
+                              "& .MuiChip-icon": {
+                                ml: { xs: 1, sm: 0.75 },
+                                mr: { xs: 0, sm: -0.5 },
+                              },
+                            }}
                             size="small"
                           />
                         );
@@ -2158,9 +2362,56 @@ function MeterScreen({
 
                       return (
                         <Chip
-                          icon={<CheckCircleIcon fontSize="small" />}
-                          label="Consumo normal"
-                          color="success"
+                          icon={
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                height: "100%",
+                              }}
+                            >
+                              <CheckCircleOutlineIcon
+                                sx={{ fontSize: { xs: "1.25rem", sm: "1rem" } }}
+                              />
+                            </Box>
+                          }
+                          label={
+                            <>
+                              <Box
+                                sx={{
+                                  display: { xs: "flex", sm: "none" },
+                                  flexDirection: "column",
+                                  alignItems: "flex-start",
+                                }}
+                              >
+                                <span>Consumo</span>
+                                <span>normal</span>
+                              </Box>
+                              <Box
+                                sx={{ display: { xs: "none", sm: "block" } }}
+                              >
+                                Consumo normal
+                              </Box>
+                            </>
+                          }
+                          sx={{
+                            backgroundColor:
+                              palette.consumption.normal.background,
+                            color: palette.consumption.normal.main,
+                            borderColor: palette.consumption.normal.border,
+                            border: "1px solid",
+                            fontWeight: 600,
+                            height: { xs: "auto", sm: 24 },
+                            py: { xs: 0.75, sm: 0 },
+                            "& .MuiChip-label": {
+                              display: "block",
+                              px: { xs: 1, sm: 1.5 },
+                            },
+                            "& .MuiChip-icon": {
+                              ml: { xs: 1, sm: 0.75 },
+                              mr: { xs: 0, sm: -0.5 },
+                            },
+                          }}
                           size="small"
                         />
                       );
@@ -2169,7 +2420,7 @@ function MeterScreen({
                 )}
 
               {/* Action Buttons */}
-              <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
+              <Box sx={{ display: "flex", gap: 1, mt: 2 }}>
                 {/* Move "No puedo leer" button to the left and style it with purple */}
                 <Button
                   variant="outlined"
@@ -2193,10 +2444,14 @@ function MeterScreen({
                       color: alpha(palette.consumption.estimated.main, 0.4),
                     },
                   }}
-                  // Disable when reading is confirmed
                   disabled={localIsConfirmed}
                 >
-                  No puedo leer el medidor
+                  <Box sx={{ display: { xs: "none", sm: "block" } }}>
+                    No puedo leer el medidor
+                  </Box>
+                  <Box sx={{ display: { xs: "block", sm: "none" } }}>
+                    Estimar consumo
+                  </Box>
                 </Button>
 
                 {/* Move Confirm button to the right */}
@@ -2235,7 +2490,25 @@ function MeterScreen({
                     (!inputValue || inputValue.trim() === "")
                   }
                 >
-                  {localIsConfirmed ? "Editar" : "Confirmar Lectura"}
+                  {localIsConfirmed ? (
+                    <>
+                      <Box sx={{ display: { xs: "none", sm: "block" } }}>
+                        Editar Lectura
+                      </Box>
+                      <Box sx={{ display: { xs: "block", sm: "none" } }}>
+                        Editar
+                      </Box>
+                    </>
+                  ) : (
+                    <>
+                      <Box sx={{ display: { xs: "none", sm: "block" } }}>
+                        Confirmar Lectura
+                      </Box>
+                      <Box sx={{ display: { xs: "block", sm: "none" } }}>
+                        Confirmar
+                      </Box>
+                    </>
+                  )}
                 </Button>
               </Box>
             </Grid>
@@ -2247,7 +2520,7 @@ function MeterScreen({
       <Paper
         elevation={2}
         sx={{
-          p: 2,
+          p: { xs: 1.5, sm: 2 },
           borderRadius: 3,
           backgroundColor: alpha(palette.neutral.paper, 0.8),
           backdropFilter: "blur(8px)",
@@ -2267,7 +2540,7 @@ function MeterScreen({
                 borderWidth: "1.5px",
               }}
             >
-              Anterior
+              <Box sx={{ display: { xs: "none", sm: "block" } }}>Anterior</Box>
             </Button>
           </Grid>
 
@@ -2283,7 +2556,7 @@ function MeterScreen({
                 borderWidth: "1.5px",
               }}
             >
-              Inicio
+              <Box sx={{ display: { xs: "none", sm: "block" } }}>Inicio</Box>
             </Button>
           </Grid>
 
@@ -2300,7 +2573,9 @@ function MeterScreen({
                   boxShadow: 2,
                 }}
               >
-                Siguiente
+                <Box sx={{ display: { xs: "none", sm: "block" } }}>
+                  Siguiente
+                </Box>
               </Button>
             ) : (
               <Button

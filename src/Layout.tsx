@@ -67,6 +67,8 @@ type MeterRowData = {
   readingsState: ReadingsState;
   meters: MeterData[];
   onNavigationAttempt: (callback: () => void) => void;
+  isMobile: boolean;
+  onDrawerClose: () => void;
 };
 
 interface MeterListProps {
@@ -80,6 +82,7 @@ interface MeterListProps {
   onNavigationAttempt: (callback: () => void) => void;
   meters: MeterData[];
   isMeterScreen: boolean;
+  onDrawerClose: () => void;
 }
 
 // Virtualized row renderer for meter list
@@ -99,6 +102,8 @@ const MeterRow = React.memo(
       readingsState,
       meters,
       onNavigationAttempt,
+      isMobile,
+      onDrawerClose,
     } = data;
     const meter = items[index];
     const originalIndex = meters.findIndex((m: MeterData) => m.ID === meter.ID);
@@ -155,7 +160,13 @@ const MeterRow = React.memo(
       if (isSelected) return;
 
       // Use navigation attempt handler to navigate to the selected meter
-      onNavigationAttempt(() => onSelect(originalIndex));
+      onNavigationAttempt(() => {
+        onSelect(originalIndex);
+        // Close the drawer on narrow screens
+        if (isMobile) {
+          onDrawerClose();
+        }
+      });
     };
 
     return (
@@ -313,6 +324,7 @@ function MeterList({
   onNavigationAttempt,
   meters,
   isMeterScreen,
+  onDrawerClose,
 }: MeterListProps) {
   // Create a ref for the container
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -362,6 +374,8 @@ function MeterList({
     readingsState: readingsState || {},
     meters,
     onNavigationAttempt,
+    isMobile: false,
+    onDrawerClose,
   };
 
   return (
@@ -534,6 +548,7 @@ const Layout: React.FC<LayoutProps> = ({
         meters={meters}
         onNavigationAttempt={handleNavigationAttempt}
         isMeterScreen={isMeterScreen}
+        onDrawerClose={handleDrawerToggle}
       />
     ),
     [
@@ -546,6 +561,7 @@ const Layout: React.FC<LayoutProps> = ({
       meters,
       isMeterScreen,
       handleNavigationAttempt,
+      handleDrawerToggle,
     ]
   );
 
