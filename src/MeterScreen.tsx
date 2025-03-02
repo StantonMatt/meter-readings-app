@@ -1417,15 +1417,15 @@ function MeterScreen({
         flexDirection: "column",
       }}
     >
-      {/* Header with meter info and navigation pills */}
+      {/* Header with meter info and navigation pills - Only visible on larger screens */}
       <Box
         sx={{
-          display: "flex",
+          display: { xs: "none", lg: "flex" },
           justifyContent: "space-between",
           alignItems: "center",
           mb: 1,
-          mt: { xs: 4, sm: 4 },
-          flexWrap: { xs: "wrap", sm: "nowrap" },
+          mt: { xs: 4, lg: 4 },
+          flexWrap: { xs: "wrap", lg: "nowrap" },
           gap: 2,
           pl: 2,
           pr: 2,
@@ -1465,18 +1465,6 @@ function MeterScreen({
               variant="h6"
               sx={{
                 color: "white",
-                display: { xs: "block", lg: "none" },
-                fontSize: "0.875rem",
-                fontWeight: 500,
-              }}
-            >
-              {`${currentIndex + 1} de ${totalMeters}`}
-            </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                color: "white",
-                display: { xs: "none", lg: "block" },
                 fontSize: "0.875rem",
                 fontWeight: 500,
               }}
@@ -1509,20 +1497,6 @@ function MeterScreen({
               variant="h6"
               sx={{
                 color: "white",
-                display: { xs: "block", lg: "none" },
-                fontSize: "0.875rem",
-                fontWeight: 500,
-              }}
-            >
-              {`${formatMonthAbbreviation(
-                months[selectedMonth]
-              )} - ${selectedYear}`}
-            </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                color: "white",
-                display: { xs: "none", lg: "block" },
                 fontSize: "0.875rem",
                 fontWeight: 500,
               }}
@@ -1542,6 +1516,7 @@ function MeterScreen({
           boxShadow: `0 6px 20px ${alpha(palette.neutral.text.primary, 0.07)}`,
           mb: { xs: 1.5, sm: 3 },
           width: "100%",
+          mt: { xs: 4, lg: 0 },
         }}
       >
         {/* Header Section */}
@@ -1560,36 +1535,70 @@ function MeterScreen({
           <Box
             sx={{
               display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
+              flexDirection: "column",
+              width: "100%",
             }}
           >
-            <Box sx={{ width: "100%" }}>
-              <Box
+            {/* First row: ID and Date */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+                mb: { xs: 1, sm: 2 },
+              }}
+            >
+              <Typography
+                variant="h5"
+                fontWeight="600"
                 sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  width: "100%",
+                  letterSpacing: 0.5,
+                  fontSize: { xs: "1rem", sm: "1.5rem" },
                 }}
               >
-                <Typography
-                  variant="h5"
-                  fontWeight="600"
+                #{meter.ID}
+              </Typography>
+              {/* Date - Only visible below lg screens */}
+              <Box
+                sx={{
+                  display: { xs: "flex", lg: "none" },
+                  alignItems: "center",
+                }}
+              >
+                <AccessTimeIcon
                   sx={{
-                    letterSpacing: 0.5,
-                    fontSize: { xs: "1rem", sm: "1.5rem" },
-                    mb: { xs: 0.5, sm: 1 },
+                    mr: 0.5,
+                    fontSize: "0.875rem",
+                    opacity: 0.9,
+                  }}
+                />
+                <Typography
+                  variant="body2"
+                  sx={{
+                    opacity: 0.9,
+                    fontSize: "0.875rem",
                   }}
                 >
-                  #{meter.ID}
+                  {`${formatMonthAbbreviation(
+                    months[selectedMonth]
+                  )} - ${selectedYear}`}
                 </Typography>
               </Box>
+            </Box>
+            {/* Second row: Address and Counter */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+              }}
+            >
               <Typography
                 variant="h4"
                 sx={{
                   color: palette.neutral.white,
-                  mt: { xs: 0.5, sm: 1 },
                   opacity: 0.9,
                   fontSize: { xs: "1rem", sm: "2rem" },
                   lineHeight: { xs: 1.2, sm: 1.5 },
@@ -1597,6 +1606,32 @@ function MeterScreen({
               >
                 {meter.ADDRESS}
               </Typography>
+              {/* Counter - Only visible below lg screens */}
+              <Box
+                sx={{
+                  display: { xs: "flex", lg: "none" },
+                  alignItems: "center",
+                  ml: 1,
+                }}
+              >
+                <HomeIcon
+                  sx={{
+                    mr: 0.5,
+                    fontSize: "0.875rem",
+                    opacity: 0.9,
+                  }}
+                />
+                <Typography
+                  variant="body2"
+                  sx={{
+                    opacity: 0.9,
+                    fontSize: "0.875rem",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {`${currentIndex + 1}/${totalMeters}`}
+                </Typography>
+              </Box>
             </Box>
           </Box>
         </Box>
@@ -1619,7 +1654,7 @@ function MeterScreen({
             <Grid
               item
               xs={12}
-              lg={5} // Change breakpoint from md to lg
+              lg={6} // Change from 5 to 6 for better proportions
               sx={{
                 width: "100%",
                 "& .MuiPaper-root": {
@@ -1819,7 +1854,7 @@ function MeterScreen({
             <Grid
               item
               xs={12}
-              lg={7} // Change breakpoint from md to lg
+              lg={6} // Change from 7 to 6 for better proportions
               sx={{
                 width: "100%",
               }}

@@ -258,18 +258,7 @@ const MeterRow = React.memo(
                   mt: 0.5,
                 }}
               >
-                <Box component="span" sx={{ mr: 1 }}>
-                  {meter.ADDRESS}
-                </Box>
-                <Box
-                  component="span"
-                  sx={{
-                    color: "rgba(255,255,255,0.65)",
-                    fontSize: "0.75rem",
-                  }}
-                >
-                  {`Medidor ${index + 1}/${data.items.length}`}
-                </Box>
+                {meter.ADDRESS}
               </Typography>
             </Box>
 
@@ -678,7 +667,7 @@ const Layout: React.FC<LayoutProps> = ({
         <Box
           sx={{
             width: "100%",
-            maxWidth: "800px",
+            maxWidth: "1200px",
           }}
         >
           {children}
