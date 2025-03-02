@@ -1432,80 +1432,7 @@ function MeterScreen({
           pr: 2,
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            width: "100%",
-            gap: 2,
-          }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              backgroundColor: alpha(_theme.palette.primary.main, 0.9),
-              borderRadius: 2,
-              px: 1.5,
-              py: 0.75,
-              boxShadow: `0 2px 8px ${alpha(
-                _theme.palette.primary.main,
-                0.25
-              )}`,
-            }}
-          >
-            <HomeIcon
-              sx={{
-                mr: 1,
-                color: "white",
-                fontSize: "1.2rem",
-              }}
-            />
-            <Typography
-              variant="h6"
-              sx={{
-                color: "white",
-                fontSize: "0.875rem",
-                fontWeight: 500,
-              }}
-            >
-              {`Medidor ${currentIndex + 1} de ${totalMeters}`}
-            </Typography>
-          </Box>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              backgroundColor: alpha(_theme.palette.primary.main, 0.9),
-              borderRadius: 2,
-              px: 1.5,
-              py: 0.75,
-              boxShadow: `0 2px 8px ${alpha(
-                _theme.palette.primary.main,
-                0.25
-              )}`,
-            }}
-          >
-            <AccessTimeIcon
-              sx={{
-                mr: 1,
-                color: "white",
-                fontSize: "1.2rem",
-              }}
-            />
-            <Typography
-              variant="h6"
-              sx={{
-                color: "white",
-                fontSize: "0.875rem",
-                fontWeight: 500,
-              }}
-            >
-              {`${months[selectedMonth]} ${selectedYear}`}
-            </Typography>
-          </Box>
-        </Box>
+        {/* Remove this section since we're moving the content inside the card */}
       </Box>
 
       {/* Main Card with improved layout */}
@@ -1538,6 +1465,7 @@ function MeterScreen({
               display: "flex",
               flexDirection: "column",
               width: "100%",
+              gap: { xs: 1, sm: 2 },
             }}
           >
             {/* First row: ID and Date */}
@@ -1547,7 +1475,6 @@ function MeterScreen({
                 alignItems: "center",
                 justifyContent: "space-between",
                 width: "100%",
-                mb: { xs: 1, sm: 2 },
               }}
             >
               <Typography
@@ -1560,11 +1487,15 @@ function MeterScreen({
               >
                 #{meter.ID}
               </Typography>
-              {/* Date - Only visible below lg screens */}
+              {/* Date - Always visible */}
               <Box
                 sx={{
-                  display: { xs: "flex", lg: "none" },
+                  display: "flex",
                   alignItems: "center",
+                  backgroundColor: alpha("#ffffff", 0.1),
+                  borderRadius: 1.5,
+                  px: 1.5,
+                  py: 0.5,
                 }}
               >
                 <AccessTimeIcon
@@ -1603,16 +1534,22 @@ function MeterScreen({
                   opacity: 0.9,
                   fontSize: { xs: "1rem", sm: "2rem" },
                   lineHeight: { xs: 1.2, sm: 1.5 },
+                  flex: 1,
+                  mr: 2,
                 }}
               >
                 {meter.ADDRESS}
               </Typography>
-              {/* Counter - Only visible below lg screens */}
+              {/* Counter - Always visible */}
               <Box
                 sx={{
-                  display: { xs: "flex", lg: "none" },
+                  display: "flex",
                   alignItems: "center",
-                  ml: 1,
+                  backgroundColor: alpha("#ffffff", 0.1),
+                  borderRadius: 1.5,
+                  px: 1.5,
+                  py: 0.5,
+                  flexShrink: 0,
                 }}
               >
                 <HomeIcon
