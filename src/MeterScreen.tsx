@@ -35,7 +35,7 @@ import {
   getMeterReading,
   determineConsumptionType,
 } from "./utils/readingUtils";
-import { months } from "./utils/dateUtils";
+import { months, monthAbbreviations } from "./utils/dateUtils";
 import { getPreviousReadings } from "./services/firebaseService";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -48,6 +48,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import WarningIcon from "@mui/icons-material/Warning";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import HomeIcon from "@mui/icons-material/Home";
 
 import { palette } from "./theme";
 
@@ -95,9 +96,15 @@ interface MeterScreenProps {
 const formatMonthOnly = (dateKey: string): string => {
   const parts = dateKey.split("-");
   if (parts.length >= 2) {
-    return parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+    const monthName = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+    return monthName;
   }
   return dateKey;
+};
+
+const formatMonthAbbreviation = (monthName: string): string => {
+  const fullName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  return monthAbbreviations[fullName] || fullName;
 };
 
 // Add this helper component at the top of your file
@@ -1402,8 +1409,8 @@ function MeterScreen({
     <Container
       maxWidth={false}
       sx={{
-        py: 4,
-        px: { xs: 2, sm: 3 },
+        py: { xs: 0, sm: 4 },
+        px: { xs: 0, sm: 3 },
         width: "100%",
         height: "100%",
         display: "flex",
@@ -1420,42 +1427,109 @@ function MeterScreen({
           mt: 4,
           flexWrap: { xs: "wrap", sm: "nowrap" },
           gap: 2,
+          pl: 2,
+          pr: 2,
         }}
       >
-        <Typography
-          variant="h6"
-          sx={{
-            pr: 1,
-            fontWeight: 800,
-            color: _theme.palette.text.secondary,
-            width: { xs: "100%", sm: "auto" },
-            textAlign: { xs: "center", sm: "right" },
-            order: { xs: 1, sm: 2 }, // Add order to control stacking
-          }}
-        >
-          {months[selectedMonth]} - {selectedYear}
-        </Typography>
-
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
-            backgroundColor: alpha(_theme.palette.primary.main, 0.1),
-            borderRadius: 2,
-            px: 2,
-            py: 1,
-            width: { xs: "100%", sm: "auto" },
-            justifyContent: { xs: "center", sm: "flex-start" },
-            order: { xs: 2, sm: 1 }, // Add order to control stacking
+            justifyContent: "space-between",
+            width: "100%",
+            gap: 2,
           }}
         >
-          <HomeOutlinedIcon
-            fontSize="small"
-            sx={{ color: _theme.palette.primary.main, mr: 1 }}
-          />
-          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-            Medidor {currentIndex + 1} de {totalMeters}
-          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              backgroundColor: alpha(_theme.palette.primary.main, 0.9),
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.75,
+              boxShadow: `0 2px 8px ${alpha(
+                _theme.palette.primary.main,
+                0.25
+              )}`,
+            }}
+          >
+            <HomeIcon
+              sx={{
+                mr: 1,
+                color: "white",
+                fontSize: "1.2rem",
+              }}
+            />
+            <Typography
+              variant="h6"
+              sx={{
+                color: "white",
+                display: { xs: "block", lg: "none" },
+                fontSize: "0.875rem",
+                fontWeight: 500,
+              }}
+            >
+              {`${currentIndex + 1} de ${totalMeters}`}
+            </Typography>
+            <Typography
+              variant="h6"
+              sx={{
+                color: "white",
+                display: { xs: "none", lg: "block" },
+                fontSize: "0.875rem",
+                fontWeight: 500,
+              }}
+            >
+              {`Medidor ${currentIndex + 1} de ${totalMeters}`}
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              backgroundColor: alpha(_theme.palette.primary.main, 0.9),
+              borderRadius: 2,
+              px: 1.5,
+              py: 0.75,
+              boxShadow: `0 2px 8px ${alpha(
+                _theme.palette.primary.main,
+                0.25
+              )}`,
+            }}
+          >
+            <AccessTimeIcon
+              sx={{
+                mr: 1,
+                color: "white",
+                fontSize: "1.2rem",
+              }}
+            />
+            <Typography
+              variant="h6"
+              sx={{
+                color: "white",
+                display: { xs: "block", lg: "none" },
+                fontSize: "0.875rem",
+                fontWeight: 500,
+              }}
+            >
+              {`${formatMonthAbbreviation(
+                months[selectedMonth]
+              )} - ${selectedYear}`}
+            </Typography>
+            <Typography
+              variant="h6"
+              sx={{
+                color: "white",
+                display: { xs: "none", lg: "block" },
+                fontSize: "0.875rem",
+                fontWeight: 500,
+              }}
+            >
+              {`${months[selectedMonth]} ${selectedYear}`}
+            </Typography>
+          </Box>
         </Box>
       </Box>
 
@@ -1506,25 +1580,16 @@ function MeterScreen({
                 >
                   #{meter.ID}
                 </Typography>
-                <Chip
-                  icon={<AccessTimeIcon fontSize="small" />}
-                  label={`Última lectura: ${
-                    previousReadingEntries.length > 0
-                      ? formatMonthOnly(previousReadingEntries[0]?.date)
-                      : "N/A"
-                  }`}
-                  sx={{
-                    backgroundColor: alpha(palette.neutral.white, 0.15),
-                    color: palette.neutral.white,
-                    fontWeight: 500,
-                    height: "32px",
-                    "& .MuiChip-icon": { color: palette.neutral.white },
-                  }}
-                />
               </Box>
               <Typography
                 variant="h4"
-                sx={{ color: palette.neutral.white, mt: 1, opacity: 0.9 }}
+                sx={{
+                  color: palette.neutral.white,
+                  mt: 1,
+                  opacity: 0.9,
+                  fontSize: { xs: "1.25rem", sm: "2rem" },
+                  lineHeight: { xs: 1.3, sm: 1.5 },
+                }}
               >
                 {meter.ADDRESS}
               </Typography>
@@ -1561,7 +1626,11 @@ function MeterScreen({
               <Typography
                 variant="subtitle1"
                 fontWeight="600"
-                sx={{ mb: 2, display: "flex", alignItems: "center" }}
+                sx={{
+                  mb: 2,
+                  display: { xs: "none", lg: "flex" },
+                  alignItems: "center",
+                }}
               >
                 <AccessTimeIcon
                   sx={{
@@ -1577,13 +1646,14 @@ function MeterScreen({
               <Paper
                 elevation={0}
                 sx={{
-                  p: 2,
+                  p: 0,
+                  height: { xs: "auto", lg: "calc(100% - 40px)" }, // Subtract the header height
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
                   backgroundColor: alpha(palette.neutral.background, 0.7),
                   border: `1px solid ${alpha(palette.neutral.border, 0.5)}`,
                   borderRadius: 2,
-                  height: "auto",
-                  minHeight: 200,
-                  overflow: "hidden", // Prevent content from spilling
                 }}
               >
                 {historicalReadings && historicalReadings.length > 0 ? (
@@ -1591,8 +1661,9 @@ function MeterScreen({
                     sx={{
                       display: "flex",
                       flexDirection: "column",
-                      gap: 1,
-                      width: "100%", // Ensure full width
+                      width: "100%",
+                      height: "100%",
+                      justifyContent: { lg: "space-between" },
                     }}
                   >
                     {historicalReadings.map((item, index) => (
@@ -1601,7 +1672,8 @@ function MeterScreen({
                         sx={{
                           display: "flex",
                           justifyContent: "space-between",
-                          p: 1.5,
+                          py: { xs: 0.75, lg: 1.2 },
+                          px: 1.5,
                           borderRadius: 1,
                           backgroundColor: "transparent",
                           borderBottom:
@@ -1622,8 +1694,10 @@ function MeterScreen({
                               ? `3px solid ${_theme.palette.primary.main}`
                               : "3px solid transparent",
                           pl: 2,
-                          width: "100%", // Ensure full width
-                          minWidth: 0, // Allow content to shrink if needed
+                          width: "100%",
+                          minWidth: 0,
+                          alignItems: "center",
+                          flex: { lg: 1 }, // Make each item take equal space in lg view
                         }}
                       >
                         <Box
@@ -1637,21 +1711,6 @@ function MeterScreen({
                           <Typography
                             variant="body2"
                             sx={{
-                              fontWeight: index === 0 ? 700 : 600,
-                              color:
-                                index === 0
-                                  ? _theme.palette.primary.main
-                                  : _theme.palette.text.primary,
-                              mr: 1,
-                              whiteSpace: "nowrap", // Prevent month from wrapping
-                            }}
-                          >
-                            {item.date.split("-")[1].charAt(0).toUpperCase() +
-                              item.date.split("-")[1].slice(1)}
-                          </Typography>
-                          <Typography
-                            variant="body2"
-                            sx={{
                               fontWeight: index === 0 ? 600 : 500,
                               color:
                                 index === 0
@@ -1661,6 +1720,31 @@ function MeterScreen({
                             }}
                           >
                             {item.date.split("-")[0]}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color:
+                                index === 0
+                                  ? _theme.palette.primary.main
+                                  : _theme.palette.text.secondary,
+                              mx: 0.5,
+                            }}
+                          >
+                            -
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: index === 0 ? 700 : 600,
+                              color:
+                                index === 0
+                                  ? _theme.palette.primary.main
+                                  : _theme.palette.text.primary,
+                              whiteSpace: "nowrap", // Prevent month from wrapping
+                            }}
+                          >
+                            {formatMonthOnly(item.date)}
                           </Typography>
                         </Box>
                         <Box
@@ -1740,7 +1824,11 @@ function MeterScreen({
               <Typography
                 variant="subtitle1"
                 fontWeight="600"
-                sx={{ mb: 2, display: "flex", alignItems: "center" }}
+                sx={{
+                  mb: 2,
+                  display: { xs: "none", lg: "flex" },
+                  alignItems: "center",
+                }}
               >
                 <InfoOutlinedIcon
                   sx={{
@@ -1780,7 +1868,12 @@ function MeterScreen({
                         mb: 0.5,
                       }}
                     >
-                      Promedio de Consumo
+                      <Box sx={{ display: { xs: "none", sm: "block" } }}>
+                        Promedio de Consumo
+                      </Box>
+                      <Box sx={{ display: { xs: "block", sm: "none" } }}>
+                        Promedio
+                      </Box>
                     </Typography>
                     <Typography variant="h6" fontWeight={600} color="info.main">
                       {averageConsumption.toFixed(1) || "---"} m³
@@ -1831,7 +1924,12 @@ function MeterScreen({
               <Typography
                 variant="subtitle1"
                 fontWeight="600"
-                sx={{ mb: 2, mt: 4, display: "flex", alignItems: "center" }}
+                sx={{
+                  mb: 2,
+                  mt: 4,
+                  display: { xs: "none", lg: "flex" },
+                  alignItems: "center",
+                }}
               >
                 <CheckCircleOutlineIcon
                   sx={{
@@ -2078,7 +2176,7 @@ function MeterScreen({
                   onClick={handleCantReadMeter}
                   startIcon={<ErrorOutlineIcon />}
                   sx={{
-                    ml: 1,
+                    ml: 0,
                     borderRadius: 2,
                     borderColor: palette.consumption.estimated.border,
                     color: palette.consumption.estimated.main,
@@ -2104,23 +2202,27 @@ function MeterScreen({
                 {/* Move Confirm button to the right */}
                 <Button
                   variant="contained"
-                  color={localIsConfirmed ? "warning" : "success"} // Changed from "error" to "warning"
+                  color={localIsConfirmed ? "warning" : "success"}
                   onClick={() => {
                     if (localIsConfirmed) {
-                      // Handle unconfirm action
                       handleUnconfirmButtonClick();
                     } else {
-                      // Handle confirm action
                       handleConfirmClick();
                     }
                   }}
                   startIcon={
                     localIsConfirmed ? <WarningIcon /> : <CheckCircleIcon />
                   }
+                  endIcon={<div style={{ width: 8 }} />}
                   sx={{
                     borderRadius: 2,
                     ml: "auto",
-                    mr: 1,
+                    mr: 0,
+                    px: 2.5,
+                    "& .MuiButton-startIcon": {
+                      ml: 1,
+                      mr: 1,
+                    },
                     ...(localIsConfirmed && {
                       backgroundColor: palette.semantic.warning.main,
                       "&:hover": {
@@ -2128,13 +2230,12 @@ function MeterScreen({
                       },
                     }),
                   }}
-                  // Only disable when it's the confirm button AND the input is empty
                   disabled={
                     !localIsConfirmed &&
                     (!inputValue || inputValue.trim() === "")
                   }
                 >
-                  {localIsConfirmed ? "Desconfirmar" : "Confirmar Lectura"}
+                  {localIsConfirmed ? "Editar" : "Confirmar Lectura"}
                 </Button>
               </Box>
             </Grid>
@@ -2904,7 +3005,7 @@ function MeterScreen({
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <WarningIcon color="error" />
-            <Typography>¿Desconfirmar Lectura?</Typography>
+            <Typography>Editar Lectura?</Typography>
           </Box>
         </DialogTitle>
         <DialogContent sx={{ p: 3, pt: 3 }}>
@@ -2917,11 +3018,11 @@ function MeterScreen({
             }}
             component="div"
           >
-            Si desconfirma esta lectura y continua sin confirmar, no se agregará
-            al archivo de lecturas.
+            Asegurese de confirmar la lectura para que se registre en el archivo
+            de lecturas.
           </DialogContentText>
           <Alert severity="warning" sx={{ mb: 1 }}>
-            ¿Está seguro que desea desconfirmar la lectura?
+            ¿Está seguro que desea editar la lectura?
           </Alert>
         </DialogContent>
         <DialogActions
@@ -2948,7 +3049,7 @@ function MeterScreen({
             sx={{ minWidth: 140 }}
             startIcon={<WarningIcon />}
           >
-            Desconfirmar
+            Editar
           </Button>
         </DialogActions>
       </Dialog>
