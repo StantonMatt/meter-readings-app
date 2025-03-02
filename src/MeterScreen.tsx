@@ -1409,12 +1409,13 @@ function MeterScreen({
     <Container
       maxWidth={false}
       sx={{
-        py: { xs: 4, sm: 4 },
+        py: { xs: 4, sm: 2 },
         px: { xs: 0, sm: 3 },
         width: "100%",
         height: "100%",
         display: "flex",
         flexDirection: "column",
+        justifyContent: "center", // Add vertical centering
       }}
     >
       {/* Header with meter info and navigation pills - Only visible on larger screens */}
@@ -1424,8 +1425,8 @@ function MeterScreen({
           justifyContent: "space-between",
           alignItems: "center",
           mb: 1,
-          mt: { xs: 4, lg: 4 },
-          flexWrap: { xs: "wrap", lg: "nowrap" },
+          mt: 0,
+          flexWrap: "nowrap",
           gap: 2,
           pl: 2,
           pr: 2,
