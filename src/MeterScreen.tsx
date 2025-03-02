@@ -1409,7 +1409,7 @@ function MeterScreen({
     <Container
       maxWidth={false}
       sx={{
-        py: { xs: 0, sm: 4 },
+        py: { xs: 4, sm: 4 },
         px: { xs: 0, sm: 3 },
         width: "100%",
         height: "100%",
@@ -1424,7 +1424,7 @@ function MeterScreen({
           justifyContent: "space-between",
           alignItems: "center",
           mb: 1,
-          mt: { xs: 0, sm: 4 },
+          mt: { xs: 4, sm: 4 },
           flexWrap: { xs: "wrap", sm: "nowrap" },
           gap: 2,
           pl: 2,

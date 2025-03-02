@@ -69,6 +69,8 @@ type MeterRowData = {
   onNavigationAttempt: (callback: () => void) => void;
   isMobile: boolean;
   onDrawerClose: () => void;
+  selectedMonth?: number;
+  selectedYear?: number;
 };
 
 interface MeterListProps {
@@ -83,6 +85,8 @@ interface MeterListProps {
   meters: MeterData[];
   isMeterScreen: boolean;
   onDrawerClose: () => void;
+  selectedMonth?: number;
+  selectedYear?: number;
 }
 
 // Virtualized row renderer for meter list
@@ -210,104 +214,115 @@ const MeterRow = React.memo(
           }}
           onClick={handleClick}
         >
-          <ListItemText
-            primary={
+          <Box sx={{ display: "flex", width: "100%", alignItems: "center" }}>
+            {/* Left side: ID and Address */}
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                variant="body1"
+                sx={{
+                  fontWeight: isSelected ? 600 : 500,
+                  color: isSelected ? "#ffffff" : "rgba(255,255,255,0.9)",
+                  fontSize: "0.9rem",
+                  letterSpacing: "0.01em",
+                  display: "inline",
+                  marginRight: 1,
+                }}
+              >
+                {meter.ID}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  display: "inline",
+                  color: "rgba(255,255,255,0.65)",
+                  fontSize: "0.75rem",
+                }}
+              >
+                {data.selectedMonth !== undefined && data.selectedYear
+                  ? `${new Date(
+                      data.selectedYear,
+                      data.selectedMonth
+                    ).toLocaleString("es-ES", { month: "short" })} - ${
+                      data.selectedYear
+                    }`
+                  : ""}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: "rgba(255,255,255,0.65)",
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  display: "block",
+                  mt: 0.5,
+                }}
+              >
+                <Box component="span" sx={{ mr: 1 }}>
+                  {meter.ADDRESS}
+                </Box>
+                <Box
+                  component="span"
+                  sx={{
+                    color: "rgba(255,255,255,0.65)",
+                    fontSize: "0.75rem",
+                  }}
+                >
+                  {`Medidor ${index + 1}/${data.items.length}`}
+                </Box>
+              </Typography>
+            </Box>
+
+            {/* Right side: Reading if exists */}
+            {hasReading && (
               <Box
                 sx={{
                   display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-start",
-                  minHeight: "48px",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "1px solid",
+                  borderColor: alpha(getReadingColor(), 0.08),
+                  background: `linear-gradient(${alpha(
+                    getReadingColor(),
+                    0.2
+                  )}, ${alpha(getReadingColor(), 0.3)}), #FFFFFF`,
+                  borderRadius: "13px",
+                  px: 1.5,
+                  py: 0.75,
+                  minWidth: "80px",
+                  ml: 2,
+                  flexShrink: 0,
                 }}
               >
-                <Box sx={{ flex: 1 }}>
-                  <Typography
-                    variant="body1"
-                    component="span"
-                    sx={{
-                      fontWeight: isSelected ? 600 : 500,
-                      color: isSelected ? "#ffffff" : "rgba(255,255,255,0.9)",
-                      fontSize: "0.9rem",
-                      letterSpacing: "0.01em",
-                      display: "block",
-                      mb: 0.5,
-                    }}
-                  >
-                    {meter.ID}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    component="span"
-                    sx={{
-                      color: "rgba(255,255,255,0.65)",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      maxWidth: "100%",
-                      fontSize: "0.75rem",
-                      display: "block",
-                    }}
-                  >
-                    {meter.ADDRESS}
-                  </Typography>
-                </Box>
-                {hasReading && (
-                  <Box
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "1px solid",
-                      borderColor: alpha(getReadingColor(), 0.08),
-                      background: `linear-gradient(${alpha(
-                        getReadingColor(),
-                        0.2
-                      )}, ${alpha(getReadingColor(), 0.3)}), #FFFFFF`,
-                      borderRadius: "13px",
-                      px: 1.5,
-                      py: 0.75,
-                      minWidth: "80px",
-                      ml: 1.5,
-                      alignSelf: "center",
-                    }}
-                  >
-                    <Typography
-                      variant="body2"
-                      component="span"
-                      sx={{
-                        color: getReadingColor(),
-                        fontWeight: 700,
-                        fontSize: "0.85rem",
-                        lineHeight: 1.2,
-                        textAlign: "center",
-                      }}
-                    >
-                      {reading.reading}
-                    </Typography>
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        color: alpha(getReadingColor(), 0.9),
-                        fontWeight: 600,
-                        fontSize: "0.65rem",
-                        lineHeight: 1.2,
-                        textAlign: "center",
-                      }}
-                    >
-                      {isConfirmed ? "Confirmado" : "Pendiente"}
-                    </Typography>
-                  </Box>
-                )}
+                <Typography
+                  variant="body2"
+                  component="span"
+                  sx={{
+                    color: getReadingColor(),
+                    fontWeight: 700,
+                    fontSize: "0.85rem",
+                    lineHeight: 1.2,
+                    textAlign: "center",
+                  }}
+                >
+                  {reading.reading}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: alpha(getReadingColor(), 0.9),
+                    fontWeight: 600,
+                    fontSize: "0.65rem",
+                    lineHeight: 1.2,
+                    textAlign: "center",
+                  }}
+                >
+                  {isConfirmed ? "Confirmado" : "Pendiente"}
+                </Typography>
               </Box>
-            }
-            primaryTypographyProps={{
-              sx: { mb: 0 },
-            }}
-            secondaryTypographyProps={{
-              sx: { mt: 0 },
-            }}
-          />
+            )}
+          </Box>
         </ListItemButton>
       </ListItem>
     );
@@ -325,6 +340,8 @@ function MeterList({
   meters,
   isMeterScreen,
   onDrawerClose,
+  selectedMonth,
+  selectedYear,
   isMobile,
 }: MeterListProps) {
   // Create a ref for the container
@@ -377,6 +394,8 @@ function MeterList({
     onNavigationAttempt,
     isMobile,
     onDrawerClose,
+    selectedMonth,
+    selectedYear,
   };
 
   return (
@@ -476,6 +495,8 @@ interface LayoutProps {
   currentIndex: number;
   onSelectMeter: (index: number) => void;
   onHomeClick: () => void;
+  selectedMonth?: number;
+  selectedYear?: number;
 }
 
 const Layout: React.FC<LayoutProps> = ({
@@ -487,6 +508,8 @@ const Layout: React.FC<LayoutProps> = ({
   currentIndex,
   onSelectMeter,
   onHomeClick,
+  selectedMonth,
+  selectedYear,
 }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const theme = useTheme();
@@ -548,6 +571,8 @@ const Layout: React.FC<LayoutProps> = ({
         onNavigationAttempt={handleNavigationAttempt}
         isMeterScreen={isMeterScreen}
         onDrawerClose={handleDrawerToggle}
+        selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
       />
     ),
     [
@@ -561,6 +586,8 @@ const Layout: React.FC<LayoutProps> = ({
       isMeterScreen,
       handleNavigationAttempt,
       handleDrawerToggle,
+      selectedMonth,
+      selectedYear,
     ]
   );
 
@@ -637,7 +664,10 @@ const Layout: React.FC<LayoutProps> = ({
             md: showSidebar ? `calc(100% - ${drawerWidth}px)` : "100%",
           },
           padding: theme.spacing(3),
-          marginTop: "64px",
+          marginTop: {
+            xs: "0px",
+            lg: "64px",
+          },
           marginLeft: { xs: 0, md: showSidebar ? `${drawerWidth}px` : 0 },
           backgroundColor: theme.palette.background.default,
           overflowX: "hidden",
