@@ -119,10 +119,6 @@ The build artifacts will be stored in the `dist/` directory.
   - `utils/` - Utility functions for reading validation and calculations
   - `*.tsx` - React components for different screens and UI elements
 
-## License
+## Developer
 
-[Add your license information here]
-
-## Contributors
-
-[Add contributor information here]
+Matthew J. Stanton
