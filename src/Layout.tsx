@@ -338,7 +338,7 @@ function MeterList({
         // Get viewport height
         const viewportHeight = window.innerHeight;
         // Calculate height (subtract search bar + app bar)
-        const searchBarHeight = isMeterScreen ? 64 : 0;
+        const searchBarHeight = 64; // Always account for search bar height
         const appBarHeight = 64;
         const newHeight = viewportHeight - searchBarHeight - appBarHeight;
         setListHeight(newHeight);
@@ -384,62 +384,60 @@ function MeterList({
       sx={{ display: "flex", flexDirection: "column", height: "100%" }}
       ref={containerRef}
     >
-      {/* Search bar - only show on meter screen */}
-      {isMeterScreen && (
-        <Box
-          sx={{
-            p: 2,
-            position: "sticky",
-            top: 0,
-            zIndex: 1,
-            backgroundColor: "transparent",
-            borderBottom: "none",
+      {/* Search bar - always show */}
+      <Box
+        sx={{
+          p: 2,
+          position: "sticky",
+          top: 0,
+          zIndex: 1,
+          backgroundColor: "transparent",
+          borderBottom: "none",
+        }}
+      >
+        <TextField
+          fullWidth
+          placeholder="Buscar medidor..."
+          size="small"
+          onChange={handleSearchChange}
+          defaultValue={searchTerm}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ color: "rgba(0, 0, 0, 0.8)" }} />
+              </InputAdornment>
+            ),
+            sx: {
+              color: "rgba(0, 0, 0, 0.95)",
+              fontWeight: 700,
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: "rgba(0, 0, 0, 0.3)",
+              },
+              "&:hover .MuiOutlinedInput-notchedOutline": {
+                borderColor: "rgba(0, 0, 0, 0.5)",
+              },
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                borderColor: "rgba(0, 0, 0, 0.7)",
+              },
+              "& .MuiInputBase-input::placeholder": {
+                color: "rgba(0, 0, 0, 0.8)",
+                fontWeight: 600,
+                fontStyle: "italic",
+              },
+            },
           }}
-        >
-          <TextField
-            fullWidth
-            placeholder="Buscar medidor..."
-            size="small"
-            onChange={handleSearchChange}
-            defaultValue={searchTerm}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon sx={{ color: "rgba(0, 0, 0, 0.8)" }} />
-                </InputAdornment>
-              ),
-              sx: {
-                color: "rgba(0, 0, 0, 0.95)",
-                fontWeight: 700,
-                "& .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(0, 0, 0, 0.3)",
-                },
-                "&:hover .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(0, 0, 0, 0.5)",
-                },
-                "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                  borderColor: "rgba(0, 0, 0, 0.7)",
-                },
-                "& .MuiInputBase-input::placeholder": {
-                  color: "rgba(0, 0, 0, 0.8)",
-                  fontWeight: 600,
-                  fontStyle: "italic",
-                },
+          sx={{
+            "& .MuiInputBase-root": {
+              backgroundColor: "rgba(255, 255, 255, 0.4)",
+              borderRadius: 2,
+              transition: "all 0.2s ease",
+              "&:hover": {
+                backgroundColor: "rgba(255, 255, 255, 0.5)",
               },
-            }}
-            sx={{
-              "& .MuiInputBase-root": {
-                backgroundColor: "rgba(255, 255, 255, 0.4)",
-                borderRadius: 2,
-                transition: "all 0.2s ease",
-                "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.5)",
-                },
-              },
-            }}
-          />
-        </Box>
-      )}
+            },
+          }}
+        />
+      </Box>
 
       {/* Meter list */}
       <Box sx={{ flexGrow: 1, overflow: "hidden" }}>
@@ -598,6 +596,9 @@ const Layout: React.FC<LayoutProps> = ({
                 boxSizing: "border-box",
                 width: drawerWidth,
                 backgroundColor: "primary.main",
+                height: "100%",
+                marginTop: 0,
+                paddingTop: "64px", // Account for AppBar height
               },
             }}
           >
