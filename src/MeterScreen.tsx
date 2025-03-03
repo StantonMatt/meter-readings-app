@@ -1405,6 +1405,39 @@ function MeterScreen({
     meter.ID,
   ]);
 
+  // Common style objects for reuse
+  const commonBoxStyles = {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: "100%",
+  } as const;
+
+  const commonPaperStyles = {
+    p: { xs: 1.5, sm: 2 },
+    height: "100%",
+    borderRadius: 2,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+  } as const;
+
+  const commonTypographyStyles = {
+    display: "block",
+    fontWeight: 500,
+    mb: { xs: 0.25, sm: 0.5 },
+    fontSize: { xs: "0.7rem", sm: "0.75rem" },
+  } as const;
+
+  const commonValueTypographyStyles = {
+    variant: "h6" as const,
+    fontWeight: 600,
+    sx: {
+      fontSize: { xs: "1.1rem", sm: "1.25rem" },
+      lineHeight: { xs: 1.2, sm: 1.5 },
+    },
+  } as const;
+
   return (
     <Container
       maxWidth={false}
@@ -1600,39 +1633,19 @@ function MeterScreen({
             <Grid
               item
               xs={12}
-              lg={6} // Change from 5 to 6 for better proportions
+              lg={6}
               sx={{
                 width: "100%",
                 "& .MuiPaper-root": {
-                  width: "100%", // Make Paper take full width
+                  width: "100%",
                 },
               }}
             >
-              <Typography
-                variant="subtitle1"
-                fontWeight="600"
-                sx={{
-                  mb: 2,
-                  display: { xs: "none", lg: "flex" },
-                  alignItems: "center",
-                }}
-              >
-                <AccessTimeIcon
-                  sx={{
-                    mr: 1,
-                    color: _theme.palette.primary.main,
-                    fontSize: 20,
-                  }}
-                />
-                Historial de Lecturas
-              </Typography>
-
-              {/* Improved Historical Readings Display */}
               <Paper
                 elevation={0}
                 sx={{
                   p: 0,
-                  height: { xs: "auto", lg: "calc(100% - 40px)" }, // Subtract the header height
+                  height: "100%",
                   display: "flex",
                   flexDirection: "column",
                   overflow: "hidden",
@@ -1648,7 +1661,6 @@ function MeterScreen({
                       flexDirection: "column",
                       width: "100%",
                       height: "100%",
-                      justifyContent: { lg: "space-between" },
                     }}
                   >
                     {historicalReadings.map((item, index) => (
@@ -1657,23 +1669,14 @@ function MeterScreen({
                         sx={{
                           display: "flex",
                           justifyContent: "space-between",
-                          py: { xs: 0.5, lg: 1.2 },
+                          py: {
+                            xs: 0.5,
+                            sm: 2,
+                            md: 1,
+                            lg: "auto",
+                          } as const,
                           px: 1.5,
                           borderRadius: 1,
-                          backgroundColor: "transparent",
-                          borderBottom:
-                            index !== historicalReadings.length - 1
-                              ? `1px solid ${alpha(
-                                  palette.neutral.border,
-                                  0.1
-                                )}`
-                              : "none",
-                          "&:hover": {
-                            backgroundColor: alpha(
-                              palette.neutral.background,
-                              0.05
-                            ),
-                          },
                           borderLeft:
                             index === 0
                               ? `3px solid ${_theme.palette.primary.main}`
@@ -1683,6 +1686,18 @@ function MeterScreen({
                           minWidth: 0,
                           alignItems: "center",
                           flex: { lg: 1 }, // Make each item take equal space in lg view
+                          ...(index !== historicalReadings.length - 1 && {
+                            borderBottom: `1px solid ${alpha(
+                              palette.neutral.border,
+                              0.1
+                            )}`,
+                          }),
+                          "&:hover": {
+                            backgroundColor: alpha(
+                              palette.neutral.background,
+                              0.05
+                            ),
+                          },
                         }}
                       >
                         <Box
@@ -1696,7 +1711,7 @@ function MeterScreen({
                           <Typography
                             variant="body2"
                             sx={{
-                              fontWeight: index === 0 ? 600 : 500,
+                              fontWeight: index === 0 ? 800 : 500,
                               color:
                                 index === 0
                                   ? _theme.palette.primary.main
@@ -1713,7 +1728,7 @@ function MeterScreen({
                                 index === 0
                                   ? _theme.palette.primary.main
                                   : _theme.palette.text.secondary,
-                              mx: 0.5,
+                              mx: 1,
                             }}
                           >
                             -
@@ -1739,11 +1754,10 @@ function MeterScreen({
                             backgroundColor: item.isMissing
                               ? "transparent"
                               : index === 0
-                              ? alpha(_theme.palette.primary.main, 0.08)
+                              ? alpha(_theme.palette.primary.main, 0.12)
                               : alpha(palette.neutral.background, 0.5),
                             px: 2,
-                            py: 0.75,
-                            borderRadius: 1.5,
+                            borderRadius: 1,
                             minWidth: "80px", // Ensure consistent width for readings
                             justifyContent: "center",
                             ml: 1, // Add margin to separate from date
@@ -1800,58 +1814,30 @@ function MeterScreen({
             <Grid
               item
               xs={12}
-              lg={6} // Change from 7 to 6 for better proportions
+              lg={6}
               sx={{
                 width: "100%",
               }}
             >
-              {/* Consumption Summary */}
-              <Typography
-                variant="subtitle1"
-                fontWeight="600"
-                sx={{
-                  mb: 2,
-                  display: { xs: "none", lg: "flex" },
-                  alignItems: "center",
-                }}
-              >
-                <InfoOutlinedIcon
-                  sx={{
-                    mr: 1,
-                    color: _theme.palette.primary.main,
-                    fontSize: 20,
-                  }}
-                />
-                Resumen de Consumo
-              </Typography>
-
+              {/* Consumption Summary - Historial de lecturas*/}{" "}
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 {/* Promedio de Consumo */}
                 <Grid item xs={6}>
                   <Paper
                     elevation={0}
                     sx={{
-                      p: { xs: 1.5, sm: 2 },
-                      height: "100%",
-                      borderRadius: 2,
-                      backgroundColor: alpha(_theme.palette.info.main, 0.08),
-                      border: `1px solid ${alpha(
-                        _theme.palette.info.main,
-                        0.15
-                      )}`,
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "center",
+                      ...commonPaperStyles,
+                      backgroundColor: (theme) =>
+                        alpha(theme.palette.info.main, 0.08),
+                      border: (theme) =>
+                        `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
                     }}
                   >
                     <Typography
                       variant="caption"
                       sx={{
-                        display: "block",
-                        fontWeight: 500,
+                        ...commonTypographyStyles,
                         color: "text.secondary",
-                        mb: { xs: 0.25, sm: 0.5 },
-                        fontSize: { xs: "0.7rem", sm: "0.75rem" },
                       }}
                     >
                       <Box sx={{ display: { xs: "none", sm: "block" } }}>
@@ -1862,13 +1848,8 @@ function MeterScreen({
                       </Box>
                     </Typography>
                     <Typography
-                      variant="h6"
-                      fontWeight={600}
+                      {...commonValueTypographyStyles}
                       color="info.main"
-                      sx={{
-                        fontSize: { xs: "1.1rem", sm: "1.25rem" },
-                        lineHeight: { xs: 1.2, sm: 1.5 },
-                      }}
                     >
                       {averageConsumption.toFixed(1) || "---"} m³
                     </Typography>
@@ -1880,36 +1861,23 @@ function MeterScreen({
                   <Paper
                     elevation={0}
                     sx={{
-                      p: { xs: 1.5, sm: 2 },
-                      height: "100%",
-                      borderRadius: 2,
+                      ...commonPaperStyles,
                       backgroundColor: palette.consumption.estimated.background,
                       border: `1px solid ${palette.consumption.estimated.border}`,
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "center",
                     }}
                   >
                     <Typography
                       variant="caption"
                       sx={{
-                        display: "block",
-                        fontWeight: 500,
+                        ...commonTypographyStyles,
                         color: palette.consumption.estimated.main,
-                        mb: { xs: 0.25, sm: 0.5 },
-                        fontSize: { xs: "0.7rem", sm: "0.75rem" },
                       }}
                     >
                       Lectura Estimada
                     </Typography>
                     <Typography
-                      variant="h6"
-                      fontWeight={600}
+                      {...commonValueTypographyStyles}
                       color={palette.consumption.estimated.main}
-                      sx={{
-                        fontSize: { xs: "1.1rem", sm: "1.25rem" },
-                        lineHeight: { xs: 1.2, sm: 1.5 },
-                      }}
                     >
                       {estimatedReading && estimatedReading !== "---"
                         ? `${estimatedReading} m³`
@@ -1918,28 +1886,7 @@ function MeterScreen({
                   </Paper>
                 </Grid>
               </Grid>
-
-              {/* Current Reading Section */}
-              <Typography
-                variant="subtitle1"
-                fontWeight="600"
-                sx={{
-                  mb: 2,
-                  mt: 4,
-                  display: { xs: "none", lg: "flex" },
-                  alignItems: "center",
-                }}
-              >
-                <CheckCircleOutlineIcon
-                  sx={{
-                    mr: 1,
-                    color: _theme.palette.primary.main,
-                    fontSize: 20,
-                  }}
-                />
-                Lectura Actual
-              </Typography>
-
+              {/* Current Reading Section - Lectura del medidor */}
               <TextField
                 key={`meter-reading-${meter.ID}`}
                 fullWidth
@@ -2000,7 +1947,6 @@ function MeterScreen({
                   },
                 }}
               />
-
               {/* Consumo Actual */}
               {inputValue &&
                 previousReadingEntries.length > 0 &&
@@ -2399,7 +2345,6 @@ function MeterScreen({
                     })()}
                   </Paper>
                 )}
-
               {/* Action Buttons */}
               <Box sx={{ display: "flex", gap: 1, mt: 2 }}>
                 {/* Move "No puedo leer" button to the left and style it with purple */}
