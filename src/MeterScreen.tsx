@@ -35,7 +35,13 @@ import {
   getMeterReading,
   determineConsumptionType,
 } from "./utils/readingUtils";
-import { months, monthAbbreviations } from "./utils/dateUtils";
+import {
+  monthNumberToName,
+  monthOrder,
+  months,
+  monthAbbreviations,
+  getFormattedMonthAbbreviation,
+} from "./utils/dateUtils";
 import { getPreviousReadings } from "./services/firebaseService";
 
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
@@ -100,11 +106,6 @@ const formatMonthOnly = (dateKey: string): string => {
     return monthName;
   }
   return dateKey;
-};
-
-const formatMonthAbbreviation = (monthName: string): string => {
-  const fullName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
-  return monthAbbreviations[fullName] || fullName;
 };
 
 // Add this helper component at the top of your file
@@ -362,25 +363,9 @@ function MeterScreen({
             const yearDiff = parseInt(yearA) - parseInt(yearB);
             if (yearDiff !== 0) return yearDiff;
 
-            // If same year, compare months by their names (using the monthOrder map)
-            const months = {
-              enero: 1,
-              febrero: 2,
-              marzo: 3,
-              abril: 4,
-              mayo: 5,
-              junio: 6,
-              julio: 7,
-              agosto: 8,
-              septiembre: 9,
-              octubre: 10,
-              noviembre: 11,
-              diciembre: 12,
-            };
-
             return (
-              months[monthA.toLowerCase() as keyof typeof months] -
-              months[monthB.toLowerCase() as keyof typeof months]
+              monthOrder[monthA.toLowerCase() as keyof typeof monthOrder] -
+              monthOrder[monthB.toLowerCase() as keyof typeof monthOrder]
             );
           });
 
@@ -541,36 +526,6 @@ function MeterScreen({
     selectedYear: number
   ) => {
     // Convert month names to numbers for comparison
-    const monthNameToNumber: { [key: string]: number } = {
-      enero: 1,
-      febrero: 2,
-      marzo: 3,
-      abril: 4,
-      mayo: 5,
-      junio: 6,
-      julio: 7,
-      agosto: 8,
-      septiembre: 9,
-      octubre: 10,
-      noviembre: 11,
-      diciembre: 12,
-    };
-
-    // Convert number to month name for display
-    const monthNumberToName: { [key: number]: string } = {
-      1: "enero",
-      2: "febrero",
-      3: "marzo",
-      4: "abril",
-      5: "mayo",
-      6: "junio",
-      7: "julio",
-      8: "agosto",
-      9: "septiembre",
-      10: "octubre",
-      11: "noviembre",
-      12: "diciembre",
-    };
 
     // Get the 5 previous months (including the selected month)
     const relevantMonths = [
@@ -585,7 +540,7 @@ function MeterScreen({
     entries.forEach((entry) => {
       const [yearStr, monthName] = entry.date.split("-");
       const year = parseInt(yearStr);
-      const month = monthNameToNumber[monthName.toLowerCase()];
+      const month = monthOrder[monthName.toLowerCase().trim()];
       if (year && month) {
         entriesMap.set(`${year}-${month}`, entry);
       }
@@ -830,15 +785,6 @@ function MeterScreen({
     if (currentNavigation) {
       currentNavigation();
     }
-  };
-
-  const _handleCancelNavigation = () => {
-    // Close the dialog
-    setIsNavigationDialogOpen(false);
-
-    // Reset the navigation state
-    setPendingNavigation(null);
-    setNavigationHandledByChild(false);
   };
 
   // Handle customer interaction response
@@ -1138,18 +1084,6 @@ function MeterScreen({
 
     const consumption = currentReading - previousReading;
     return consumption.toFixed(1);
-  };
-
-  // Add helper function to check if reading is estimated
-  const _isEstimatedReading = () => {
-    const verification = localStorage.getItem(`meter_${meter.ID}_verification`);
-    if (!verification) return false;
-    try {
-      const data = JSON.parse(verification);
-      return data.type === "cantRead";
-    } catch {
-      return false;
-    }
   };
 
   // Add these handlers for negative consumption dialog
@@ -1548,7 +1482,7 @@ function MeterScreen({
                     fontSize: "0.875rem",
                   }}
                 >
-                  {`${formatMonthAbbreviation(
+                  {`${getFormattedMonthAbbreviation(
                     months[selectedMonth]
                   )} - ${selectedYear}`}
                 </Typography>

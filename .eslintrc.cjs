@@ -44,7 +44,7 @@ module.exports = {
     "react/display-name": "off",
     "react-hooks/exhaustive-deps": "off",
     "no-empty-pattern": "warn",
-    "linebreak-style": ["warn", "windows"],
+    "linebreak-style": "off",
   },
   settings: {
     react: {

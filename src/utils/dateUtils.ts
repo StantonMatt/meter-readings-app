@@ -36,18 +36,34 @@ export const monthAbbreviations: Record<string, string> = {
 
 // Month order mapping for sorting
 export const monthOrder: Record<string, number> = {
-  Enero: 1,
-  Febrero: 2,
-  Marzo: 3,
-  Abril: 4,
-  Mayo: 5,
-  Junio: 6,
-  Julio: 7,
-  Agosto: 8,
-  Septiembre: 9,
-  Octubre: 10,
-  Noviembre: 11,
-  Diciembre: 12,
+  enero: 1,
+  febrero: 2,
+  marzo: 3,
+  abril: 4,
+  mayo: 5,
+  junio: 6,
+  julio: 7,
+  agosto: 8,
+  septiembre: 9,
+  octubre: 10,
+  noviembre: 11,
+  diciembre: 12,
+};
+
+// Convert number to month name for display
+export const monthNumberToName: { [key: number]: string } = {
+  1: "enero",
+  2: "febrero",
+  3: "marzo",
+  4: "abril",
+  5: "mayo",
+  6: "junio",
+  7: "julio",
+  8: "agosto",
+  9: "septiembre",
+  10: "octubre",
+  11: "noviembre",
+  12: "diciembre",
 };
 
 /**
@@ -59,6 +75,11 @@ export const getFormattedMonthYear = (date: Date): string => {
   const year = date.getFullYear();
   const month = months[date.getMonth()].substring(0, 3).toLowerCase();
   return `${year}-${month}`;
+};
+
+export const getFormattedMonthAbbreviation = (monthName: string): string => {
+  const fullName = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  return monthAbbreviations[fullName] || fullName;
 };
 
 interface MonthYearPair {
@@ -94,22 +115,6 @@ export const getMonthFileName = (year: number, month: number): string => {
   return `${year}-${monthName}`;
 };
 
-// Array of Spanish month names
-export const monthNames = [
-  "Enero",
-  "Febrero",
-  "Marzo",
-  "Abril",
-  "Mayo",
-  "Junio",
-  "Julio",
-  "Agosto",
-  "Septiembre",
-  "Octubre",
-  "Noviembre",
-  "Diciembre",
-];
-
 /**
  * Get the previous month and year based on current month and year
  */
@@ -128,7 +133,7 @@ export function getPreviousMonth(
   return {
     month: prevMonth,
     year: prevYear,
-    name: monthNames[prevMonth],
+    name: months[prevMonth],
   };
 }
 
